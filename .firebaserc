@@ -5,9 +5,6 @@
   "targets": {
     "ai-builder-cup-aidatlas": {
       "hosting": {
-        "aidatlas": [
-          "ai-builder-cup-aidatlas"
-        ],
         "parali-setu": [
           "parali-setu"
         ]
