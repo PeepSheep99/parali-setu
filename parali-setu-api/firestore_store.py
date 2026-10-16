@@ -42,8 +42,25 @@ def save_listing(db: firestore.Client, farmer_id: str, extracted: dict, language
         "language": language,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    # Fields from the speak-once flow; absent on older listings.
+    for field in ("acres", "sowing_deadline", "lat", "lon", "quality_note", "draft_id"):
+        if extracted.get(field) is not None:
+            listing[field] = extracted[field]
     db.collection("listings").document(listing["id"]).set(listing)
     return listing
+
+
+def save_draft(db: firestore.Client, draft: dict) -> dict:
+    draft = {**draft, "id": draft.get("id") or _new_id("draft"),
+             "updated_at": datetime.now(timezone.utc).isoformat()}
+    draft.setdefault("created_at", draft["updated_at"])
+    db.collection("listing_drafts").document(draft["id"]).set(draft)
+    return draft
+
+
+def get_draft(db: firestore.Client, draft_id: str) -> dict | None:
+    doc = db.collection("listing_drafts").document(draft_id).get()
+    return doc.to_dict() if doc.exists else None
 
 
 def get_open_listings(db: firestore.Client) -> list[dict]:

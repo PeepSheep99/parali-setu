@@ -18,7 +18,7 @@ import os
 from datetime import date
 from typing import Literal
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -29,13 +29,17 @@ from extraction import (
     explain_match,
     explain_pricing,
     extract_listing,
+    follow_up_question,
     parse_custom_constraint,
     parse_negotiation_price,
     read_no_burn_proof,
     read_stubble_quality,
 )
 from gemini_client import get_gemini_client
+from impact import impact_for_kg
 from negotiation import run_negotiation
+from phrases import confirm_summary
+from scheduler import STRAW_T_PER_ACRE, acres_from_kg
 from solver import (
     DEFAULT_SERVICE_RADIUS_KM,
     Demand,
@@ -764,3 +768,244 @@ def stop_collected(match_id: str, req: CollectedRequest):
     })
     paid = store.update_match_status(db, match_id, "paid", {"payout_id": payout["id"], "payout_inr": payout["amount_inr"]})
     return {"match": paid, "payout": payout}
+
+
+# ---------------------------------------------------------------------------
+# Speak once, confirm once: the low-friction listing flow (Kisan app).
+# ---------------------------------------------------------------------------
+
+DRAFT_FIELDS = ("quantity_kg", "acres", "crop_type", "village_or_district", "ready_by", "sowing_deadline", "contact")
+
+
+def _complete_quantities(fields: dict) -> dict:
+    """Area and weight are derived from each other in code (1.75 t/acre),
+    never by Gemini, so the solver and scheduler always have both."""
+    fields = dict(fields)
+    if fields.get("acres") and not fields.get("quantity_kg"):
+        fields["quantity_kg"] = round(fields["acres"] * STRAW_T_PER_ACRE * 1000, 1)
+    elif fields.get("quantity_kg") and not fields.get("acres"):
+        fields["acres"] = acres_from_kg(fields["quantity_kg"])
+    return fields
+
+
+def _missing_fields(fields: dict) -> list[str]:
+    missing = []
+    if not fields.get("quantity_kg") and not fields.get("acres"):
+        missing.append("quantity")
+    if not fields.get("crop_type"):
+        missing.append("crop_type")
+    if pickups.listing_location(fields) is None:
+        missing.append("location")
+    if not fields.get("sowing_deadline"):
+        missing.append("sowing_deadline")
+    return missing
+
+
+def _spoken(text: str | None, language: str) -> dict | None:
+    if not text:
+        return None
+    audio = synthesize_speech(text, language)
+    return {"text": text, "audio_base64": base64.b64encode(audio).decode("ascii") if audio else None}
+
+
+async def _transcribe_upload(audio: UploadFile, language: str) -> str:
+    audio_bytes = await audio.read()
+    if audio.content_type and "wav" in audio.content_type:
+        audio_format, sample_rate = "linear16", 16000
+    else:
+        audio_format, sample_rate = "webm_opus", 48000
+    transcript = transcribe_audio(audio_bytes, language, sample_rate_hertz=sample_rate, audio_format=audio_format)
+    if transcript is None:
+        raise HTTPException(status_code=422, detail="Could not hear that clearly -- please try again or type it")
+    return transcript
+
+
+@app.post("/listings/draft")
+async def listing_draft(
+    farmer_id: str = Form(..., min_length=1, max_length=64),
+    language: Language = Form("Hindi"),
+    text: str | None = Form(None, max_length=1000),
+    draft_id: str | None = Form(None, max_length=64),
+    lat: float | None = Form(None, ge=-90, le=90),
+    lon: float | None = Form(None, ge=-180, le=180),
+    audio: UploadFile | None = File(None),
+    photo: UploadFile | None = File(None),
+):
+    """Step 1 of listing: understand what the farmer said (voice or text,
+    optional photo and location). Returns the draft for the confirm card,
+    and -- only the first time something is missing -- ONE spoken question
+    that asks for all of it. Nothing is listed until /confirm."""
+    db = store.get_firestore_client()
+    client = get_gemini_client()
+
+    draft = None
+    if draft_id:
+        draft = store.get_draft(db, draft_id)
+        if draft is None or draft.get("farmer_id") != farmer_id:
+            raise HTTPException(status_code=404, detail="Draft not found")
+        if draft.get("listing_id"):
+            raise HTTPException(status_code=409, detail="This listing was already confirmed")
+
+    if audio is not None:
+        utterance = await _transcribe_upload(audio, language)
+    elif text and text.strip():
+        utterance = text.strip()
+    elif draft is None:
+        raise HTTPException(status_code=422, detail="Say or type what you want to list")
+    else:
+        utterance = ""
+
+    transcript = " ".join(t for t in ((draft or {}).get("transcript", ""), utterance) if t).strip()
+    fields = dict((draft or {}).get("fields") or {})
+    if utterance:
+        extracted = extract_listing(client, transcript, language)
+        if extracted is None:
+            raise HTTPException(status_code=503, detail="Could not understand that right now -- please try again")
+        for key in DRAFT_FIELDS:
+            if extracted.get(key) is not None:
+                fields[key] = extracted[key]
+    if lat is not None and lon is not None:
+        fields["lat"], fields["lon"] = lat, lon
+    fields = _complete_quantities(fields)
+
+    quality = (draft or {}).get("quality") or {"grade": "unknown", "note": None}
+    if photo is not None:
+        result = read_stubble_quality(client, await photo.read(), mime_type=photo.content_type or "image/jpeg")
+        if result and result.get("quality_grade"):
+            quality = {"grade": result["quality_grade"], "note": result.get("note")}
+
+    missing = _missing_fields(fields)
+    asked_before = bool((draft or {}).get("asked_follow_up"))
+    follow_up = None
+    if missing and not asked_before:
+        follow_up = _spoken(follow_up_question(client, missing, language), language)
+
+    saved = store.save_draft(db, {
+        **(draft or {}), "farmer_id": farmer_id, "language": language, "transcript": transcript,
+        "fields": fields, "quality": quality, "missing_fields": missing,
+        "asked_follow_up": asked_before or follow_up is not None,
+    })
+    location = pickups.listing_location(fields)
+    return {
+        "draft_id": saved["id"],
+        "transcript": transcript,
+        "fields": fields,
+        "quality": quality,
+        "location_approximate": location[2] if location else None,
+        "missing_fields": missing,
+        "follow_up": follow_up,
+        "confirm_summary": None if follow_up else _spoken(confirm_summary(fields, language), language),
+    }
+
+
+class DraftEdits(BaseModel):
+    acres: float | None = Field(default=None, gt=0, le=1000)
+    crop_type: CropType | None = None
+    village_or_district: str | None = Field(default=None, max_length=120)
+    ready_by: date | None = None
+    sowing_deadline: date | None = None
+
+
+class ConfirmDraftRequest(BaseModel):
+    farmer_id: str = Field(min_length=1, max_length=64)
+    edits: DraftEdits | None = None
+
+
+@app.post("/listings/{draft_id}/confirm")
+def confirm_listing(draft_id: str, req: ConfirmDraftRequest):
+    """Step 2: the farmer confirmed the card (possibly after tapping a chip
+    to fix it). The listing is saved, matched by the LP, given a pickup slot
+    by the scheduler, and the offer is returned and read aloud."""
+    db = store.get_firestore_client()
+    client = get_gemini_client()
+    draft = store.get_draft(db, draft_id)
+    if draft is None or draft.get("farmer_id") != req.farmer_id:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    if draft.get("listing_id"):
+        raise HTTPException(status_code=409, detail="This listing was already confirmed")
+
+    fields = dict(draft.get("fields") or {})
+    if req.edits:
+        edits = req.edits.model_dump(exclude_none=True)
+        if "acres" in edits:
+            fields.pop("quantity_kg", None)   # re-derive weight from the corrected area
+        for key, value in edits.items():
+            fields[key] = value.isoformat() if isinstance(value, date) else value
+    fields = _complete_quantities(fields)
+    if not fields.get("quantity_kg") or not fields.get("crop_type"):
+        raise HTTPException(status_code=422, detail="Tell us how much stubble and which crop before confirming")
+
+    language = draft.get("language", "Hindi")
+    quality = draft.get("quality") or {}
+    listing_doc = store.save_listing(db, req.farmer_id, {
+        **fields, "quality_grade": quality.get("grade", "unknown"),
+        "quality_note": quality.get("note"), "draft_id": draft_id,
+    }, language)
+    store.save_draft(db, {**draft, "listing_id": listing_doc["id"], "fields": fields})
+
+    all_saved = _run_global_solve(db)
+    pickups.plan_companies(db, {m["company_id"] for m in all_saved})
+    offers = [_with_slots(db, m) for m in all_saved if m["listing_id"] == listing_doc["id"]]
+    for offer in offers:
+        company = store.get_company(db, offer["company_id"]) or {}
+        offer["company_name"] = company.get("name", offer["company_id"])
+
+    offered = [o for o in offers if o.get("status") == "proposed" and o.get("slots")]
+    status = "offered" if offered else ("waitlisted" if offers else "no_buyer")
+    matched_kg = sum(o["matched_kg"] for o in offers)
+    explanation = None
+    if offered:
+        first = offered[0]
+        explanation = explain_match(client, {
+            "company_name": first["company_name"], "matched_kg": first["matched_kg"],
+            "price_agreed_per_kg": first["price_agreed_per_kg"], "pickup_window": first["pickup_window"],
+        }, language)
+    location = pickups.listing_location(listing_doc)
+    return {
+        "listing": listing_doc,
+        "status": status,
+        "offers": offers,
+        "payout_estimate_inr": round(sum(o["matched_kg"] * o["price_agreed_per_kg"] for o in offers), 2),
+        "impact_if_collected": impact_for_kg(matched_kg) if matched_kg else None,
+        "window_assumed": pickups.listing_window(listing_doc, date.today())[2],
+        "location_approximate": location[2] if location else None,
+        "explanation": _spoken(explanation, language),
+    }
+
+
+class AcceptSlotRequest(BaseModel):
+    farmer_id: str = Field(min_length=1, max_length=64)
+
+
+@app.post("/matches/{match_id}/accept-slot")
+def accept_slot(match_id: str, req: AcceptSlotRequest):
+    """The farmer accepts the offered slot: the match becomes scheduled and
+    its slots are locked. Re-plans after this fit new work around them."""
+    db = store.get_firestore_client()
+    match = store.get_match(db, match_id)
+    if match is None or match.get("farmer_id") != req.farmer_id:
+        raise HTTPException(status_code=404, detail="Match not found")
+    slots = store.get_slots_for_match(db, match_id)
+    if not slots:
+        raise HTTPException(status_code=409, detail="There is no pickup slot to accept yet")
+    try:
+        updated = store.update_match_status(db, match_id, "scheduled", {"slot_accepted_at": date.today().isoformat()})
+    except store.InvalidTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    locked = store.set_slots_status(db, match_id, "locked", locked=True)
+    return {"match": updated, "slots": locked, "pickup_window": pickups.window_label(locked[0])}
+
+
+@app.get("/impact")
+def impact_summary():
+    """Impact of stubble actually collected so far (collected or paid
+    matches), plus what is already scheduled. Deterministic: impact.py."""
+    db = store.get_firestore_client()
+    collected_kg = scheduled_kg = 0.0
+    for doc in db.collection("matches").where("status", "in", ["collected", "paid", "scheduled"]).stream():
+        m = doc.to_dict()
+        if m.get("status") == "scheduled":
+            scheduled_kg += m.get("matched_kg", 0)
+        else:
+            collected_kg += m.get("collected_kg") or m.get("matched_kg", 0)
+    return {"collected": impact_for_kg(collected_kg), "scheduled": impact_for_kg(scheduled_kg)}

@@ -39,22 +39,29 @@ date is {today.isoformat()}. Respond with ONLY a JSON object, no other text,
 matching exactly this shape:
 
 {{
-  "quantity_kg": <number, convert quintals to kg by multiplying by 100 if the farmer used quintals>,
-  "crop_type": <one of "rice_stubble" or "wheat_stubble">,
+  "quantity_kg": <number ONLY if the farmer stated a weight; convert quintals to kg by multiplying by 100 and tonnes by 1000; else null>,
+  "acres": <number ONLY if the farmer stated an area in acres ("acre", "killa", "kille" all mean acre); else null>,
+  "crop_type": <one of "rice_stubble" (paddy/jhona/dhaan) or "wheat_stubble">,
   "village_or_district": <string, as stated>,
-  "ready_by": <ISO date string YYYY-MM-DD, or null>,
+  "ready_by": <ISO date string YYYY-MM-DD when the stubble is ready for pickup, or null>,
+  "sowing_deadline": <ISO date string YYYY-MM-DD by which the field must be clear to sow the next crop, or null>,
   "contact": <string if a phone number or name was given, else null>
 }}
 
-Strict rule for ready_by, since a wrong specific date is worse than none: only
-fill it in if the message states an explicit day number (e.g. "the 25th",
-"20 October") or an unambiguous relative timeframe (e.g. "next week", "in 5
-days") that you can resolve against today's date. If the message only names a
-month with no day (e.g. a stray or garbled word near "October" with no
-number), or is otherwise vague, return null -- do NOT guess, round to, or
-infer any particular day of that month. The same caution applies to every
-other field: if a word looks like a transcription error or doesn't clearly
-state a value, use null rather than resolving it to a specific guess.
+Never convert between area and weight -- if only acres were stated,
+quantity_kg is null, and if only a weight was stated, acres is null.
+
+Strict rule for ready_by and sowing_deadline, since a wrong specific date is
+worse than none: only fill one in if the message states an explicit day number
+(e.g. "the 25th", "20 October") or an unambiguous relative timeframe (e.g.
+"next week", "in 5 days") that you can resolve against today's date. If the
+message only names a month with no day (e.g. a stray or garbled word near
+"October" with no number), or is otherwise vague, return null -- do NOT guess,
+round to, or infer any particular day of that month. A phrase like "25 tak
+chakkni hai" (must be lifted by the 25th) is a sowing_deadline. The same
+caution applies to every other field: if a word looks like a transcription
+error or doesn't clearly state a value, use null rather than resolving it to a
+specific guess.
 
 Farmer's message: "{raw_text}"
 """
@@ -69,6 +76,57 @@ Farmer's message: "{raw_text}"
     if parsed.get("crop_type") not in VALID_CROP_TYPES:
         parsed["crop_type"] = None
     return parsed
+
+
+FOLLOW_UP_FIELD_TEXT = {
+    "quantity": "how many acres (or quintals) of stubble",
+    "crop_type": "whether it is paddy or wheat stubble",
+    "location": "which village and district the field is in",
+    "sowing_deadline": "the date by which the field must be cleared for sowing",
+}
+
+# Used when Gemini can't phrase the question: the farmer still gets exactly
+# one clear question in their language.
+FALLBACK_FOLLOW_UPS = {
+    "Hindi": {
+        "quantity": "कितने एकड़ की पराली है?",
+        "crop_type": "धान की पराली है या गेहूं की?",
+        "location": "खेत किस गांव और ज़िले में है?",
+        "sowing_deadline": "खेत किस तारीख तक खाली चाहिए?",
+    },
+    "Punjabi": {
+        "quantity": "ਕਿੰਨੇ ਕਿੱਲੇ ਦੀ ਪਰਾਲੀ ਹੈ?",
+        "crop_type": "ਝੋਨੇ ਦੀ ਪਰਾਲੀ ਹੈ ਜਾਂ ਕਣਕ ਦੀ?",
+        "location": "ਖੇਤ ਕਿਹੜੇ ਪਿੰਡ ਅਤੇ ਜ਼ਿਲ੍ਹੇ ਵਿੱਚ ਹੈ?",
+        "sowing_deadline": "ਖੇਤ ਕਿਸ ਤਾਰੀਖ ਤੱਕ ਖਾਲੀ ਚਾਹੀਦਾ ਹੈ?",
+    },
+    "English": {
+        "quantity": "How many acres of stubble do you have?",
+        "crop_type": "Is it paddy or wheat stubble?",
+        "location": "Which village and district is the field in?",
+        "sowing_deadline": "By what date must the field be cleared?",
+    },
+}
+
+
+def follow_up_question(client: genai.Client, missing_fields: list[str], language: str) -> str:
+    """One short spoken question that asks for every missing field at once.
+    The farmer is asked at most one question per listing, so it has to
+    cover everything. Falls back to fixed text if Gemini is unavailable."""
+    asks = [FOLLOW_UP_FIELD_TEXT[f] for f in missing_fields if f in FOLLOW_UP_FIELD_TEXT]
+    if not asks:
+        return ""
+    prompt = f"""A farmer is listing crop stubble for pickup by voice. Write ONE short,
+polite question in {language}, in simple everyday words a farmer would use,
+asking for: {"; ".join(asks)}. Ask for nothing else. Use the farmer's
+everyday unit (in Punjabi, acres are "kille"). Plain text only, no markdown,
+no asterisks, no greeting.
+"""
+    text = call_gemini(client, prompt, json_mode=False)
+    if text and text.strip():
+        return text.strip()
+    fallback = FALLBACK_FOLLOW_UPS.get(language, FALLBACK_FOLLOW_UPS["English"])
+    return " ".join(fallback[f] for f in missing_fields if f in fallback)
 
 
 def read_stubble_quality(client: genai.Client, image_bytes: bytes, mime_type: str = "image/jpeg") -> dict | None:
