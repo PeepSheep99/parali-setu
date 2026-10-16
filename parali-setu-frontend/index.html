@@ -3,75 +3,136 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Parali Setu — sell your stubble, don't burn it</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="styles.css">
+<title>Parali Setu · Guaranteed stubble pickup before sowing</title>
+<meta name="description" content="Farmers list paddy stubble by voice in Punjabi or Hindi; an optimizer books a crew pickup before the wheat-sowing deadline, and the farmer gets paid instead of burning.">
+<link rel="icon" href="kisan/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="landing.css">
 </head>
 <body>
-<div class="page landing-page">
-
-  <header class="top">
-    <h1>🌾 Parali Setu</h1>
-    <nav>
-      <a href="index.html" class="active">About</a>
-      <a href="farmer.html">Farmer</a>
-      <a href="company.html">Company</a>
+<header class="nav">
+  <div class="nav-inner">
+    <a class="brand" href="./"><img src="kisan/icon.svg" alt="" width="30" height="30"> Parali Setu</a>
+    <nav aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#impact">Impact</a>
+      <a href="#architecture">Architecture</a>
+      <a href="kisan/" class="pill-link">Farmer app</a>
+      <a href="buyer/" class="pill-link dark">Buyer console</a>
     </nav>
-  </header>
+  </div>
+</header>
 
+<main>
   <section class="hero">
-    <p class="hero-eyebrow">Punjab &amp; Haryana, stubble-burning season</p>
-    <h2 class="hero-headline">A live match between farmers who have stubble, and buyers who'll pay for it — before it burns.</h2>
-    <p class="hero-sub">Parali (stubble) + Setu (bridge). Voice-first for farmers, a real optimizer underneath — not a chatbot layered on a spreadsheet.</p>
-    <div class="hero-ctas">
-      <a href="farmer.html" class="primary-cta">I'm a Farmer</a>
-      <a href="company.html" class="secondary-cta">I'm a Company</a>
+    <div class="hero-text">
+      <p class="eyebrow">Punjab &amp; Haryana · paddy harvest season</p>
+      <h1>A guaranteed pickup before sowing, so the stubble never gets burned.</h1>
+      <p class="lede">Farmers list their stubble by voice in Punjabi or Hindi. An optimizer matches it to a buyer whose crews can reach the field and books a pickup slot before the wheat-sowing deadline. The field gets cleared for free and the farmer gets paid.</p>
+      <div class="ctas">
+        <a class="btn primary" href="kisan/">List stubble (farmer)</a>
+        <a class="btn" href="buyer/">Plan pickups (buyer)</a>
+      </div>
+      <p class="small muted">Parali (ਪਰਾਲੀ) is stubble; setu (ਸੇਤੂ) is a bridge. Prototype with demo buyers and listings.</p>
+    </div>
+    <aside class="live card" aria-live="polite">
+      <p class="eyebrow">Live on this prototype</p>
+      <div class="live-grid" id="live">
+        <div><span class="v" id="live-tonnes">–</span><span class="k">straw collected, not burned</span></div>
+        <div><span class="v" id="live-ghg">–</span><span class="k">CO₂e avoided</span></div>
+        <div><span class="v" id="live-booked">–</span><span class="k">more booked for pickup</span></div>
+      </div>
+      <p class="small muted">From collected pickups in the demo data, computed by the backend's impact model.</p>
+    </aside>
+  </section>
+
+  <section class="band">
+    <div class="inner">
+      <p class="eyebrow">The problem</p>
+      <h2>Fewer fires counted, the same area burned</h2>
+      <div class="stats">
+        <div class="stat burn"><span class="v">36,663 → 5,085</span><span class="k">Punjab farm-fire counts, 2023 to 2025 (state estimate)</span></div>
+        <div class="stat flat"><span class="v">19.14 → 19.17</span><span class="k">lakh hectares burned, 2023 to 2024: counts fell, area did not</span></div>
+        <div class="stat good"><span class="v">0.92 → 7.06 Mt</span><span class="k">straw used by industry, 2020-21 to 2025: buyers exist</span></div>
+      </div>
+      <div class="split">
+        <div class="table-wrap">
+          <table>
+            <caption>Why a farmer still burns, per acre of paddy</caption>
+            <tbody>
+              <tr><th scope="row">Straw produced</th><td>17–18 quintals</td></tr>
+              <tr><th scope="row">Its value delivered to a plant</th><td>₹2,200–3,000</td></tr>
+              <tr><th scope="row">Baling and transport, paid by the farmer</th><td>₹2,500–4,000</td></tr>
+              <tr><th scope="row">Burning</th><td>≈₹500 and one day</td></tr>
+              <tr><th scope="row">Time before wheat sowing</th><td>10–15 days</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="thesis">Selling straw nets a farmer roughly nothing. What changes the decision is a free, guaranteed clearing before the sowing date, with a small payment on top. The bottleneck is coordinating a scarce baler fleet, and that is what Parali Setu optimizes.</p>
+      </div>
     </div>
   </section>
 
-  <section class="card guide-card">
-    <h2>How it works</h2>
-    <p class="hint" style="margin-top:-.3rem;margin-bottom:.9rem;">Two sides, one live match. Either can go first.</p>
-    <ol class="guide-steps">
-      <li>
-        <span class="step-num">1</span>
-        <div><strong>A company posts standing demand</strong><br><span class="step-detail">how much crop residue they need, what price they're offering, which quality grades they'll take.</span></div>
-      </li>
-      <li>
-        <span class="step-num">2</span>
-        <div><strong>A farmer lists stubble, by voice or text</strong><br><span class="step-detail">quantity, crop, village, when it's ready for pickup — speak it in Hindi or Punjabi, or type it.</span></div>
-      </li>
-      <li>
-        <span class="step-num">3</span>
-        <div><strong>A live match and price appear instantly</strong><br><span class="step-detail">a real optimizer (not a guess) matches listings to demand and sets the price, the moment either side acts.</span></div>
-      </li>
-      <li>
-        <span class="step-num">4</span>
-        <div><strong>Both sides confirm pickup</strong><br><span class="step-detail">the match is locked in; the company collects, the farmer gets paid instead of burning the field.</span></div>
-      </li>
+  <section class="inner" id="how">
+    <p class="eyebrow">How it works</p>
+    <h2>Speak once, confirm once, get a slot</h2>
+    <ol class="steps">
+      <li><h3>Speak</h3><p>The farmer holds one button and says how many acres, which crop, the village and when the field must be clear. Cloud Speech-to-Text transcribes Punjabi or Hindi; Gemini turns it into a structured listing.</p></li>
+      <li><h3>Confirm</h3><p>The app reads the details back word for word. If something is missing, Gemini asks one question, never two. A photo lets Gemini grade the stubble.</p></li>
+      <li><h3>Match and schedule</h3><p>An OR-Tools linear program picks the buyer whose crews can reach the farm. An OR-Tools routing model books a crew slot before the sowing deadline, or says honestly why it can't.</p></li>
+      <li><h3>Collect and pay</h3><p>The crew marks the pickup collected, the farmer's payout is recorded and the avoided emissions are counted. Gemini explains every result; it never sets a price, a quantity or a slot.</p></li>
     </ol>
   </section>
 
-  <section class="card map-card">
-    <h2>Recent fire activity <span class="map-badge">refreshed periodically, not live</span></h2>
-    <p class="hint" style="margin-top:-.3rem;margin-bottom:.8rem;">Real satellite fire detections (NASA FIRMS) over the last 7 days across the 8 demo districts — the actual stakes this marketplace exists to reduce.</p>
-    <div id="fire-map" class="fire-map"></div>
-    <p id="map-status" class="hint" style="margin-top:.6rem;"></p>
-  </section>
-
-  <section class="card closing-cta">
-    <p class="closing-text">Every October, Punjab's sky turns to smoke from stubble no one found a buyer for in time.</p>
-    <div class="hero-ctas">
-      <a href="farmer.html" class="primary-cta">List your stubble</a>
-      <a href="company.html" class="secondary-cta">Post your demand</a>
+  <section class="band" id="fires">
+    <div class="inner">
+      <p class="eyebrow">Recent fire activity <span class="badge">refreshed periodically, not live</span></p>
+      <h2>What the satellites saw this week</h2>
+      <p class="muted">NASA FIRMS detections over the 8 demo districts, fetched through Google Earth Engine. They also cross-check farmers' no-burn photos.</p>
+      <div id="fire-map" class="map" role="img" aria-label="Map of recent fire detections"></div>
+      <p id="map-status" class="small muted"></p>
     </div>
   </section>
 
-</div>
+  <section class="inner" id="impact">
+    <p class="eyebrow">Impact</p>
+    <h2>What if a share of Punjab's straw went through Parali Setu?</h2>
+    <div class="scenario card">
+      <label for="share" class="share-label">Share of Punjab's ~19.7 Mt of paddy straw: <b><output id="share-out" for="share">5</output>%</b></label>
+      <input type="range" id="share" min="1" max="25" step="1" value="5">
+      <div class="scenario-grid" aria-live="polite">
+        <div><span class="v" id="sc-tonnes">–</span><span class="k">straw collected</span></div>
+        <div><span class="v" id="sc-ghg">–</span><span class="k">CO₂e avoided (methane + N₂O)</span></div>
+        <div><span class="v" id="sc-pm">–</span><span class="k">PM2.5 not released</span></div>
+        <div><span class="v" id="sc-cost">–</span><span class="k">clearing cost farmers avoid</span></div>
+      </div>
+      <p class="small muted" id="sc-method"></p>
+    </div>
+  </section>
+
+  <section class="band" id="architecture">
+    <div class="inner">
+      <p class="eyebrow">Architecture on Google Cloud</p>
+      <h2>Language from Gemini, numbers from optimizers</h2>
+      <div class="arch">
+        <a href="img/architecture.png" class="arch-img"><img src="img/architecture.png" alt="Architecture: Firebase Hosting pages call the parali-setu-api on Cloud Run, which uses Vertex AI Gemini, Speech-to-Text and Text-to-Speech for language, OR-Tools for matching and pickup routing, Firestore for state, BigQuery ML for demand forecasts and Earth Engine for fire detections. Billing budgets, Pub/Sub and a cost-guard function protect the free-tier budget." width="2000" height="1280" loading="lazy"></a>
+        <ul class="principles">
+          <li><b>Gemini on Vertex AI</b> understands speech and photos, asks the one follow-up question and explains results, in Punjabi, Hindi or English.</li>
+          <li><b>OR-Tools on Cloud Run</b> decides every price, quantity and pickup slot: a linear program for matching, a routing model for crews.</li>
+          <li><b>Firestore</b> holds live state; <b>BigQuery ML</b> forecasts buyer demand; <b>Earth Engine</b> supplies NASA FIRMS fire detections.</li>
+          <li><b>Cost guard:</b> billing budgets alert the team and a Cloud Run function throttles the API if real money is ever charged.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="inner footer">
+  <p><a href="https://github.com/PeepSheep99/parali-setu">Source on GitHub</a> · Google Cloud AI Builder Cup 2026 · Team Ctrl Alt Conquer</p>
+  <p class="small muted">Buyers, crews and listings are demo data. Prices are farm-gate estimates (plants pay about ₹169 per quintal delivered). Payments are simulated. Fire counts: PPCB via Business Standard and Tribune; burnt area: Vajiram &amp; Ravi; farm economics: Tribune, Hindustan Times, Mongabay; emission factors: Gadde et al. 2009 with IPCC AR6 GWP100.</p>
+</footer>
 
 <script src="config.js"></script>
 <script src="landing.js"></script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC659aJXNS9RRL2OWR8N3j9-0vHWl-Oyv8&callback=initFireMap&v=weekly" async></script>
 </body>
 </html>

@@ -4,6 +4,10 @@
       "target": "parali-setu",
       "public": "parali-setu-frontend",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "README.md"],
+      "redirects": [
+        { "source": "/farmer.html", "destination": "/kisan/", "type": 301 },
+        { "source": "/company.html", "destination": "/buyer/", "type": 301 }
+      ],
       "headers": [
         {
           "source": "**/*.@(js|css)",

@@ -70,3 +70,16 @@ def impact_for_tonnes(tonnes: float, coal_replacing: bool = False) -> dict:
 
 def impact_for_kg(kg: float, coal_replacing: bool = False) -> dict:
     return impact_for_tonnes(kg / 1000, coal_replacing)
+
+
+# Punjab paddy straw generated per season: ~19.7 Mt from ~3.2 Mha of paddy
+# (State of Punjab status report to the NGT, OA 632/2023).
+PUNJAB_PADDY_STRAW_T = 19_700_000
+
+
+def punjab_scenario(share_pct: float) -> dict:
+    """Impact if `share_pct` percent of Punjab's paddy straw were collected
+    through Parali Setu instead of burned. A what-if, labelled as such."""
+    share_pct = min(max(share_pct, 0.0), 100.0)
+    return {"share_pct": share_pct, **impact_for_tonnes(PUNJAB_PADDY_STRAW_T * share_pct / 100),
+            "basis": "Share of Punjab's ~19.7 Mt paddy straw (NGT status report, State of Punjab)."}

@@ -18,7 +18,7 @@ import os
 from datetime import date
 from typing import Literal
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -37,7 +37,7 @@ from extraction import (
 )
 from geo import district_from_text
 from gemini_client import get_gemini_client
-from impact import impact_for_kg
+from impact import impact_for_kg, punjab_scenario
 from negotiation import run_negotiation
 from phrases import confirm_summary
 from scheduler import STRAW_T_PER_ACRE, acres_from_kg
@@ -1081,3 +1081,10 @@ def buyer_impact(company_id: str):
     return {"company_id": company_id, "collected": impact_for_kg(collected_kg),
             "scheduled": impact_for_kg(scheduled_kg), "payouts_inr": round(payouts, 2),
             "farmers_paid": len(farmers)}
+
+
+@app.get("/impact/scenario")
+def impact_scenario(share_pct: float = Query(5.0, ge=0, le=100)):
+    """What-if for the landing page slider: impact if this share of Punjab's
+    paddy straw were collected instead of burned. Deterministic: impact.py."""
+    return punjab_scenario(share_pct)

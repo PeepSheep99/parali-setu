@@ -30,3 +30,11 @@ def test_coal_displacement_is_separate_and_conditional():
 def test_kg_helper_and_negative_input():
     assert impact_for_kg(1750)["acres_cleared"] == 1.0
     assert impact_for_tonnes(-3)["tonnes_diverted"] == 0.0
+
+
+def test_punjab_scenario_is_bounded_and_scales():
+    from impact import punjab_scenario
+    one = punjab_scenario(1)
+    assert one["tonnes_diverted"] == 197000.0
+    assert punjab_scenario(250)["share_pct"] == 100.0
+    assert punjab_scenario(-5)["tonnes_diverted"] == 0.0
