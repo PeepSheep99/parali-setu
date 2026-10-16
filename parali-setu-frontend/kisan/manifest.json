@@ -1,0 +1,11 @@
+{
+  "name": "Parali Setu · Kisan",
+  "short_name": "Parali Setu",
+  "description": "List your stubble by voice and get a guaranteed pickup before sowing.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5ef",
+  "theme_color": "#2f6b3b",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

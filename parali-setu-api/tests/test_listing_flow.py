@@ -150,3 +150,17 @@ def test_confirm_summary_repeats_numbers_exactly():
     text = confirm_summary({"acres": 12.5, "crop_type": "wheat_stubble", "village_or_district": "Moga",
                             "sowing_deadline": "2026-11-02"}, "English")
     assert text == "You said: 12.5 acres, wheat stubble, in Moga, field to be cleared by 2/11/2026. Confirm if this is right."
+
+
+def test_farmer_pickups_lists_live_matches_with_slots(monkeypatch, env):
+    monkeypatch.setattr(store, "get_matches_for_farmer", lambda db, fid: [
+        {"id": "m1", "company_id": "c1", "farmer_id": fid, "status": "scheduled", "matched_kg": 100, "price_agreed_per_kg": 1.0},
+        {"id": "m2", "company_id": "c1", "farmer_id": fid, "status": "rejected", "matched_kg": 50, "price_agreed_per_kg": 1.0},
+    ])
+    monkeypatch.setattr(store, "get_company", lambda db, cid: {"name": "Demo Buyer (demo)"})
+    monkeypatch.setattr(store, "get_slots_for_match", lambda db, mid: [
+        {"date": "2026-10-22", "window_start_min": 540, "window_end_min": 720}])
+    body = client.get("/farmers/f1/pickups").json()
+    assert [p["id"] for p in body["pickups"]] == ["m1"], "rejected matches are not shown to the farmer"
+    assert body["pickups"][0]["pickup_window"] == "2026-10-22 09:00-12:00"
+    assert body["pickups"][0]["company_name"] == "Demo Buyer (demo)"

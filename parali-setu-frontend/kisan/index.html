@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f6b3b">
+<title>Parali Setu · Kisan</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Gurmukhi:wght@400;600&display=swap">
+<link rel="stylesheet" href="kisan.css">
+</head>
+<body>
+<div class="phone">
+
+  <header class="top">
+    <div class="brand">
+      <img src="icon.svg" alt="" width="34" height="34">
+      <div>
+        <p class="name">Parali Setu</p>
+        <p class="tag" data-t="tagline"></p>
+      </div>
+    </div>
+    <div class="langs" role="group" aria-label="Language">
+      <button type="button" data-lang="pa">ਪੰਜਾਬੀ</button>
+      <button type="button" data-lang="hi">हिंदी</button>
+      <button type="button" data-lang="en">English</button>
+    </div>
+  </header>
+
+  <section id="lang-gate" class="card gate" hidden>
+    <h1 data-t="choose_lang"></h1>
+    <div class="gate-buttons">
+      <button type="button" class="big" data-lang="pa">ਪੰਜਾਬੀ</button>
+      <button type="button" class="big" data-lang="hi">हिंदी</button>
+      <button type="button" class="big" data-lang="en">English</button>
+    </div>
+  </section>
+
+  <main id="app" hidden>
+
+    <section id="compose" class="card">
+      <button type="button" id="mic" class="mic" aria-describedby="mic-label">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12z"/></svg>
+      </button>
+      <p id="mic-label" class="mic-label" data-t="hold_to_speak"></p>
+      <p class="hint center" data-t="example"></p>
+      <div class="tools">
+        <label class="tool" for="photo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+          <span id="photo-label" data-t="add_photo"></span>
+          <input type="file" id="photo" accept="image/*" capture="environment" hidden>
+        </label>
+        <button type="button" class="tool" id="locate">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+          <span id="locate-label" data-t="share_location"></span>
+        </button>
+      </div>
+      <details class="typed">
+        <summary data-t="or_type"></summary>
+        <div class="typed-row">
+          <textarea id="typed" rows="2"></textarea>
+          <button type="button" id="send-typed" class="primary" data-t="send"></button>
+        </div>
+      </details>
+    </section>
+
+    <section id="working" class="card working" hidden aria-live="polite">
+      <span class="spinner" aria-hidden="true"></span>
+      <p id="working-text"></p>
+    </section>
+
+    <section id="confirm" class="card" hidden>
+      <div id="question" class="question" hidden>
+        <p class="eyebrow" data-t="one_question"></p>
+        <p id="question-text" class="question-text"></p>
+        <button type="button" id="answer-mic" class="mic small" aria-describedby="answer-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12z"/></svg>
+        </button>
+        <p id="answer-label" class="mic-label" data-t="hold_to_answer"></p>
+      </div>
+      <h2 data-t="check_details"></h2>
+      <p class="hint" data-t="tap_to_fix"></p>
+      <div id="chips" class="chips"></div>
+      <p id="transcript" class="transcript"></p>
+      <div class="row">
+        <button type="button" class="ghost listen" id="listen-confirm" data-t="listen"></button>
+        <button type="button" class="primary wide" id="confirm-btn" data-t="confirm"></button>
+      </div>
+    </section>
+
+    <section id="offer" class="card" hidden></section>
+
+    <section class="card">
+      <h2 data-t="my_pickups"></h2>
+      <div id="pickups" class="pickups"></div>
+    </section>
+
+    <section class="card">
+      <h2 data-t="prove"></h2>
+      <p class="hint" data-t="prove_help"></p>
+      <div class="row">
+        <label class="tool" for="proof-photo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+          <span id="proof-label" data-t="add_photo"></span>
+          <input type="file" id="proof-photo" accept="image/*" capture="environment" hidden>
+        </label>
+        <button type="button" id="proof-send" class="primary" data-t="prove_send" disabled></button>
+      </div>
+      <p id="proof-result" class="result" aria-live="polite"></p>
+    </section>
+
+    <p class="footnote" data-t="simulated_payment"></p>
+  </main>
+
+  <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
+  <audio id="voice" hidden></audio>
+</div>
+
+<script src="../config.js"></script>
+<script src="i18n.js"></script>
+<script src="kisan.js"></script>
+</body>
+</html>

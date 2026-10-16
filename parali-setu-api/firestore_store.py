@@ -194,6 +194,11 @@ def save_matches(db: firestore.Client, match_results: list) -> list[dict]:
     return saved
 
 
+def get_matches_for_farmer(db: firestore.Client, farmer_id: str) -> list[dict]:
+    docs = db.collection("matches").where("farmer_id", "==", farmer_id).stream()
+    return sorted((d.to_dict() for d in docs), key=lambda m: m.get("created_at", ""), reverse=True)
+
+
 def get_matches_for_company(db: firestore.Client, company_id: str) -> list[dict]:
     docs = db.collection("matches").where("company_id", "==", company_id).stream()
     return [d.to_dict() for d in docs]

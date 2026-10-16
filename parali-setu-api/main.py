@@ -35,6 +35,7 @@ from extraction import (
     read_no_burn_proof,
     read_stubble_quality,
 )
+from geo import district_from_text
 from gemini_client import get_gemini_client
 from impact import impact_for_kg
 from negotiation import run_negotiation
@@ -361,6 +362,9 @@ async def submit_no_burn_proof(
     """
     db = store.get_firestore_client()
     client = get_gemini_client()
+    # Farmers may send the district in Gurmukhi or Devanagari; fire detections
+    # are labelled with the English district name.
+    district = district_from_text(district) or district
 
     photo_bytes = await photo.read()
     photo_result = read_no_burn_proof(client, photo_bytes, mime_type=photo.content_type or "image/jpeg")
@@ -1011,3 +1015,26 @@ def impact_summary():
         else:
             collected_kg += m.get("collected_kg") or m.get("matched_kg", 0)
     return {"collected": impact_for_kg(collected_kg), "scheduled": impact_for_kg(scheduled_kg)}
+
+
+@app.get("/farmers/{farmer_id}/pickups")
+def farmer_pickups(farmer_id: str):
+    """Everything the farmer's status card needs: each match with its buyer,
+    status, pickup slots and payout. Read-only."""
+    db = store.get_firestore_client()
+    pickups_out = []
+    companies: dict[str, dict] = {}
+    for match in store.get_matches_for_farmer(db, farmer_id):
+        if match.get("status") == "rejected":
+            continue
+        cid = match["company_id"]
+        if cid not in companies:
+            companies[cid] = store.get_company(db, cid) or {}
+        slots = store.get_slots_for_match(db, match["id"])
+        pickups_out.append({
+            **match,
+            "company_name": companies[cid].get("name", cid),
+            "slots": slots,
+            "pickup_window": pickups.window_label(slots[0]) if slots else None,
+        })
+    return {"farmer_id": farmer_id, "pickups": pickups_out}
