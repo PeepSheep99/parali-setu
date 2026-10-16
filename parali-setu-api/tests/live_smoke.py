@@ -179,7 +179,21 @@ def check_listing_lifecycle_and_renegotiation():
     assert not any(d["id"] == listing_id for d in store.get_open_listings(db)), (
         "a fully-matched listing must not reappear in get_open_listings"
     )
-    print("listing lifecycle: ok, closed out at 0kg remaining, status=matched")
+    demand_doc = store.get_demand(db, demand_id)
+    assert demand_doc["quantity_remaining_kg"] == 0, (
+        f"the buyer's 500kg demand should be used up by the 500kg match, got {demand_doc['quantity_remaining_kg']}"
+    )
+    assert not any(d["id"] == demand_id for d in store.get_open_demand(db)), (
+        "a used-up demand must not reappear in get_open_demand"
+    )
+    print("listing lifecycle: ok, listing and demand both closed out at 0kg remaining")
+
+    too_high = client.post("/negotiate", json={
+        "match_id": match_id,
+        "raw_text": "I want 90 per kg",
+    }).json()
+    assert too_high["outcome"] == "not_feasible" and too_high["buyer_ceiling_per_kg"] == 60.0, too_high
+    print("counter-offer above the ceiling refused: ok,", too_high["reason"])
 
     negotiate_resp = client.post("/negotiate", json={
         "match_id": match_id,
@@ -408,26 +422,30 @@ def check_negotiation_agents_grounded_and_non_mutating():
     assert body["matches"][0]["urgency_multiplier_applied"] == 2.0, "expected a today-deadline listing to hit the urgency ceiling"
 
     resp = client.post("/negotiate/agents", json={
-        "match_id": match_id, "farmer_floor": 50.0, "buyer_ceiling": 60.0, "language": "English", "max_turns": 4,
+        "match_id": match_id, "farmer_floor": 50.0, "language": "English", "max_turns": 4,
     })
     assert resp.status_code == 200, resp.text
     session = resp.json()
-    assert session["outcome"] == "converged", session
+    assert session["outcome"] in ("converged", "best_offer"), session
     assert session["turns"], "expected at least one negotiation turn"
+    assert 55.0 <= session["final_price_per_kg"] <= session["buyer_ceiling_per_kg"] == 66.0, session
     for turn in session["turns"]:
         assert "deadline" in (turn["farmer_message"] or "").lower() or "urgen" in (turn["farmer_message"] or "").lower(), (
             f"expected the real urgency fact to ground the narration, got: {turn['farmer_message']}"
         )
+        assert turn["farmer_ask_per_kg"] >= turn["buyer_offer_per_kg"] - 0.05, turn
 
     import firestore_store as store
 
     match_still_pending = store.get_match(db, match_id)
     assert match_still_pending["price_agreed_per_kg"] == 55.0, "negotiate/agents must not mutate the match on its own"
 
-    confirm_resp = client.post(f"/matches/{match_id}/confirm-price", json={"new_price_per_kg": session["final_price_per_kg"]})
+    confirm_resp = client.post(f"/matches/{match_id}/confirm-price", json={"session_id": session["id"]})
     assert confirm_resp.status_code == 200, confirm_resp.text
     match_after_confirm = store.get_match(db, match_id)
     assert match_after_confirm["price_agreed_per_kg"] == session["final_price_per_kg"]
+    again = client.post(f"/matches/{match_id}/confirm-price", json={"session_id": session["id"]})
+    assert again.status_code == 409, "a negotiation session can only be confirmed once"
     print("negotiation agents: ok,", session["outcome"], "->", session["final_price_per_kg"])
 
     for coll, doc_id in [("companies", "neg_smoke_co"), ("demand", demand_id),

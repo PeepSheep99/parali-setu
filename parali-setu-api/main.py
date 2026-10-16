@@ -14,11 +14,13 @@ oversight, since the photo read is explicitly optional (Section 8.1.3).
 from __future__ import annotations
 
 import base64
+import os
 from datetime import date
+from typing import Literal
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import firestore_store as store
 from extraction import (
@@ -37,44 +39,66 @@ from solver import Demand, Listing, apply_negotiation, score_no_burn_submission,
 from speech import synthesize_speech, transcribe_audio
 
 app = FastAPI(title="Parali Setu API")
+
+# Only our own Firebase Hosting site (and local development) may call the
+# API from a browser. Override with a comma-separated ALLOWED_ORIGINS.
+ALLOWED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get(
+        "ALLOWED_ORIGINS",
+        "https://parali-setu.web.app,https://parali-setu.firebaseapp.com,http://localhost:8000,http://127.0.0.1:8000",
+    ).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
+Language = Literal["Hindi", "Punjabi", "English"]
+CropType = Literal["rice_stubble", "wheat_stubble"]
+# Generous upper bounds: they exist to reject garbage, not to model reality.
+MAX_PRICE_PER_KG = 100.0
+MAX_QUANTITY_KG = 10_000_000.0
+
 
 class ListingRequest(BaseModel):
-    farmer_id: str
-    raw_text: str
-    language: str = "Hindi"
+    farmer_id: str = Field(min_length=1, max_length=64)
+    raw_text: str = Field(min_length=1, max_length=1000)
+    language: Language = "Hindi"
 
 
 class DemandRequest(BaseModel):
-    product: str
-    crop_type: str
-    quantity_needed_kg: float
-    price_offer_per_kg: float
-    accepted_quality_grades: list[str] = ["unknown", "dry", "wet", "mixed"]
-    custom_constraint_text: str | None = None
+    product: str = Field(min_length=1, max_length=80)
+    crop_type: CropType
+    quantity_needed_kg: float = Field(gt=0, le=MAX_QUANTITY_KG)
+    price_offer_per_kg: float = Field(gt=0, le=MAX_PRICE_PER_KG)
+    max_price_per_kg: float | None = Field(default=None, gt=0, le=MAX_PRICE_PER_KG)
+    accepted_quality_grades: list[Literal["unknown", "dry", "wet", "mixed"]] = ["unknown", "dry", "wet", "mixed"]
+    custom_constraint_text: str | None = Field(default=None, max_length=300)
 
 
 class NegotiateRequest(BaseModel):
-    match_id: str
-    raw_text: str
+    match_id: str = Field(min_length=1, max_length=64)
+    raw_text: str = Field(min_length=1, max_length=500)
 
 
 class NegotiateAgentsRequest(BaseModel):
-    match_id: str
-    farmer_floor: float
-    buyer_ceiling: float
-    language: str = "Hindi"
-    max_turns: int = 4
+    match_id: str = Field(min_length=1, max_length=64)
+    farmer_floor: float = Field(gt=0, le=MAX_PRICE_PER_KG)
+    language: Language = "Hindi"
+    max_turns: int = Field(default=4, ge=1, le=6)
 
 
 class ConfirmPriceRequest(BaseModel):
-    new_price_per_kg: float
+    session_id: str = Field(min_length=1, max_length=64)
+
+
+class MatchStatusRequest(BaseModel):
+    status: Literal["scheduled", "waitlisted", "rejected", "collected", "paid"]
+    reason: str | None = Field(default=None, max_length=300)
 
 
 def _to_solver_listing(
@@ -114,12 +138,36 @@ def _to_solver_listing(
     )
 
 
-def _to_solver_demand(doc: dict) -> Demand:
+def _to_solver_demand(doc: dict, extra_remaining_kg: float = 0.0) -> Demand:
+    """The solver sees what the buyer can still absorb (remaining capacity),
+    not its original quantity. `extra_remaining_kg` restores one match's own
+    kilograms during a renegotiation re-solve, mirroring _to_solver_listing."""
     return Demand(
         id=doc["id"], company_id=doc["company_id"], crop_type=doc["crop_type"],
-        quantity_needed_kg=doc["quantity_needed_kg"], price_offer_per_kg=doc["price_offer_per_kg"],
+        quantity_needed_kg=store.demand_remaining_kg(doc) + extra_remaining_kg,
+        price_offer_per_kg=doc["price_offer_per_kg"],
         accepted_quality_grades=tuple(doc.get("accepted_quality_grades", ["unknown", "dry", "wet", "mixed"])),
+        max_price_per_kg=doc.get("max_price_per_kg"),
     )
+
+
+def _run_global_solve(db) -> list[dict]:
+    """One solve over every open listing and every open demand, and every
+    resulting match is saved. Previously only the triggering listing's
+    matches were saved, so capacity the solver gave to other waiting
+    listings was silently discarded, and posting new demand never matched
+    anyone who was already waiting. Called after a listing is created and
+    after a buyer posts demand."""
+    open_listing_docs = store.get_open_listings(db)
+    trust_scores = store.get_trust_scores_by_farmer_ids(db, [d["farmer_id"] for d in open_listing_docs])
+    all_listings = [
+        l for l in (_to_solver_listing(d, trust_scores=trust_scores) for d in open_listing_docs) if l
+    ]
+    open_demand_docs = store.get_open_demand(db)
+    all_demand = [_to_solver_demand(d) for d in open_demand_docs]
+    custom_constraints = {d["id"]: d["custom_constraints"] for d in open_demand_docs if d.get("custom_constraints")}
+    results = solve_matches(all_listings, all_demand, custom_constraints=custom_constraints)
+    return store.save_matches(db, results)
 
 
 @app.get("/health")
@@ -165,18 +213,8 @@ def _create_listing_from_text(farmer_id: str, raw_text: str, language: str, qual
 
     listing_doc = store.save_listing(db, farmer_id, extracted, language)
 
-    open_listing_docs = store.get_open_listings(db)
-    trust_scores = store.get_trust_scores_by_farmer_ids(db, [d["farmer_id"] for d in open_listing_docs])
-    all_listings = [
-        l for l in (_to_solver_listing(d, trust_scores=trust_scores) for d in open_listing_docs) if l
-    ]
-    open_demand_docs = store.get_open_demand(db)
-    all_demand = [_to_solver_demand(d) for d in open_demand_docs]
-    custom_constraints = {d["id"]: d["custom_constraints"] for d in open_demand_docs if d.get("custom_constraints")}
-    results = solve_matches(all_listings, all_demand, custom_constraints=custom_constraints)
-
-    this_listing_results = [r for r in results if r.listing_id == listing_doc["id"]]
-    saved_matches = store.save_matches(db, this_listing_results)
+    all_saved = _run_global_solve(db)
+    saved_matches = [m for m in all_saved if m["listing_id"] == listing_doc["id"]]
 
     explanation = None
     explanation_audio_base64 = None
@@ -347,11 +385,17 @@ def pricing_explanation(match_id: str, language: str = "Hindi"):
             f"{forecast['region']} for the week of {forecast['period']} "
             f"(~{forecast['predicted_demand']} units predicted)"
         )
+    demand_doc = store.get_demand(db, match["demand_id"])
+    demand = _to_solver_demand(demand_doc) if demand_doc else None
+    negotiated = demand is not None and abs(match["price_agreed_per_kg"] - demand.price_offer_per_kg) > 1e-6
     context = {
         "quality_grade": listing.get("quality_grade") if listing else "unknown",
         "urgency_multiplier_applied": match.get("urgency_multiplier_applied", 1.0),
         "trust_score": farmer_doc.get("trust_score") if farmer_doc else None,
         "forecast_summary": forecast_summary,
+        "price_source": "negotiated" if negotiated else "standing_offer",
+        "buyer_offer_per_kg": demand.price_offer_per_kg if demand else None,
+        "buyer_ceiling_per_kg": demand.ceiling_per_kg if demand else None,
     }
     explanation = explain_pricing(client, match, context, language)
     if explanation is None:
@@ -379,7 +423,9 @@ def create_demand(company_id: str, req: DemandRequest):
 
     data["custom_constraints"] = custom_constraints
     demand_doc = store.save_demand(db, company_id, data)
-    return demand_doc
+    # New capacity may fit farmers who are already waiting -- match them now.
+    new_matches = _run_global_solve(db)
+    return {**demand_doc, "new_matches_count": len(new_matches)}
 
 
 def _constraint_progress(db, company_id: str, matches: list[dict]) -> list[dict]:
@@ -467,7 +513,17 @@ def _gather_for_renegotiation(db, match: dict) -> tuple[list[Listing], list[Dema
         if l
     ]
     open_demand_docs = store.get_open_demand(db)
-    all_demand = [_to_solver_demand(d) for d in open_demand_docs]
+    # The match's own demand may have no capacity left (this match used it),
+    # so it can be missing from the open pool -- add it back, and restore
+    # this match's kilograms to it, exactly as for the listing above.
+    if not any(d["id"] == match["demand_id"] for d in open_demand_docs):
+        renegotiated_demand_doc = store.get_demand(db, match["demand_id"])
+        if renegotiated_demand_doc:
+            open_demand_docs = [*open_demand_docs, renegotiated_demand_doc]
+    all_demand = [
+        _to_solver_demand(d, extra_remaining_kg=match["matched_kg"] if d["id"] == match["demand_id"] else 0.0)
+        for d in open_demand_docs
+    ]
     custom_constraints = {d["id"]: d["custom_constraints"] for d in open_demand_docs if d.get("custom_constraints")}
     return all_listings, all_demand, custom_constraints
 
@@ -503,7 +559,14 @@ def negotiate(req: NegotiateRequest):
     if outcome_for_listing:
         store.update_match_price(db, req.match_id, outcome_for_listing[0].price_agreed_per_kg)
         return {"outcome": "updated", "new_price_per_kg": outcome_for_listing[0].price_agreed_per_kg}
-    return {"outcome": "not_feasible", "reason": "No company can take this listing at the requested price"}
+    demand = next((d for d in all_demand if d.id == match["demand_id"]), None)
+    ceiling = demand.ceiling_per_kg if demand else None
+    reason = (
+        f"This buyer pays at most ₹{ceiling}/kg, so ₹{parsed['requested_price_per_kg']}/kg can't be agreed."
+        if ceiling is not None and parsed["requested_price_per_kg"] > ceiling
+        else "No buyer can take this listing at the requested price."
+    )
+    return {"outcome": "not_feasible", "reason": reason, "buyer_ceiling_per_kg": ceiling}
 
 
 @app.post("/negotiate/agents")
@@ -530,21 +593,56 @@ def negotiate_agents(req: NegotiateAgentsRequest):
         client, all_listings, all_demand,
         listing_id=match["listing_id"], demand_id=match["demand_id"],
         start_price=match["price_agreed_per_kg"],
-        farmer_floor=req.farmer_floor, buyer_ceiling=req.buyer_ceiling,
+        farmer_floor=req.farmer_floor,
         urgency_multiplier=urgency, language=req.language, max_turns=req.max_turns,
     )
     session = store.save_negotiation_session(db, req.match_id, result)
     return session
 
 
+AGREEABLE_OUTCOMES = {"converged", "best_offer"}
+
+
 @app.post("/matches/{match_id}/confirm-price")
 def confirm_price(match_id: str, req: ConfirmPriceRequest):
-    """Human one-tap-approve -- pure Firestore update, zero Gemini calls,
-    since the number was already solver-validated by /negotiate/agents.
+    """Human one-tap-approve of a negotiation session's price. The price
+    comes from the stored, solver-validated session -- never from the
+    request body -- so this endpoint can't be used to set an arbitrary
+    price. Zero Gemini calls.
     """
     db = store.get_firestore_client()
     match = store.get_match(db, match_id)
     if match is None:
         raise HTTPException(status_code=404, detail="Match not found")
-    store.update_match_price(db, match_id, req.new_price_per_kg)
-    return {"match_id": match_id, "new_price_per_kg": req.new_price_per_kg}
+    session = store.get_negotiation_session(db, req.session_id)
+    if session is None or session.get("match_id") != match_id:
+        raise HTTPException(status_code=404, detail="Negotiation session not found for this match")
+    if session.get("outcome") not in AGREEABLE_OUTCOMES or session.get("final_price_per_kg") is None:
+        raise HTTPException(status_code=409, detail="This negotiation didn't reach a price that can be confirmed")
+    if session.get("confirmed_at"):
+        raise HTTPException(status_code=409, detail="This negotiation was already confirmed")
+    if match.get("status", "proposed") not in ("proposed", "waitlisted", "scheduled"):
+        raise HTTPException(status_code=409, detail=f"A match that is {match.get('status')} can no longer change price")
+
+    price = session["final_price_per_kg"]
+    store.update_match_price(db, match_id, price)
+    store.mark_negotiation_session_confirmed(db, req.session_id)
+    store.append_negotiation_log(db, match_id, {"confirmed_session_id": req.session_id, "new_price_per_kg": price})
+    return {"match_id": match_id, "new_price_per_kg": price, "session_id": req.session_id}
+
+
+@app.post("/matches/{match_id}/status")
+def set_match_status(match_id: str, req: MatchStatusRequest):
+    """Moves a match along its lifecycle: proposed -> scheduled -> collected
+    -> paid, with waitlisted and rejected branches. Rejecting puts the
+    kilograms back on both the listing and the buyer's demand. Moves the
+    lifecycle doesn't allow are refused with 409."""
+    db = store.get_firestore_client()
+    extra = {"status_reason": req.reason} if req.reason else {}
+    try:
+        updated = store.update_match_status(db, match_id, req.status, extra)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Match not found")
+    except store.InvalidTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return updated

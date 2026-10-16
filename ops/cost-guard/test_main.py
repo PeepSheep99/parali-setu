@@ -1,11 +1,17 @@
 import base64
+import importlib.util
 import json
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from google.cloud import run_v2
 
-import main
+# Loaded by path under its own name: the API also has a main.py, and a plain
+# `import main` would pick up whichever one pytest imported first.
+_spec = importlib.util.spec_from_file_location("cost_guard_main", Path(__file__).with_name("main.py"))
+main = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(main)
 
 
 def _encoded(payload: dict) -> str:

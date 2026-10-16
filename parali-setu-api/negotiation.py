@@ -20,7 +20,7 @@ from __future__ import annotations
 from google import genai
 
 from extraction import narrate_negotiation_turn
-from solver import Demand, Listing, apply_negotiation, negotiation_concession_schedule
+from solver import Demand, Listing, apply_negotiation, negotiation_rounds
 
 
 def run_negotiation(
@@ -31,45 +31,52 @@ def run_negotiation(
     demand_id: str,
     start_price: float,
     farmer_floor: float,
-    buyer_ceiling: float,
     urgency_multiplier: float,
     language: str,
     max_turns: int = 4,
 ) -> dict:
-    """Returns {"turns": [...], "final_price_per_kg": float, "outcome":
-    "no_overlap" | "infeasible" | "converged"}. Never mutates any stored
-    match -- the human's confirm-price tap is the only thing that does.
+    """Returns {"turns": [...], "final_price_per_kg": float | None,
+    "buyer_ceiling_per_kg": float, "outcome": "no_overlap" | "infeasible"
+    | "converged" | "best_offer"}.
+
+    The buyer's ceiling is the demand's own (solver-owned), never a number
+    the caller supplies. Each turn the farmer's side and the buyer's side
+    narrate their own price. The final price is re-checked against the
+    live marketplace before it is returned. Never mutates any stored match:
+    the human's confirm-price tap is the only thing that does.
     """
-    schedule = negotiation_concession_schedule(start_price, farmer_floor, buyer_ceiling, urgency_multiplier, max_turns)
-    if not schedule:
-        return {"turns": [], "final_price_per_kg": start_price, "outcome": "no_overlap"}
+    demand = next((d for d in demands if d.id == demand_id), None)
+    if demand is None:
+        return {"turns": [], "final_price_per_kg": None, "buyer_ceiling_per_kg": None, "outcome": "infeasible"}
+    ceiling = demand.ceiling_per_kg
 
-    reason = f"this listing's urgency multiplier is {urgency_multiplier:.2f}x (1.0x = no time pressure, 2.0x = at or past the pickup deadline)"
-    context = {"reason": reason}
+    rounds = negotiation_rounds(start_price, farmer_floor, ceiling, urgency_multiplier, max_turns)
+    if not rounds["turns"]:
+        return {"turns": [], "final_price_per_kg": None, "buyer_ceiling_per_kg": ceiling, "outcome": "no_overlap"}
 
+    agreed = rounds["agreed_price_per_kg"]
+    results = apply_negotiation(listings, demands, demand_id, agreed)
+    if not any(r.listing_id == listing_id for r in results):
+        return {"turns": [], "final_price_per_kg": None, "buyer_ceiling_per_kg": ceiling, "outcome": "infeasible"}
+
+    context = {
+        "reason": (
+            f"this listing's urgency multiplier is {urgency_multiplier:.2f}x "
+            "(1.0x = no time pressure, 2.0x = at or past the pickup deadline)"
+        )
+    }
     turns = []
-    last_feasible_price = start_price
-    previous_price = start_price
-    for proposed_price in schedule:
-        results = apply_negotiation(listings, demands, demand_id, proposed_price)
-        outcome_for_listing = [r for r in results if r.listing_id == listing_id]
-        if not outcome_for_listing:
-            # Infeasible at this price -- stop here, fall back to the
-            # last price that actually cleared the live marketplace.
-            break
-        last_feasible_price = outcome_for_listing[0].price_agreed_per_kg
-
-        farmer_message = narrate_negotiation_turn(client, "farmer", proposed_price, context, language)
-        buyer_message = narrate_negotiation_turn(client, "buyer", proposed_price, context, language)
+    for turn in rounds["turns"]:
         turns.append({
-            "proposed_price_per_kg": proposed_price,
-            "farmer_message": farmer_message,
-            "buyer_message": buyer_message,
+            "farmer_ask_per_kg": turn["farmer_ask"],
+            "buyer_offer_per_kg": turn["buyer_offer"],
+            "farmer_message": narrate_negotiation_turn(client, "farmer", turn["farmer_ask"], context, language),
+            "buyer_message": narrate_negotiation_turn(client, "buyer", turn["buyer_offer"], context, language),
         })
 
-        if abs(proposed_price - previous_price) <= 0.01:
-            break  # converged within epsilon -- further turns would be noise
-        previous_price = proposed_price
-
-    outcome = "converged" if turns else "infeasible"
-    return {"turns": turns, "final_price_per_kg": last_feasible_price, "outcome": outcome}
+    return {
+        "turns": turns,
+        "final_price_per_kg": agreed,
+        "buyer_ceiling_per_kg": ceiling,
+        "outcome": "converged" if rounds["converged"] else "best_offer",
+    }

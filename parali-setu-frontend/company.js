@@ -83,23 +83,30 @@ function renderActiveMatches(matches) {
     <tr>
       <td>${m.id}</td>
       <td><span class="tag tag-${m.status}">${m.status.replace("_", " ")}</span></td>
-      <td>${m.status === "proposed" ? `<button class="secondary" data-match="${m.id}" onclick="acceptMatch('${m.id}')">Accept</button>` : "—"}</td>
+      <td>${m.status === "proposed" ? `<button class="secondary" data-match="${m.id}" onclick="rejectMatch('${m.id}')">Reject</button>` : "—"}</td>
     </tr>`).join("");
   el("active-matches").innerHTML = `
     <table><thead><tr><th>Match</th><th>Status</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table>`;
 }
 
-async function acceptMatch(matchId) {
-  // Simulated confirm step (PRD Section 7/13) -- no real payment or
-  // logistics integration, a Firestore status change only.
+async function rejectMatch(matchId) {
+  // Buyers commit by posting standing demand, so a proposed match needs no
+  // "accept"; the buyer's only action is to reject it, which puts the
+  // kilograms back on both the listing and the demand.
   try {
-    await fetch(`${API_BASE}/negotiate`, {
+    const resp = await fetch(`${API_BASE}/matches/${matchId}/status`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ match_id: matchId, raw_text: "I accept, confirm this." }),
+      body: JSON.stringify({ status: "rejected" }),
     });
-  } catch {}
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      el("demand-result").textContent = body.detail || "Could not reject that match.";
+    }
+  } catch {
+    el("demand-result").textContent = "Could not reach the server.";
+  }
   loadDashboard();
 }
 

@@ -148,36 +148,55 @@ reasonable call, respond with {"field_condition": "inconclusive", "note":
     return parsed
 
 
+PRICE_SOURCE_TEXT = {
+    "standing_offer": "the price is this buyer's posted standing offer",
+    "negotiated": "the price was agreed in a negotiation, within the buyer's stated maximum",
+}
+
+
 def explain_pricing(client: genai.Client, match: dict, context: dict, language: str) -> str | None:
-    """Feature 3 -- narrate WHY a match landed at its price, using only
-    already-computed numbers (same verbatim-numbers contract as
-    explain_match): the quality grade, the urgency/trust multipliers the
-    solver actually applied, and the forecast if one exists. No distance
-    field exists in this codebase (no geocoding anywhere) -- deliberately
-    omitted rather than invented, a correction from the original research
-    brief's assumption that one would be available.
+    """Feature 3 -- narrate where a match's price came from and why this
+    buyer was matched, using only already-computed numbers (same
+    verbatim-numbers contract as explain_match).
+
+    Kept honest about causality (judge-eval finding): the price is the
+    buyer's offer (or a negotiated price within its ceiling). Urgency and
+    trust only change matching *priority*, and the demand forecast is
+    background about the buyer -- none of them changes the price, and the
+    prompt says so rather than letting them read as price factors.
     """
-    multiplier_notes = []
+    priority_notes = []
     if context.get("urgency_multiplier_applied", 1.0) > 1.0:
-        multiplier_notes.append(
-            f"the listing's pickup deadline made it {context['urgency_multiplier_applied']:.2f}x more "
-            "likely to be prioritized in matching"
+        priority_notes.append(
+            f"the farmer's pickup deadline gave this listing {context['urgency_multiplier_applied']:.2f}x "
+            "priority when buyers were assigned"
         )
     if context.get("trust_score") is not None:
-        multiplier_notes.append(f"the farmer's trust score is {context['trust_score']:.2f} (of 1.0)")
-    if context.get("forecast_summary"):
-        multiplier_notes.append(context["forecast_summary"])
+        priority_notes.append(f"the farmer's trust score of {context['trust_score']:.2f} (of 1.0) also counts toward priority")
+
+    price_source = PRICE_SOURCE_TEXT.get(context.get("price_source"), PRICE_SOURCE_TEXT["standing_offer"])
+    ceiling = context.get("buyer_ceiling_per_kg")
+    ceiling_line = f"- The most this buyer will pay: {ceiling} rupees per kg\n" if ceiling is not None else ""
+    priority_line = (
+        "- Why this listing was matched early (these do NOT change the price): " + "; ".join(priority_notes)
+        if priority_notes else "- No priority factors applied."
+    )
+    forecast_line = (
+        f"- Background about the buyer (does NOT change the price): {context['forecast_summary']}\n"
+        if context.get("forecast_summary") else ""
+    )
 
     prompt = f"""Write a short, plain-language explanation in {language} (2-3
-sentences) of why this crop-residue match landed at its price. Use exactly
-these facts, do not change or round any numbers, and do not invent any
-factor not listed here:
-- Quality grade: {context.get('quality_grade', 'unknown')}
-- Price agreed: {match.get('price_agreed_per_kg')} rupees per kg
-- Quantity matched: {match.get('matched_kg')} kg
-{"- Other real factors behind this match: " + "; ".join(multiplier_notes) if multiplier_notes else "- No other factors applied beyond the standing price offer."}
-
-Plain prose only, no markdown formatting, no asterisks.
+sentences) telling a farmer where the price of their crop-residue match comes
+from. Use exactly these facts, do not change or round any numbers, and do not
+invent any factor not listed here:
+- Price: {match.get('price_agreed_per_kg')} rupees per kg; {price_source}
+{ceiling_line}- Quantity matched: {match.get('matched_kg')} kg
+- Quality grade read from the photo: {context.get('quality_grade', 'unknown')}
+{priority_line}
+{forecast_line}
+Be explicit that deadline urgency and trust affect who is matched first, not
+the price. Plain prose only, no markdown formatting, no asterisks.
 """
     return call_gemini(client, prompt, json_mode=False)
 

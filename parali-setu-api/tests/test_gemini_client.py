@@ -21,7 +21,7 @@ def make_fake_client(side_effects):
 
 
 def test_successful_call_returns_text_on_first_try():
-    gemini_client.QUOTA_EXHAUSTED = False
+    gemini_client.reset_quota_cooldown()
     ok_response = MagicMock(text='{"a": "b"}')
     client = make_fake_client([ok_response])
     result = gemini_client.call_gemini(client, "prompt", json_mode=True)
@@ -30,7 +30,7 @@ def test_successful_call_returns_text_on_first_try():
 
 
 def test_transient_503_retries_then_succeeds():
-    gemini_client.QUOTA_EXHAUSTED = False
+    gemini_client.reset_quota_cooldown()
     server_error = genai_errors.ServerError(503, {"error": {"message": "overloaded"}})
     ok_response = MagicMock(text="ready")
     client = make_fake_client([server_error, ok_response])
@@ -41,7 +41,7 @@ def test_transient_503_retries_then_succeeds():
 
 
 def test_persistent_503_exhausts_retries_and_returns_none():
-    gemini_client.QUOTA_EXHAUSTED = False
+    gemini_client.reset_quota_cooldown()
     server_error = genai_errors.ServerError(503, {"error": {"message": "overloaded"}})
     client = make_fake_client([server_error, server_error, server_error])
     with patch.object(time, "sleep"):
@@ -51,28 +51,28 @@ def test_persistent_503_exhausts_retries_and_returns_none():
 
 
 def test_429_quota_exhaustion_fails_fast_no_wasted_retries():
-    gemini_client.QUOTA_EXHAUSTED = False
+    gemini_client.reset_quota_cooldown()
     quota_error = genai_errors.ClientError(429, {"error": {"message": "quota exceeded"}})
     client = make_fake_client([quota_error])
     result = gemini_client.call_gemini(client, "prompt", json_mode=False)
     assert result is None
     assert client.models.generate_content.call_count == 1
-    gemini_client.QUOTA_EXHAUSTED = False
+    gemini_client.reset_quota_cooldown()
 
 
-def test_quota_exhausted_flag_short_circuits_later_calls():
-    gemini_client.QUOTA_EXHAUSTED = True
+def test_quota_cooldown_short_circuits_later_calls():
+    gemini_client._quota_cooldown_until = time.monotonic() + 60
     client = make_fake_client([MagicMock(text="should never be reached")])
     result = gemini_client.call_gemini(client, "prompt", json_mode=False)
     assert result is None
     assert client.models.generate_content.call_count == 0
-    gemini_client.QUOTA_EXHAUSTED = False
+    gemini_client.reset_quota_cooldown()
 
 
 def test_non_429_client_error_is_not_silently_swallowed():
     """A 400 (e.g. malformed request) must surface, not look identical to
     a clean 'Gemini unavailable' -- swallowing it would hide a real bug."""
-    gemini_client.QUOTA_EXHAUSTED = False
+    gemini_client.reset_quota_cooldown()
     bad_request = genai_errors.ClientError(400, {"error": {"message": "bad request"}})
     client = make_fake_client([bad_request])
     try:
@@ -80,3 +80,16 @@ def test_non_429_client_error_is_not_silently_swallowed():
         assert False, "expected ClientError to propagate"
     except genai_errors.ClientError as exc:
         assert exc.code == 400
+
+
+def test_quota_cooldown_expires_and_gemini_is_tried_again():
+    """A single 429 must not disable Gemini for the life of the instance."""
+    gemini_client.reset_quota_cooldown()
+    quota_error = genai_errors.ClientError(429, {"error": {"message": "quota exceeded"}})
+    client = make_fake_client([quota_error, MagicMock(text="back")])
+    assert gemini_client.call_gemini(client, "prompt") is None
+
+    with patch.object(time, "monotonic", return_value=time.monotonic() + gemini_client.QUOTA_COOLDOWN_SECONDS + 1):
+        assert gemini_client.call_gemini(client, "prompt") == "back"
+    assert client.models.generate_content.call_count == 2
+    gemini_client.reset_quota_cooldown()

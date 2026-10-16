@@ -12,7 +12,7 @@ from solver import (
     Demand,
     Listing,
     apply_negotiation,
-    negotiation_concession_schedule,
+    negotiation_rounds,
     score_no_burn_submission,
     solve_matches,
     trust_multiplier,
@@ -100,7 +100,7 @@ def test_apply_negotiation_updates_price_and_can_change_outcome():
     listings = [Listing(id="l1", farmer_id="f1", quantity_kg=500, crop_type="rice_stubble")]
     demands = [
         Demand(id="d_low", company_id="c_low", crop_type="rice_stubble",
-               quantity_needed_kg=500, price_offer_per_kg=7.0),
+               quantity_needed_kg=500, price_offer_per_kg=7.0, max_price_per_kg=10.0),
         Demand(id="d_high", company_id="c_high", crop_type="rice_stubble",
                quantity_needed_kg=500, price_offer_per_kg=9.0),
     ]
@@ -271,22 +271,57 @@ def test_custom_constraint_holds_against_a_higher_paying_alternative():
     assert by_demand.get("d1", 0) >= 60.0, f"the constraint should hold even against a 2.5x price incentive: {by_demand}"
 
 
-def test_negotiation_schedule_empty_when_no_overlap():
-    assert negotiation_concession_schedule(8.0, farmer_floor=11.0, buyer_ceiling=10.0, urgency_multiplier=2.0) == []
+def test_default_ceiling_is_offer_times_factor_and_never_below_offer():
+    d = Demand(id="d", company_id="c", crop_type="rice_stubble", quantity_needed_kg=100, price_offer_per_kg=1.0)
+    assert d.ceiling_per_kg == 1.2
+    stated = Demand(id="d", company_id="c", crop_type="rice_stubble", quantity_needed_kg=100,
+                    price_offer_per_kg=1.0, max_price_per_kg=1.5)
+    assert stated.ceiling_per_kg == 1.5
+    below = Demand(id="d", company_id="c", crop_type="rice_stubble", quantity_needed_kg=100,
+                   price_offer_per_kg=1.0, max_price_per_kg=0.5)
+    assert below.ceiling_per_kg == 1.0
 
 
-def test_negotiation_schedule_never_exceeds_max_turns():
-    schedule = negotiation_concession_schedule(8.0, farmer_floor=7.0, buyer_ceiling=10.0, urgency_multiplier=2.0, max_turns=4)
-    assert len(schedule) <= 4
+def test_apply_negotiation_refuses_a_price_above_the_ceiling():
+    """Regression: a counter-offer could previously set any price (a live
+    match sat at Rs 12/kg against an Rs 8.98 offer)."""
+    listings = [Listing(id="l1", farmer_id="f1", quantity_kg=500, crop_type="rice_stubble")]
+    demands = [Demand(id="d1", company_id="c1", crop_type="rice_stubble",
+                       quantity_needed_kg=500, price_offer_per_kg=8.98)]
+    assert apply_negotiation(listings, demands, demand_id="d1", new_price_offer_per_kg=12.0) == []
+    assert apply_negotiation(listings, demands, demand_id="d1", new_price_offer_per_kg=0) == []
+    within = apply_negotiation(listings, demands, demand_id="d1", new_price_offer_per_kg=10.0)
+    assert within and within[0].price_agreed_per_kg == 10.0
 
 
-def test_negotiation_schedule_high_urgency_concedes_faster():
-    low = negotiation_concession_schedule(8.0, farmer_floor=7.0, buyer_ceiling=10.0, urgency_multiplier=1.0, max_turns=4)
-    high = negotiation_concession_schedule(8.0, farmer_floor=7.0, buyer_ceiling=10.0, urgency_multiplier=2.0, max_turns=4)
-    for lo_price, hi_price in zip(low, high):
-        assert hi_price < lo_price, (
-            f"a higher-urgency listing should concede closer to the standing offer at every turn: {low} vs {high}"
-        )
+def test_negotiation_rounds_empty_when_no_overlap():
+    result = negotiation_rounds(8.0, farmer_floor=11.0, buyer_ceiling=10.0, urgency_multiplier=2.0)
+    assert result == {"turns": [], "agreed_price_per_kg": None, "converged": False}
+
+
+def test_negotiation_rounds_never_exceed_max_turns_and_both_sides_move():
+    result = negotiation_rounds(8.0, farmer_floor=7.0, buyer_ceiling=10.0, urgency_multiplier=1.0, max_turns=4)
+    turns = result["turns"]
+    assert 1 <= len(turns) <= 4
+    asks = [t["farmer_ask"] for t in turns]
+    offers = [t["buyer_offer"] for t in turns]
+    assert asks == sorted(asks, reverse=True) and asks[0] < 10.0, "the farmer concedes downward each turn"
+    assert offers == sorted(offers) and offers[0] > 8.0, "the buyer concedes upward each turn"
+
+
+def test_negotiation_rounds_agreed_price_stays_within_bounds():
+    for urgency in (1.0, 1.5, 2.0):
+        for floor in (6.0, 8.0, 9.5):
+            result = negotiation_rounds(8.0, farmer_floor=floor, buyer_ceiling=10.0, urgency_multiplier=urgency)
+            agreed = result["agreed_price_per_kg"]
+            assert max(floor, 8.0) <= agreed <= 10.0, (urgency, floor, result)
+
+
+def test_negotiation_rounds_urgent_farmer_settles_lower():
+    calm = negotiation_rounds(8.0, farmer_floor=8.0, buyer_ceiling=10.0, urgency_multiplier=1.0)
+    urgent = negotiation_rounds(8.0, farmer_floor=8.0, buyer_ceiling=10.0, urgency_multiplier=2.0)
+    assert urgent["agreed_price_per_kg"] <= calm["agreed_price_per_kg"]
+    assert urgent["turns"][0]["farmer_ask"] < calm["turns"][0]["farmer_ask"]
 
 
 def test_seed_demo_set_is_solvable_end_to_end():

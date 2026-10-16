@@ -26,7 +26,7 @@ call live, not batched.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 
 from ortools.linear_solver import pywraplp
@@ -141,6 +141,12 @@ def score_no_burn_submission(
     return {"new_score": round(new_score, 3), "disputed": disputed}
 
 
+# A buyer's standing offer can be negotiated up to this multiple unless the
+# buyer states its own maximum. Before this existed a counter-offer could set
+# any price at all (a live match sat at Rs 12/kg against an Rs 8.98 offer).
+DEFAULT_CEILING_FACTOR = 1.2
+
+
 @dataclass(frozen=True)
 class Demand:
     id: str
@@ -149,6 +155,17 @@ class Demand:
     quantity_needed_kg: float
     price_offer_per_kg: float
     accepted_quality_grades: tuple[str, ...] = QUALITY_GRADES
+    max_price_per_kg: float | None = None
+
+    @property
+    def ceiling_per_kg(self) -> float:
+        """The most this buyer will ever pay per kg -- its stated maximum,
+        or the standing offer x DEFAULT_CEILING_FACTOR, and never below the
+        standing offer itself."""
+        stated = self.max_price_per_kg
+        if stated is None:
+            stated = self.price_offer_per_kg * DEFAULT_CEILING_FACTOR
+        return round(max(stated, self.price_offer_per_kg), 2)
 
 
 @dataclass(frozen=True)
@@ -348,61 +365,71 @@ def apply_negotiation(
     arithmetic and the only re-matching. Returns the new full match set,
     not a diff -- callers compare against the prior result to describe
     what changed.
+
+    A price above the demand's ceiling (or not positive) is refused
+    outright: the result is an empty list, which callers report as "not
+    feasible", and nothing is re-solved.
     """
+    target = next((d for d in demands if d.id == demand_id), None)
+    if target is None or new_price_offer_per_kg <= 0 or new_price_offer_per_kg > target.ceiling_per_kg + 1e-9:
+        return []
     updated = [
-        Demand(
-            id=d.id,
-            company_id=d.company_id,
-            crop_type=d.crop_type,
-            quantity_needed_kg=d.quantity_needed_kg,
-            price_offer_per_kg=new_price_offer_per_kg if d.id == demand_id else d.price_offer_per_kg,
-            accepted_quality_grades=d.accepted_quality_grades,
-        )
+        replace(d, price_offer_per_kg=new_price_offer_per_kg) if d.id == demand_id else d
         for d in demands
     ]
     return solve_matches(listings, updated, today, custom_constraints)
 
 
-def negotiation_concession_schedule(
+# Negotiation assistant pacing. The buyer concedes a fixed share of the gap
+# to its ceiling each turn; the farmer concedes a share of the gap to their
+# floor that grows with urgency (a farmer near the burn deadline has less
+# leverage). Two positions within CONVERGENCE_GAP are treated as agreed.
+BUYER_CONCESSION_SHARE = 0.3
+FARMER_CONCESSION_BASE = 0.5
+CONVERGENCE_GAP = 0.05
+
+
+def negotiation_rounds(
     start_price: float,
     farmer_floor: float,
     buyer_ceiling: float,
     urgency_multiplier: float,
     max_turns: int = 4,
-) -> list[float]:
-    """Feature 2: the farmer persona's price position over up to
-    `max_turns` negotiation turns -- deterministic and solver-owned, not
-    a generic 50/50 bisection (the judge-eval finding round 1 fixed:
-    "two chatbots reading out a textbook binary search" is weak theater).
+) -> dict:
+    """Feature 2, two-sided: each turn both sides move.
 
-    Starts at an optimistic ask (`buyer_ceiling`, the most the buyer
-    would ever pay) and concedes down toward `start_price` (today's
-    standing offer) each turn, by a fraction of the remaining gap that
-    scales with `urgency_multiplier` -- the SAME value Feature 1 computes
-    from the listing's real `ready_by` deadline: a farmer whose stubble
-    is close to its burn deadline has less bargaining leverage and
-    concedes faster; a patient farmer holds firmer, closer to the
-    optimistic ask, for longer. This is what makes the "grounded" claim
-    literally true rather than aspirational -- the concession rate is a
-    real, explainable fact about this specific listing, not a dial no
-    one can point to.
+    The buyer's assistant opens at today's standing offer (`start_price`)
+    and concedes up toward the buyer's ceiling. The farmer's assistant
+    opens at that ceiling and concedes down toward the farmer's floor, by a
+    share of the remaining gap scaled by the listing's real urgency
+    multiplier -- the same value the matching objective uses. The prices
+    are decided here, deterministically; Gemini only narrates them.
 
-    Returns an empty list -- zero turns, so callers make zero Gemini
-    calls -- if there's no feasible overlap at all (`farmer_floor >
-    buyer_ceiling`), rather than negotiating toward an impossible deal.
+    Returns {"turns": [{"farmer_ask", "buyer_offer"}, ...],
+    "agreed_price_per_kg": float | None, "converged": bool}.
+    The agreed price is clamped to [max(farmer_floor, start_price),
+    buyer_ceiling]: negotiating never leaves the farmer below today's offer
+    and never charges the buyer above its ceiling. When the farmer's floor
+    is above the buyer's ceiling there is no deal to find, so no turns are
+    produced (and callers make zero Gemini calls).
     """
-    if farmer_floor > buyer_ceiling:
-        return []
+    if farmer_floor > buyer_ceiling or max_turns < 1:
+        return {"turns": [], "agreed_price_per_kg": None, "converged": False}
 
-    ask = buyer_ceiling
-    target = max(farmer_floor, min(buyer_ceiling, start_price))
-    step_fraction = min(1.0, (urgency_multiplier / URGENCY_MAX_MULTIPLIER) / max_turns)
+    low = max(farmer_floor, start_price)
+    high = buyer_ceiling
+    farmer_share = min(1.0, FARMER_CONCESSION_BASE * urgency_multiplier / URGENCY_MAX_MULTIPLIER)
 
-    schedule = []
-    price = ask
+    ask, offer = high, min(start_price, high)
+    turns = []
+    converged = False
     for _ in range(max_turns):
-        if abs(price - target) <= 1e-6:
+        ask = ask - (ask - farmer_floor) * farmer_share
+        offer = offer + (buyer_ceiling - offer) * BUYER_CONCESSION_SHARE
+        turns.append({"farmer_ask": round(ask, 2), "buyer_offer": round(offer, 2)})
+        if ask - offer <= CONVERGENCE_GAP:
+            converged = True
             break
-        price = price + (target - price) * step_fraction
-        schedule.append(round(price, 2))
-    return schedule
+
+    agreed = round(min(high, max(low, (ask + offer) / 2)), 2)
+    return {"turns": turns, "agreed_price_per_kg": agreed, "converged": converged}
