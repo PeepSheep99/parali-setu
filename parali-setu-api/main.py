@@ -1038,3 +1038,46 @@ def farmer_pickups(farmer_id: str):
             "pickup_window": pickups.window_label(slots[0]) if slots else None,
         })
     return {"farmer_id": farmer_id, "pickups": pickups_out}
+
+
+@app.get("/companies")
+def list_companies():
+    """Buyers for the console's picker."""
+    db = store.get_firestore_client()
+    return {"companies": sorted(
+        ({"id": c["id"], "name": c.get("name", c["id"]), "product_lines": c.get("product_lines", []),
+          "depot_district": c.get("depot_district"), "service_radius_km": c.get("service_radius_km")}
+         for c in store.get_companies(db) if not c.get("smoke")),
+        key=lambda c: c["name"])}
+
+
+@app.get("/companies/{company_id}/demand")
+def company_demand(company_id: str):
+    """The buyer's standing demand with what is still open, and its ceiling."""
+    db = store.get_firestore_client()
+    out = []
+    for doc in store.get_demand_for_company(db, company_id):
+        demand = _to_solver_demand(doc)
+        out.append({**doc, "quantity_remaining_kg": store.demand_remaining_kg(doc),
+                    "ceiling_per_kg": demand.ceiling_per_kg})
+    return {"company_id": company_id, "demand": sorted(out, key=lambda d: d.get("created_at", ""))}
+
+
+@app.get("/buyers/{company_id}/impact")
+def buyer_impact(company_id: str):
+    """What this buyer's collections have achieved: impact of collected
+    straw (impact.py) and total simulated payouts to farmers."""
+    db = store.get_firestore_client()
+    collected_kg = scheduled_kg = payouts = 0.0
+    farmers = set()
+    for m in store.get_matches_for_company(db, company_id):
+        status = m.get("status")
+        if status in ("collected", "paid"):
+            collected_kg += m.get("collected_kg") or m.get("matched_kg", 0)
+            payouts += m.get("payout_inr") or 0
+            farmers.add(m["farmer_id"])
+        elif status == "scheduled":
+            scheduled_kg += m.get("matched_kg", 0)
+    return {"company_id": company_id, "collected": impact_for_kg(collected_kg),
+            "scheduled": impact_for_kg(scheduled_kg), "payouts_inr": round(payouts, 2),
+            "farmers_paid": len(farmers)}

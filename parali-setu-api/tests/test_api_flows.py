@@ -185,3 +185,24 @@ def test_collected_refuses_a_match_that_was_never_scheduled(monkeypatch):
     monkeypatch.setattr(store, "update_match_status", refuse)
     monkeypatch.setattr(store, "save_payout", lambda *a: pytest.fail("no payout without a collection"))
     assert client.post("/stops/m1/collected", json={}).status_code == 409
+
+
+def test_buyer_read_endpoints(monkeypatch):
+    monkeypatch.setattr(store, "get_companies", lambda db: [
+        {"id": "co_2", "name": "Malwa Pellets (demo)"}, {"id": "co_1", "name": "Leafware Plates (demo)"},
+        {"id": "smoke_co", "name": "Smoke", "smoke": True}])
+    assert [c["id"] for c in client.get("/companies").json()["companies"]] == ["co_1", "co_2"]
+
+    monkeypatch.setattr(store, "get_demand_for_company", lambda db, cid: [
+        {"id": "d1", "company_id": cid, "crop_type": "rice_stubble", "quantity_needed_kg": 1000,
+         "quantity_remaining_kg": 400, "price_offer_per_kg": 1.0}])
+    d = client.get("/companies/co_1/demand").json()["demand"][0]
+    assert d["quantity_remaining_kg"] == 400 and d["ceiling_per_kg"] == 1.2
+
+    monkeypatch.setattr(store, "get_matches_for_company", lambda db, cid: [
+        {"farmer_id": "f1", "status": "paid", "matched_kg": 1750, "collected_kg": 1750, "payout_inr": 1925.0},
+        {"farmer_id": "f2", "status": "scheduled", "matched_kg": 3500},
+        {"farmer_id": "f3", "status": "proposed", "matched_kg": 999}])
+    imp = client.get("/buyers/co_1/impact").json()
+    assert imp["payouts_inr"] == 1925.0 and imp["farmers_paid"] == 1
+    assert imp["collected"]["acres_cleared"] == 1.0 and imp["scheduled"]["acres_cleared"] == 2.0
