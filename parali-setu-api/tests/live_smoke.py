@@ -24,6 +24,28 @@ from gemini_client import get_gemini_client
 from speech import transcribe_audio
 
 
+
+SMOKE_DEPOT = (30.2458, 75.8421)   # Sangrur HQ
+
+
+def make_smoke_buyer(db, company_id: str, name: str) -> None:
+    """A smoke-test buyer with a depot and one crew, so its matches get real
+    pickup slots (a buyer without crews is honestly waitlisted)."""
+    db.collection("companies").document(company_id).set({
+        "id": company_id, "name": name, "depot_lat": SMOKE_DEPOT[0], "depot_lon": SMOKE_DEPOT[1],
+        "service_radius_km": 75, "smoke": True})
+    db.collection("crews").document(f"{company_id}_crew").set({
+        "id": f"{company_id}_crew", "company_id": company_id, "depot_lat": SMOKE_DEPOT[0],
+        "depot_lon": SMOKE_DEPOT[1], "shift_start_min": 420, "shift_end_min": 1080, "acres_per_day": 20.0})
+
+
+def cleanup_smoke_buyers(db) -> None:
+    for coll in ("crews", "pickup_slots"):
+        for d in db.collection(coll).stream():
+            data = d.to_dict()
+            if "smoke" in (data.get("company_id") or "") or "smoke" in d.id:
+                d.reference.delete()
+
 def check_no_date_fabrication():
     """Regression check for a real bug found 2026-10-15: given a transcript
     that only names a month with no day number, extraction was confidently
@@ -60,7 +82,7 @@ def check_voice_round_trip():
 
     client = TestClient(main.app)
     db = get_firestore_client()
-    db.collection("companies").document("voice_smoke_co").set({"id": "voice_smoke_co", "name": "Voice Smoke Co"})
+    make_smoke_buyer(db, "voice_smoke_co", "Voice Smoke Co")
     demand_resp = client.post("/companies/voice_smoke_co/demand", json={
         "product": "biofuel_pellets", "crop_type": "rice_stubble",
         "quantity_needed_kg": 2000, "price_offer_per_kg": 8.75,
@@ -104,7 +126,7 @@ def check_voice_with_photo():
 
     client = TestClient(main.app)
     db = get_firestore_client()
-    db.collection("companies").document("photo_smoke_co").set({"id": "photo_smoke_co", "name": "Photo Smoke Co"})
+    make_smoke_buyer(db, "photo_smoke_co", "Photo Smoke Co")
     demand_resp = client.post("/companies/photo_smoke_co/demand", json={
         "product": "biofuel_pellets", "crop_type": "rice_stubble",
         "quantity_needed_kg": 2000, "price_offer_per_kg": 8.0,
@@ -144,9 +166,7 @@ def check_listing_lifecycle_and_renegotiation():
 
     client = TestClient(main.app)
     db = get_firestore_client()
-    db.collection("companies").document("lifecycle_smoke_co").set(
-        {"id": "lifecycle_smoke_co", "name": "Lifecycle Smoke Co"}
-    )
+    make_smoke_buyer(db, "lifecycle_smoke_co", "Lifecycle Smoke Co")
 
     # Price set well above any real seed/demo demand (seed_data.py's
     # highest is 8.98/kg) so this test's own demand always wins the
@@ -165,6 +185,7 @@ def check_listing_lifecycle_and_renegotiation():
         "raw_text": "Mere paas 5 quintal rice stubble hai, Sangrur mein",
         "language": "Hindi",
     })
+    assert listing_resp.status_code == 200, listing_resp.text
     body = listing_resp.json()
     listing_id = body["listing"]["id"]
     match_id = body["matches"][0]["id"]
@@ -228,9 +249,17 @@ def check_concurrent_decrement_does_not_overcommit():
         "id": "concurrency_smoke_listing", "quantity_kg": 100, "quantity_remaining_kg": 100,
         "status": "open", "farmer_id": "concurrency_smoke_farmer", "crop_type": "rice_stubble",
     })
+    demand_ref = db.collection("demand").document("concurrency_smoke_demand")
+    demand_ref.set({"id": "concurrency_smoke_demand", "company_id": "concurrency_smoke_co",
+                    "quantity_needed_kg": 100, "quantity_remaining_kg": 100})
+
+    errors = []
 
     def worker(amount):
-        store._decrement_listing_remaining(db.transaction(), ref, amount)
+        try:
+            store._adjust_remaining(db.transaction(), ref, demand_ref, -amount)
+        except Exception as exc:   # surfaced below: a crashed worker must fail the check
+            errors.append(repr(exc))
 
     threads = [threading.Thread(target=worker, args=(80,)) for _ in range(2)]
     for t in threads:
@@ -238,12 +267,16 @@ def check_concurrent_decrement_does_not_overcommit():
     for t in threads:
         t.join()
 
+    assert not errors, f"concurrent decrement workers failed: {errors}"
     final = ref.get().to_dict()
-    assert final["quantity_remaining_kg"] >= 0, (
-        f"two 80kg decrements against a 100kg listing overcommitted it: {final}"
-    )
+    final_demand = demand_ref.get().to_dict()
+    # Both transactions applied, serialised: 100 - 80 = 20, then 20 - 80 clamps
+    # to 0 -- never negative, and never 20 (which would mean a lost update).
+    assert final["quantity_remaining_kg"] == 0 and final["status"] == "matched", final
+    assert final_demand["quantity_remaining_kg"] == 0, final_demand
     ref.delete()
-    print("concurrent decrement: ok, final remaining", final["quantity_remaining_kg"])
+    demand_ref.delete()
+    print("concurrent decrement: ok, listing and demand both at 0, no lost update")
 
 
 def check_no_burn_proof_disputed_path():
@@ -292,7 +325,7 @@ def check_pricing_explanation():
     """
     client = TestClient(main.app)
     db = get_firestore_client()
-    db.collection("companies").document("pricing_smoke_co").set({"id": "pricing_smoke_co", "name": "Pricing Smoke Co"})
+    make_smoke_buyer(db, "pricing_smoke_co", "Pricing Smoke Co")
     demand_resp = client.post("/companies/pricing_smoke_co/demand", json={
         "product": "biofuel_pellets", "crop_type": "rice_stubble",
         "quantity_needed_kg": 500, "price_offer_per_kg": 60.0,
@@ -358,7 +391,7 @@ def check_custom_constraint_end_to_end():
 
     client = TestClient(main.app)
     db = get_firestore_client()
-    db.collection("companies").document("partd_smoke_co").set({"id": "partd_smoke_co", "name": "Part D Smoke Co"})
+    make_smoke_buyer(db, "partd_smoke_co", "Part D Smoke Co")
 
     demand_resp = client.post("/companies/partd_smoke_co/demand", json={
         "product": "biofuel_pellets", "crop_type": "rice_stubble",
@@ -406,7 +439,7 @@ def check_negotiation_agents_grounded_and_non_mutating():
     """
     client = TestClient(main.app)
     db = get_firestore_client()
-    db.collection("companies").document("neg_smoke_co").set({"id": "neg_smoke_co", "name": "Negotiation Smoke Co"})
+    make_smoke_buyer(db, "neg_smoke_co", "Negotiation Smoke Co")
     demand_resp = client.post("/companies/neg_smoke_co/demand", json={
         "product": "biofuel_pellets", "crop_type": "rice_stubble",
         "quantity_needed_kg": 500, "price_offer_per_kg": 55.0,
@@ -433,7 +466,7 @@ def check_negotiation_agents_grounded_and_non_mutating():
         assert "deadline" in (turn["farmer_message"] or "").lower() or "urgen" in (turn["farmer_message"] or "").lower(), (
             f"expected the real urgency fact to ground the narration, got: {turn['farmer_message']}"
         )
-        assert turn["farmer_ask_per_kg"] >= turn["buyer_offer_per_kg"] - 0.05, turn
+        assert turn["farmer_ask_per_kg"] >= turn["buyer_offer_per_kg"], f"positions must never cross: {turn}"
 
     import firestore_store as store
 
@@ -463,7 +496,15 @@ def run():
     assert health.status_code == 200, health.text
     print("health: ok")
 
-    db.collection("companies").document("live_smoke_co").set({"id": "live_smoke_co", "name": "Live Smoke Test Co"})
+    # A depot and one crew, so the match gets a real pickup slot and is
+    # narrated as an offer (a buyer without crews is honestly waitlisted).
+    sangrur = (30.2458, 75.8421)
+    db.collection("companies").document("live_smoke_co").set({
+        "id": "live_smoke_co", "name": "Live Smoke Test Co",
+        "depot_lat": sangrur[0], "depot_lon": sangrur[1], "service_radius_km": 75})
+    db.collection("crews").document("live_smoke_crew").set({
+        "id": "live_smoke_crew", "company_id": "live_smoke_co", "depot_lat": sangrur[0], "depot_lon": sangrur[1],
+        "shift_start_min": 420, "shift_end_min": 1080, "acres_per_day": 20.0})
 
     demand_resp = client.post("/companies/live_smoke_co/demand", json={
         "product": "biofuel_pellets", "crop_type": "rice_stubble",
@@ -481,11 +522,17 @@ def run():
     assert listing_resp.status_code == 200, listing_resp.text
     body = listing_resp.json()
     assert body["listing"]["quantity_kg"] == 1000, "10 quintal should extract to 1000 kg"
-    assert body["listing"]["ready_by"] == "2026-10-25", "date must anchor to the near future, not a stale year"
+    # "25 October tak le jao" (take it by the 25th) is a clear-by deadline, so
+    # since the speak-once revision it lands in sowing_deadline; either way the
+    # point of this check is that the year anchors to today, not a stale one.
+    stated = body["listing"].get("sowing_deadline") or body["listing"].get("ready_by")
+    assert stated == "2026-10-25", f"date must anchor to the near future, not a stale year: {body['listing']}"
     assert len(body["matches"]) == 1
     assert body["matches"][0]["price_agreed_per_kg"] == 8.5
+    assert body["matches"][0]["status"] == "proposed" and body["matches"][0]["slots"], body["matches"][0]
     assert body["explanation"] and "Live Smoke Test Co" in body["explanation"], "narration must use the real company name, not its id"
     match_id = body["matches"][0]["id"]
+    print("pickup slot offered:", body["matches"][0]["pickup_window"])
     listing_id = body["listing"]["id"]
     print("listing matched:", body["matches"][0])
     print("explanation:", body["explanation"])
@@ -498,7 +545,7 @@ def run():
     print("negotiation outcome:", negotiate_resp.json())
 
     # cleanup -- this is a smoke test, not seed data
-    for coll, doc_id in [("companies", "live_smoke_co"), ("demand", demand_id), ("listings", listing_id), ("matches", match_id)]:
+    for coll, doc_id in [("companies", "live_smoke_co"), ("demand", demand_id), ("listings", listing_id), ("matches", match_id), ("crews", "live_smoke_crew")]:
         db.collection(coll).document(doc_id).delete()
     print("cleaned up")
 
@@ -513,6 +560,7 @@ def run():
     check_custom_constraint_end_to_end()
     check_negotiation_agents_grounded_and_non_mutating()
 
+    cleanup_smoke_buyers(db)
     print("\nALL LIVE CHECKS PASSED")
 
 

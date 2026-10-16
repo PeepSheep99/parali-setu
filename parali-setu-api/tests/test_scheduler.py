@@ -131,3 +131,13 @@ def test_helpers():
     assert acres_from_kg(1750) == 1.0
     assert promised_window(9 * 60 + 47, 18 * 60) == (9 * 60, 12 * 60)
     assert promised_window(16 * 60 + 30, 18 * 60) == (16 * 60, 18 * 60)
+
+
+def test_today_never_offers_a_slot_that_has_already_passed():
+    result = plan_pickups([job("m1", acres=3.0, earliest=START, latest=START)], [crew()], START,
+                          time_limit_seconds=0, not_before_min_today=14 * 60)
+    (a,) = result.assignments
+    assert a.start_min >= 14 * 60
+    late = plan_pickups([job("m2", earliest=START, latest=START)], [crew()], START,
+                        time_limit_seconds=0, not_before_min_today=17 * 60 + 50)
+    assert late.assignments == [] and late.unschedulable, "no time left today -> reported, not a past slot"

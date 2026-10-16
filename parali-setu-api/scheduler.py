@@ -148,9 +148,14 @@ def plan_pickups(
     start: date,
     horizon_days: int = HORIZON_DAYS,
     time_limit_seconds: int = 3,
+    not_before_min_today: int | None = None,
 ) -> ScheduleResult:
     """Plans every job over [start, start + horizon_days). Deterministic when
-    time_limit_seconds is 0 (first solution only, used by tests)."""
+    time_limit_seconds is 0 (first solution only, used by tests).
+
+    `not_before_min_today` (minutes after midnight, local time) keeps crews
+    on day 0 from being planned before that time, so a farmer is never
+    offered a slot that has already passed."""
     unschedulable: list[dict] = []
     crews_by_company: dict[str, list[Crew]] = {}
     for crew in crews:
@@ -223,7 +228,10 @@ def plan_pickups(
 
     for v, (crew, d) in enumerate(vehicles):
         day0 = d * MINUTES_PER_DAY
-        time_dim.CumulVar(routing.Start(v)).SetRange(day0 + crew.shift_start_min, day0 + crew.shift_end_min)
+        shift_start = crew.shift_start_min
+        if d == 0 and not_before_min_today is not None:
+            shift_start = min(max(shift_start, not_before_min_today), crew.shift_end_min)
+        time_dim.CumulVar(routing.Start(v)).SetRange(day0 + shift_start, day0 + crew.shift_end_min)
         time_dim.CumulVar(routing.End(v)).SetRange(day0 + crew.shift_start_min, day0 + crew.shift_end_min)
         routing.SetFixedCostOfVehicle(_EARLY_DAY_COST * (d + 1), v)
 

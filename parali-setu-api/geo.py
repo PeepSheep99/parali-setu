@@ -37,10 +37,27 @@ def nearest_district(lat: float, lon: float) -> str:
     return min(DISTRICT_COORDS, key=lambda d: haversine_km(lat, lon, *DISTRICT_COORDS[d]))
 
 
+# How farmers write the districts: Hindi (Devanagari) and Punjabi (Gurmukhi)
+# spellings plus common romanised variants. Found live 2026-10-17: a Punjabi
+# voice listing came back as "ਸੰਗਰੂਰ", which an English-only lookup missed,
+# so the farm had no location and could not be scheduled.
+DISTRICT_ALIASES = {
+    "Sangrur": ("sangrur", "संगरूर", "ਸੰਗਰੂਰ"),
+    "Patiala": ("patiala", "पटियाला", "ਪਟਿਆਲਾ"),
+    "Bathinda": ("bathinda", "bhatinda", "बठिंडा", "भटिंडा", "ਬਠਿੰਡਾ"),
+    "Ludhiana": ("ludhiana", "लुधियाना", "ਲੁਧਿਆਣਾ"),
+    "Moga": ("moga", "मोगा", "ਮੋਗਾ"),
+    "Karnal": ("karnal", "करनाल", "ਕਰਨਾਲ"),
+    "Kaithal": ("kaithal", "कैथल", "ਕੈਥਲ"),
+    "Kurukshetra": ("kurukshetra", "कुरुक्षेत्र", "ਕੁਰੂਕਸ਼ੇਤਰ"),
+}
+
+
 def district_from_text(text: str | None) -> str | None:
     """Finds one of the demo districts named in free text such as a
-    village_or_district field ("Sangrur", "near Patiala"). None if absent."""
+    village_or_district field ("Sangrur", "near Patiala", "ਸੰਗਰੂਰ ਵਿੱਚ").
+    None if absent."""
     if not text:
         return None
     lowered = text.lower()
-    return next((d for d in DISTRICT_COORDS if d.lower() in lowered), None)
+    return next((d for d, names in DISTRICT_ALIASES.items() if any(n in lowered for n in names)), None)

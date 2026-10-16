@@ -129,7 +129,7 @@ def run(include_listings: bool) -> None:
     if not include_listings:
         print("no listings seeded (--no-listings)")
         return
-    count = seed_listings(db, date.today())
+    count = seed_listings(db, pickups.now_ist().date())
     matches = _run_global_solve(db)
     plans = pickups.plan_companies(db, [b[0] for b in BUYERS])
     print(f"seeded {count} listings -> {len(matches)} matches")

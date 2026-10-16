@@ -356,3 +356,14 @@ def test_unknown_locations_never_exclude_a_farmer():
     demands = [Demand(id="d1", company_id="c1", crop_type="rice_stubble", quantity_needed_kg=500,
                       price_offer_per_kg=1.0, depot_lat=29.68, depot_lon=76.99)]
     assert len(solve_matches(listings, demands)) == 1
+
+
+def test_negotiation_rounds_never_show_crossed_positions():
+    for urgency in (1.0, 1.5, 2.0):
+        for floor in (6.0, 8.0, 9.5):
+            result = negotiation_rounds(8.0, farmer_floor=floor, buyer_ceiling=10.0, urgency_multiplier=urgency)
+            for turn in result["turns"]:
+                assert turn["farmer_ask"] >= turn["buyer_offer"], (urgency, floor, turn)
+            if result["converged"]:
+                last = result["turns"][-1]
+                assert last["farmer_ask"] == last["buyer_offer"] == result["agreed_price_per_kg"]

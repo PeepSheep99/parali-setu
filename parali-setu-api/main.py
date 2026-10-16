@@ -254,16 +254,18 @@ def _create_listing_from_text(farmer_id: str, raw_text: str, language: str, qual
 
     explanation = None
     explanation_audio_base64 = None
-    if saved_matches:
-        m = saved_matches[0]
-        company_doc = db.collection("companies").document(m["company_id"]).get()
-        company_name = company_doc.to_dict()["name"] if company_doc.exists else m["company_id"]
-        # Enrich every returned match with the display name -- found live
-        # 2026-10-15: the frontend was showing the raw company_id ("co_3")
-        # to the farmer because nothing in the response carried the name.
-        for match in saved_matches:
-            match_company_doc = db.collection("companies").document(match["company_id"]).get()
-            match["company_name"] = match_company_doc.to_dict()["name"] if match_company_doc.exists else match["company_id"]
+    # Enrich every returned match with the display name -- found live
+    # 2026-10-15: the frontend was showing the raw company_id ("co_3")
+    # to the farmer because nothing in the response carried the name.
+    for match in saved_matches:
+        match_company_doc = db.collection("companies").document(match["company_id"]).get()
+        match["company_name"] = match_company_doc.to_dict()["name"] if match_company_doc.exists else match["company_id"]
+    # Only narrate an offer that has a pickup slot. Found live 2026-10-17: a
+    # waitlisted match was narrated as a confirmed sale.
+    offered = [m for m in saved_matches if m.get("status") == "proposed" and m.get("slots")]
+    if offered:
+        m = offered[0]
+        company_name = m["company_name"]
         explanation = explain_match(
             client,
             {
@@ -366,7 +368,7 @@ async def submit_no_burn_proof(
         raise HTTPException(status_code=503, detail="Could not read that photo right now -- please try again")
     field_condition = photo_result.get("field_condition")
 
-    claimed_date = claimed_date or date.today().isoformat()
+    claimed_date = claimed_date or pickups.now_ist().date().isoformat()
     coverage = store.get_fire_data_coverage(db)
     if coverage is None or not (coverage["start_date"] <= claimed_date <= coverage["end_date"]):
         satellite_corroboration = "no_data"
@@ -967,7 +969,7 @@ def confirm_listing(draft_id: str, req: ConfirmDraftRequest):
         "offers": offers,
         "payout_estimate_inr": round(sum(o["matched_kg"] * o["price_agreed_per_kg"] for o in offers), 2),
         "impact_if_collected": impact_for_kg(matched_kg) if matched_kg else None,
-        "window_assumed": pickups.listing_window(listing_doc, date.today())[2],
+        "window_assumed": pickups.listing_window(listing_doc, pickups.now_ist().date())[2],
         "location_approximate": location[2] if location else None,
         "explanation": _spoken(explanation, language),
     }
@@ -989,7 +991,7 @@ def accept_slot(match_id: str, req: AcceptSlotRequest):
     if not slots:
         raise HTTPException(status_code=409, detail="There is no pickup slot to accept yet")
     try:
-        updated = store.update_match_status(db, match_id, "scheduled", {"slot_accepted_at": date.today().isoformat()})
+        updated = store.update_match_status(db, match_id, "scheduled", {"slot_accepted_at": pickups.now_ist().isoformat()})
     except store.InvalidTransition as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     locked = store.set_slots_status(db, match_id, "locked", locked=True)

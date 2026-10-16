@@ -448,10 +448,15 @@ def negotiation_rounds(
     for _ in range(max_turns):
         ask = ask - (ask - farmer_floor) * farmer_share
         offer = offer + (buyer_ceiling - offer) * BUYER_CONCESSION_SHARE
-        turns.append({"farmer_ask": round(ask, 2), "buyer_offer": round(offer, 2)})
         if ask - offer <= CONVERGENCE_GAP:
             converged = True
             break
+        turns.append({"farmer_ask": round(ask, 2), "buyer_offer": round(offer, 2)})
 
     agreed = round(min(high, max(low, (ask + offer) / 2)), 2)
+    if converged:
+        # The turn where the positions meet (or cross) is narrated as both
+        # sides agreeing on one price, never as a farmer asking less than
+        # the buyer offers.
+        turns.append({"farmer_ask": agreed, "buyer_offer": agreed})
     return {"turns": turns, "agreed_price_per_kg": agreed, "converged": converged}

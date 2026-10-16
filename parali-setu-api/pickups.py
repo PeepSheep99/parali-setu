@@ -5,7 +5,7 @@ the Firestore orchestration so they can be tested without a database.
 """
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import firestore_store as store
 from geo import DISTRICT_COORDS, district_from_text
@@ -24,6 +24,14 @@ REASON_LOCATION_UNKNOWN = "We don't know where this farm is yet."
 # When a farmer gives no sowing date we plan as if it were this many days
 # after the stubble is ready, and say so wherever the slot is shown.
 ASSUMED_WINDOW_DAYS = 10
+# Farms and crews are in India; Cloud Run's clock is UTC. Planning uses IST
+# so "today" and today's earliest slot are right for the farmer.
+IST = timezone(timedelta(hours=5, minutes=30))
+SAME_DAY_LEAD_MIN = 60
+
+
+def now_ist() -> datetime:
+    return datetime.now(IST)
 
 
 def listing_location(listing: dict) -> tuple[float, float, bool] | None:
@@ -129,7 +137,11 @@ def plan_company(db, company_id: str, today: date | None = None, time_limit_seco
     - scheduled (locked) that can't be kept: stays scheduled, flagged for a
       person to resolve -- a promise is never silently moved
     """
-    today = today or date.today()
+    not_before = None
+    if today is None:
+        now = now_ist()
+        today = now.date()
+        not_before = now.hour * 60 + now.minute + SAME_DAY_LEAD_MIN
     matches = [m for m in store.get_matches_for_company(db, company_id) if m.get("status", "proposed") in ACTIVE_STATUSES]
     crews = [crew_from_doc(c) for c in store.get_crews_for_company(db, company_id)]
     listings = {lid: doc for lid in {m["listing_id"] for m in matches} if (doc := store.get_listing(db, lid))}
@@ -139,7 +151,8 @@ def plan_company(db, company_id: str, today: date | None = None, time_limit_seco
             locked.setdefault(slot["match_id"], []).append(slot)
 
     jobs, unschedulable = build_jobs(matches, listings, locked, today)
-    result = plan_pickups(jobs, crews, today, horizon_days=HORIZON_DAYS, time_limit_seconds=time_limit_seconds)
+    result = plan_pickups(jobs, crews, today, horizon_days=HORIZON_DAYS, time_limit_seconds=time_limit_seconds,
+                          not_before_min_today=not_before)
     unschedulable += result.unschedulable
     locked_job_ids = {j.match_id for j in jobs if j.locked is not None}
     store.replace_company_plan(db, company_id, slots_from_result(result, company_id, locked_job_ids))
