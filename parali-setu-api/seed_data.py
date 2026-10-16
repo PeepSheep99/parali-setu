@@ -81,7 +81,7 @@ def generate_demo_demand(seed: int = 42) -> list[Demand]:
                 company_id=co["id"],
                 crop_type=rng.choice(CROP_TYPES),
                 quantity_needed_kg=rng.choice([3000, 4000, 5000, 6000]),
-                price_offer_per_kg=round(rng.uniform(7.5, 9.5), 2),
+                price_offer_per_kg=round(rng.uniform(0.5, 1.5), 2),  # farm-gate Rs/kg; plants pay ~1.69 delivered (Tribune)
                 accepted_quality_grades=("unknown", "dry") if co["product"] == "disposable_plates"
                 else ("unknown", "dry", "wet", "mixed"),
             )
