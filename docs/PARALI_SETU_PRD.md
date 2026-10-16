@@ -1,5 +1,15 @@
 # Parali Setu — Product Requirements Document
 
+> **Historical document (Oct 13, 2026).** This is the original spec the first prototype
+> was built against. It is kept for the record and no longer describes the system. The
+> current system is described in [README.md](../README.md) and
+> [ARCHITECTURE.md](ARCHITECTURE.md). The main differences:
+> - The product's promise is now a **guaranteed pickup slot before sowing, plus payment**, produced by an OR-Tools routing scheduler. Matching alone is no longer the promise.
+> - Prices are farm-gate (₹0.5–1.5/kg), with a buyer ceiling, and matching is limited by each buyer's service radius.
+> - The farmer flow now has the confirm/edit step and a single follow-up question.
+> - Impact figures come from `impact.py` (methane and N₂O only; biogenic CO₂ is excluded).
+> - Statements below about the scale of the problem, competitors, or what is "built" reflect Oct 13 and are superseded by the README.
+
 **Status:** Draft v4, 2026-10-13 — v3 scored 59/100 again, and the judge's complaints shifted from wording to structure: (1) Gemini only extracted and narrated, which is thin for a 40%-weighted Gen AI criterion; (2) §7.1's "accumulated transaction data" moat has a cold-start problem — it can't exist in the artifact being judged, since the demo only ever holds ~15–20 simulated listings; (3) the forecast corpus fix addressed size, not validity, and §13.1's "fully closed" language was itself an overclaim of the same shape flagged in v2. v4 responds on substance: Gemini's role grows deliberately in two bounded places that don't touch arithmetic — an optional multimodal quality read on a stubble-pile photo (§8.1, §10, §12 — no new GCP service, Gemini is already multimodal) and a multi-turn negotiation loop promoted from stretch to MVP (§8.1, §8.2) — both reuse the existing Gemini+Firestore+solver pipeline rather than adding a subsystem. §7.1 drops the moat claim entirely and argues differentiation on what's actually built today, not a future network effect. §13.1 no longer claims zero risk. A build-sequencing table (§15.1) gives the scope-feasibility question a concrete answer instead of an assertion. Parallel exploration branch (`parali-setu`) — does **not** replace the AidAtlas (Crisis Resource Allocator) submission on `master`.
 
 **Rule for implementation:** this PRD is the governing spec. No code is written against it until the user explicitly says to start. Any deviation during build must be flagged and confirmed, not silently substituted.

@@ -1,50 +1,45 @@
-# Parali Setu — Frontend
+# Parali Setu: frontend
 
-Plain HTML/CSS/JS, no build step, no framework — deliberately, to match
-`aidatlas-api`'s sibling frontend's simplicity. Two pages:
+Plain HTML, CSS and JavaScript with no build step, served by Firebase Hosting as one
+site with three routes:
 
-- `index.html` + `app.js` — farmer view. Text or voice listing submission
-  (real microphone via `MediaRecorder`, WebM/Opus), optional photo
-  attachment, match result with a spoken reply, and a negotiation box.
-- `company.html` + `company.js` — company dashboard. Four read-only zones
-  (Incoming Supply, Recommendation, Active Matches, Standing Demand form),
-  polling `GET /companies/{id}/dashboard`.
+| Route | Files | For |
+|---|---|---|
+| `/` | `index.html`, `landing.css`, `landing.js` | Landing page: the problem, live impact from `GET /impact`, the Punjab scenario slider (`GET /impact/scenario`), the FIRMS fire map, architecture |
+| `/kisan/` | `kisan/` (PWA with `manifest.json`) | Farmer app, mobile-first, in Punjabi, Hindi and English, each label with an English subtitle. Steps: hold to speak, confirm card with editable chips, offer card (buyer, slot, payout, "Why this price?", negotiate), my pickups, no-burn proof |
+| `/buyer/` | `buyer/` | Buyer console, desktop. Tabs: Pickup Ops (crew routes on Google Maps, Re-plan, waitlist), Supply, Demand, Impact |
 
-`config.js` holds the one thing that changes per environment —
-`API_BASE`, the deployed backend URL. Edit that file, not the HTML/JS, to
-point at a different backend.
+`config.js` holds what changes per environment:
+- `API_BASE`, the backend URL
+- `MAPS_API_KEY`, a browser key restricted to the Maps JavaScript API and to this site's referrers (plus `localhost:8000`)
 
-Theme: committed light-only (see the comment at the top of `styles.css`)
-— a deliberate choice for this product, not a missing dark-mode variant.
+The old `farmer.html` and `company.html` 301-redirect to `/kisan/` and `/buyer/` (`firebase.json`).
 
-## Running locally
+All text from the API is inserted with `textContent` or escaped. Dates are formatted
+with explicit month and weekday names, because some browsers have no Punjabi locale data.
 
-Any static file server works, e.g.:
+## Run locally
 
 ```bash
-python -m http.server 8000
+python -m http.server 8000      # from this folder
 ```
 
-Then open `http://localhost:8000`. Update `config.js` to point at a
-locally-running backend (`http://localhost:8000` for `uvicorn`, a
-different port than the frontend's own) if testing both together.
+To use a local API, set `API_BASE` in `config.js` to `http://127.0.0.1:8080`. The API's
+CORS settings allow `localhost:8000`.
 
-## Deploying
+## Deploy
 
 ```bash
 firebase deploy --only hosting:parali-setu --project ai-builder-cup-aidatlas
 ```
 
-Live: https://parali-setu.web.app
+JavaScript and CSS are served with `Cache-Control: no-cache`, so a deploy takes effect
+on the next page load.
 
-(The backend's `main.py` CORS config already allows all origins, so this
-works regardless of which Firebase Hosting site serves the frontend.)
+## Testing
 
-## Known gaps, honestly
-
-- No automated frontend tests — everything here was verified by hand
-  through a real browser against the live deployed backend, not with a
-  test suite. Worth adding before this gets much bigger.
-- The confirm/edit-before-submit step from the PRD isn't built (see the
-  backend README's "Known gaps" — same root cause, this is the UI side
-  of it).
+There is no unit-test suite for the frontend. Each page was checked end to end with
+Playwright (Chromium; 390×844 phone and 1366×900 desktop) against the API, as follows:
+- **Kisan:** speak → confirm → offer → accept, with the booking shown
+- **Buyer:** collected → payout → impact updated, plus the waitlist
+- **Landing:** counters, slider and fire map, with no console errors

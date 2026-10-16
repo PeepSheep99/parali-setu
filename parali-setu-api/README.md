@@ -1,86 +1,70 @@
-# Parali Setu — Backend
+# Parali Setu: backend
 
-FastAPI service wiring three independent layers together (see
-`docs/PARALI_SETU_PRD.md` at the repo root for the full spec):
+A FastAPI service on Cloud Run. The design and diagrams are in
+[../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
-- **Gemini** (`extraction.py`, `gemini_client.py`) — language in, language
-  or a perception signal out. Extracts a structured listing from text or
-  a voice transcript, reads an optional stubble-photo for a quality grade,
-  parses negotiation counter-offers, and narrates results. Never computes
-  a price or quantity.
-- **OR-Tools** (`solver.py`) — a transportation-LP solver that does every
-  price/quantity decision. The only file that touches money.
-- **Firestore** (`firestore_store.py`) — the only state, read live by both
-  the farmer and company frontends.
+| Module | Layer | Does |
+|---|---|---|
+| `extraction.py`, `gemini_client.py` | Language | Gemini on Vertex AI: listing extraction, the single follow-up question, photo grading, narration. Quota errors start a 60-second cooldown. |
+| `speech.py` | Language | Cloud Speech-to-Text (pa-IN, hi-IN) and Text-to-Speech |
+| `phrases.py` | Language | Deterministic read-back of the listing in pa/hi/en |
+| `solver.py`, `negotiation.py` | Market | OR-Tools transportation LP: buyer, kg and price, within the buyer's service radius and price ceiling; two-sided negotiation rounds |
+| `scheduler.py`, `pickups.py` | Logistics | OR-Tools routing over crew-days: pickup slots before the sowing deadline, locked slots, waitlist with reasons; IST planning |
+| `impact.py` | Impact | Sourced emission and cost factors; Punjab scenario |
+| `geo.py` | | District coordinates and aliases (English, Devanagari, Gurmukhi), haversine |
+| `firestore_store.py` | State | Firestore access; transactional quantity updates and match-status transitions |
+| `main.py` | API | Endpoints, CORS (`ALLOWED_ORIGINS`), request bounds |
 
-`speech.py` wraps Cloud Speech-to-Text (farmer voice in) and Cloud
-Text-to-Speech (narration out, MP3). `forecast_pipeline.py` reads a
-BigQuery ML forecast (trained via `bigquery/forecast_model.sql`) and
-writes it into Firestore as an offline batch step — never called live.
+## Main endpoints
 
-## Running locally
+| Who | Endpoint |
+|---|---|
+| Farmer | `POST /listings/draft`, `POST /listings/{draft_id}/confirm`, `POST /matches/{id}/accept-slot`, `GET /farmers/{id}/pickups`, `POST /farmers/{id}/no-burn-proof`, `GET /matches/{id}/pricing-explanation`, `POST /negotiate/agents`, `POST /matches/{id}/confirm-price` |
+| Buyer | `GET /companies`, `GET/POST /companies/{id}/demand`, `GET /companies/{id}/dashboard`, `GET /buyers/{id}/fleet`, `GET /buyers/{id}/schedule`, `POST /schedule/solve`, `POST /matches/{id}/status`, `POST /stops/{match_id}/collected`, `GET /buyers/{id}/impact` |
+| Public | `GET /impact`, `GET /impact/scenario?share_pct=`, `GET /fire-detections`, `GET /health` |
+
+The original one-shot `POST /listings` and `POST /listings/voice` still work.
+
+## Configuration
+
+| Variable | Default |
+|---|---|
+| `GCP_PROJECT_ID` | `ai-builder-cup-aidatlas` |
+| `GEMINI_MODEL` | `gemini-3.8-flash` |
+| `AGENT_PLATFORM_LOCATION` | `global` |
+| `ALLOWED_ORIGINS` | the `parali-setu` Firebase Hosting origins and `localhost:8000` |
+
+Authentication uses Application Default Credentials, with no API keys. Locally, run
+`gcloud auth application-default login`. On Cloud Run, the service account is used.
+
+## Run, test, seed, deploy
 
 ```bash
-pip install -r requirements.txt
-cp .env.example .env   # fill in GCP_PROJECT_ID etc. — see that file's comments
-uvicorn main:app --reload
+uvicorn main:app --port 8080
+pytest                          # mocked; no credentials needed
+python tests/live_smoke.py      # real Gemini / Firestore / Speech / TTS; needs ADC
+python reset_demo.py --yes      # wipe Parali Setu's collections and seed the demo scenario
+python fetch_fire_data.py       # Earth Engine FIRMS batch -> fire_detections
+python forecast_pipeline.py     # BigQuery ML forecast -> forecasts
 ```
 
-Needs `gcloud auth application-default login` once per machine (Vertex AI
-Gemini, Firestore, Speech/TTS, and BigQuery all authenticate via ADC — no
-API keys in this project, same as `aidatlas-api`).
+`live_smoke.py` is not named `test_*.py` on purpose, so `pytest` never runs it without
+credentials. It creates its own smoke-test buyers and cleans them up afterwards.
 
-## Tests
+To retrain the forecast after regenerating the synthetic corpus (`seed_data.py`), run
+`bq query --use_legacy_sql=false < bigquery/forecast_model.sql` first.
 
-```bash
-pytest                    # 28 mocked tests, no credentials needed, fast
-python tests/live_smoke.py   # hits the real Gemini/Firestore/Speech/TTS APIs — needs ADC
-```
-
-`live_smoke.py` is deliberately not named `test_*.py` so plain `pytest`
-never tries to run it without credentials.
-
-## Seeding data
+Deploy:
 
 ```bash
-python seed_data.py        # writes seed/*.json + seed/forecast_training_corpus.csv locally
-python seed_firestore.py   # loads the 5 demo companies + their standing demand into Firestore
-```
-
-Run `seed_firestore.py` once after any Firestore reset — the live
-dashboard and `/listings` need real standing demand to match against, or
-every new listing will say "no buyer matched yet." Deliberately does
-*not* seed farmer listings (see the comment in that file for why — a
-past version did and it silently ate all the demand capacity a live
-demo submission needed).
-
-Retraining the forecast after reseeding the historical corpus:
-
-```bash
-bq query --use_legacy_sql=false < bigquery/forecast_model.sql
-python forecast_pipeline.py
-```
-
-## Deploying
-
-```bash
-gcloud run deploy parali-setu-api \
-  --source . --project ai-builder-cup-aidatlas --region asia-southeast1 \
-  --allow-unauthenticated \
+gcloud run deploy parali-setu-api --source . \
+  --project ai-builder-cup-aidatlas --region asia-southeast1 --allow-unauthenticated \
   --set-env-vars GCP_PROJECT_ID=ai-builder-cup-aidatlas,GEMINI_MODEL=gemini-3.8-flash,AGENT_PLATFORM_LOCATION=global \
-  --memory 1Gi --timeout 120
+  --memory 1Gi --timeout 120 --max-instances 3
 ```
 
-Live: https://parali-setu-api-866617346749.asia-southeast1.run.app
-(`/health` for a quick check).
+## Known limitations
 
-## Known gaps, honestly
-
-- The farmer flow's "confirm/edit before submit" step from the PRD
-  (Section 8.1.2) isn't built in the frontend yet — the extracted listing
-  is shown back to the farmer, but there's no edit-then-resubmit UI, only
-  single-shot submission. A real architecture addition, not a quick fix.
-- `read_stubble_quality()`'s grade is genuinely noisy on ambiguous real
-  photos (documented in `seed/reference_photos/ATTRIBUTION.md`) — by
-  design it's a soft matching signal the solver can ignore, never a price
-  input, so this is a known limitation, not a hidden one.
+- `read_stubble_quality()` is noisy on ambiguous photos (see `seed/reference_photos/ATTRIBUTION.md`). It is only a soft matching signal and never sets a price.
+- The baling rate and crew capacity in `scheduler.py` are working assumptions.
+- Travel times are estimated from straight-line distance.
