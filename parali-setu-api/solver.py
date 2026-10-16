@@ -31,6 +31,8 @@ from datetime import date
 
 from ortools.linear_solver import pywraplp
 
+from geo import haversine_km
+
 QUALITY_GRADES = ("unknown", "dry", "wet", "mixed")
 
 # Urgency curve: 1.0x at 10+ days out, rising linearly to 2.0x at the
@@ -76,6 +78,8 @@ class Listing:
     quality_grade: str = "unknown"
     ready_by: str | None = None
     trust_score: float | None = None
+    lat: float | None = None
+    lon: float | None = None
 
 
 # Feature 5: a farmer's trust score (built from real satellite-corroborated
@@ -146,6 +150,11 @@ def score_no_burn_submission(
 # any price at all (a live match sat at Rs 12/kg against an Rs 8.98 offer).
 DEFAULT_CEILING_FACTOR = 1.2
 
+# A buyer's crews can only collect farms they can reach and bale within a
+# shift (scheduler.py: 30 km/h, 11 h shifts). Matching a farm beyond this
+# radius would promise a pickup the fleet can never make.
+DEFAULT_SERVICE_RADIUS_KM = 75.0
+
 
 @dataclass(frozen=True)
 class Demand:
@@ -156,6 +165,9 @@ class Demand:
     price_offer_per_kg: float
     accepted_quality_grades: tuple[str, ...] = QUALITY_GRADES
     max_price_per_kg: float | None = None
+    depot_lat: float | None = None
+    depot_lon: float | None = None
+    service_radius_km: float = DEFAULT_SERVICE_RADIUS_KM
 
     @property
     def ceiling_per_kg(self) -> float:
@@ -179,10 +191,20 @@ class MatchResult:
     urgency_multiplier_applied: float = 1.0
 
 
+def within_reach(listing: Listing, demand: Demand) -> bool:
+    """True unless both locations are known and the farm is beyond the
+    buyer's service radius. Missing coordinates never exclude a farmer."""
+    if None in (listing.lat, listing.lon, demand.depot_lat, demand.depot_lon):
+        return True
+    return haversine_km(listing.lat, listing.lon, demand.depot_lat, demand.depot_lon) <= demand.service_radius_km
+
+
 def _eligible(listing: Listing, demand: Demand) -> bool:
     if listing.crop_type != demand.crop_type:
         return False
-    return listing.quality_grade in demand.accepted_quality_grades
+    if listing.quality_grade not in demand.accepted_quality_grades:
+        return False
+    return within_reach(listing, demand)
 
 
 def _add_custom_constraint_terms(solver, objective, pairs, flow, demands, custom_constraints) -> None:

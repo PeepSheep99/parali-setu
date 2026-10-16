@@ -337,6 +337,67 @@ def save_negotiation_session(db: firestore.Client, match_id: str, session: dict)
     return session
 
 
+def get_company(db: firestore.Client, company_id: str) -> dict | None:
+    doc = db.collection("companies").document(company_id).get()
+    return doc.to_dict() if doc.exists else None
+
+
+def get_companies(db: firestore.Client) -> list[dict]:
+    return [d.to_dict() for d in db.collection("companies").stream()]
+
+
+def get_crews_for_company(db: firestore.Client, company_id: str) -> list[dict]:
+    docs = db.collection("crews").where("company_id", "==", company_id).stream()
+    return [d.to_dict() for d in docs]
+
+
+def get_slots_for_company(db: firestore.Client, company_id: str) -> list[dict]:
+    docs = db.collection("pickup_slots").where("company_id", "==", company_id).stream()
+    return [d.to_dict() for d in docs]
+
+
+def get_slots_for_match(db: firestore.Client, match_id: str) -> list[dict]:
+    docs = db.collection("pickup_slots").where("match_id", "==", match_id).stream()
+    return sorted((d.to_dict() for d in docs), key=lambda s: (s["date"], s["planned_start_min"]))
+
+
+def replace_company_plan(db: firestore.Client, company_id: str, slots: list[dict]) -> None:
+    """Writes a fresh plan for one buyer: every tentative slot is replaced;
+    locked and collected slots are only updated (their promised windows
+    never change here)."""
+    existing = get_slots_for_company(db, company_id)
+    keep_ids = {s["id"] for s in slots}
+    batch = db.batch()
+    for old in existing:
+        if old.get("status") == "tentative" and old["id"] not in keep_ids:
+            batch.delete(db.collection("pickup_slots").document(old["id"]))
+    for slot in slots:
+        batch.set(db.collection("pickup_slots").document(slot["id"]), slot, merge=True)
+    batch.commit()
+
+
+def set_slots_status(db: firestore.Client, match_id: str, status: str, locked: bool | None = None) -> list[dict]:
+    slots = get_slots_for_match(db, match_id)
+    update = {"status": status, **({"locked": locked} if locked is not None else {})}
+    batch = db.batch()
+    for slot in slots:
+        batch.update(db.collection("pickup_slots").document(slot["id"]), update)
+    if slots:
+        batch.commit()
+    return [{**s, **update} for s in slots]
+
+
+def update_match_fields(db: firestore.Client, match_id: str, fields: dict) -> None:
+    db.collection("matches").document(match_id).update(fields)
+
+
+def save_payout(db: firestore.Client, payout: dict) -> dict:
+    payout = {**payout, "id": payout.get("id") or _new_id("payout"),
+              "created_at": datetime.now(timezone.utc).isoformat()}
+    db.collection("payouts").document(payout["id"]).set(payout)
+    return payout
+
+
 def get_negotiation_session(db: firestore.Client, session_id: str) -> dict | None:
     doc = db.collection("negotiation_sessions").document(session_id).get()
     return doc.to_dict() if doc.exists else None

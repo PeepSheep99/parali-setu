@@ -21,26 +21,12 @@ Earth Engine queries are too slow for a per-request call, so this is
 """
 from __future__ import annotations
 
-import math
 from datetime import date, timedelta
 
 import ee
 
 import firestore_store as store
-
-# District HQ coordinates for the 8 demo districts (seed_data.py's
-# PUNJAB_HARYANA_DISTRICTS) -- real, publicly known lat/lon, added here
-# since no coordinate table existed elsewhere in this codebase to reuse.
-DISTRICT_COORDS = {
-    "Sangrur": (30.2458, 75.8421),
-    "Patiala": (30.3398, 76.3869),
-    "Bathinda": (30.2110, 74.9455),
-    "Ludhiana": (30.9010, 75.8573),
-    "Moga": (30.8230, 75.1710),
-    "Karnal": (29.6857, 76.9905),
-    "Kaithal": (29.8014, 76.3996),
-    "Kurukshetra": (29.9695, 76.8783),
-}
+from geo import nearest_district
 
 LOOKBACK_DAYS = 7
 
@@ -53,19 +39,6 @@ def _bounding_box() -> ee.Geometry:
     in their surrounding fields, not just the HQ point itself.
     """
     return ee.Geometry.Rectangle([74.3, 29.3, 76.8, 31.2])
-
-
-def _nearest_district(lat: float, lon: float) -> str:
-    """Straight-line nearest-HQ match -- a demo-scale approximation
-    (no real district polygon boundaries used), good enough to label a
-    fire point for the map/trust-score lookup, not a cadastral claim.
-    """
-    best_district, best_dist = None, math.inf
-    for district, (d_lat, d_lon) in DISTRICT_COORDS.items():
-        dist = math.hypot(lat - d_lat, lon - d_lon)
-        if dist < best_dist:
-            best_district, best_dist = district, dist
-    return best_district
 
 
 def fetch_fire_detections(lookback_days: int = LOOKBACK_DAYS) -> list[dict]:
@@ -102,7 +75,7 @@ def fetch_fire_detections(lookback_days: int = LOOKBACK_DAYS) -> list[dict]:
             "confidence": props.get("confidence"),
             "t21_kelvin": props.get("T21"),
             "detected_at": props.get("acq_date"),
-            "district_guess": _nearest_district(lat, lon),
+            "district_guess": nearest_district(lat, lon),
         })
     return detections
 

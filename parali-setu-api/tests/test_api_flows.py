@@ -158,3 +158,30 @@ def test_cors_allows_our_site_and_refuses_others():
     assert ok.headers.get("access-control-allow-origin") == "https://parali-setu.web.app"
     other = client.options("/health", headers={"Origin": "https://evil.example", "Access-Control-Request-Method": "GET"})
     assert other.headers.get("access-control-allow-origin") is None
+
+
+def test_collected_records_a_payout_and_moves_to_paid(monkeypatch):
+    transitions, payouts = [], []
+    scheduled = {**MATCH, "status": "scheduled", "matched_kg": 1750, "price_agreed_per_kg": 1.2}
+    monkeypatch.setattr(store, "get_match", lambda db, mid: dict(scheduled))
+    monkeypatch.setattr(store, "update_match_status", lambda db, mid, status, extra=None: (
+        transitions.append(status), {**scheduled, **(extra or {}), "status": status})[1])
+    monkeypatch.setattr(store, "set_slots_status", lambda db, mid, status: [])
+    monkeypatch.setattr(store, "save_payout", lambda db, p: (payouts.append(p), {**p, "id": "p1"})[1])
+
+    body = client.post("/stops/m1/collected", json={"collected_kg": 1600}).json()
+    assert transitions == ["collected", "paid"]
+    assert payouts[0]["amount_inr"] == 1920.0 and payouts[0]["simulated"] is True
+    assert body["match"]["payout_inr"] == 1920.0
+
+    assert client.post("/stops/m1/collected", json={"collected_kg": 5000}).status_code == 422
+
+
+def test_collected_refuses_a_match_that_was_never_scheduled(monkeypatch):
+    monkeypatch.setattr(store, "get_match", lambda db, mid: dict(MATCH))
+
+    def refuse(db, mid, status, extra=None):
+        raise store.InvalidTransition("A match that is proposed cannot become collected.")
+    monkeypatch.setattr(store, "update_match_status", refuse)
+    monkeypatch.setattr(store, "save_payout", lambda *a: pytest.fail("no payout without a collection"))
+    assert client.post("/stops/m1/collected", json={}).status_code == 409

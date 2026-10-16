@@ -23,6 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import firestore_store as store
+import pickups
 from extraction import (
     cross_check_voice_and_photo,
     explain_match,
@@ -35,7 +36,15 @@ from extraction import (
 )
 from gemini_client import get_gemini_client
 from negotiation import run_negotiation
-from solver import Demand, Listing, apply_negotiation, score_no_burn_submission, solve_matches, urgency_multiplier
+from solver import (
+    DEFAULT_SERVICE_RADIUS_KM,
+    Demand,
+    Listing,
+    apply_negotiation,
+    score_no_burn_submission,
+    solve_matches,
+    urgency_multiplier,
+)
 from speech import synthesize_speech, transcribe_audio
 
 app = FastAPI(title="Parali Setu API")
@@ -96,6 +105,14 @@ class ConfirmPriceRequest(BaseModel):
     session_id: str = Field(min_length=1, max_length=64)
 
 
+class ScheduleSolveRequest(BaseModel):
+    company_id: str | None = Field(default=None, max_length=64)
+
+
+class CollectedRequest(BaseModel):
+    collected_kg: float | None = Field(default=None, gt=0, le=MAX_QUANTITY_KG)
+
+
 class MatchStatusRequest(BaseModel):
     status: Literal["scheduled", "waitlisted", "rejected", "collected", "paid"]
     reason: str | None = Field(default=None, max_length=300)
@@ -129,12 +146,15 @@ def _to_solver_listing(
     remaining += extra_remaining_kg
     if remaining <= 1e-6:
         return None
+    location = pickups.listing_location(doc)
     return Listing(
         id=doc["id"], farmer_id=doc["farmer_id"],
         quantity_kg=remaining, crop_type=doc["crop_type"],
         quality_grade=doc.get("quality_grade", "unknown"),
         ready_by=doc.get("ready_by"),
         trust_score=(trust_scores or {}).get(doc["farmer_id"]),
+        lat=location[0] if location else None,
+        lon=location[1] if location else None,
     )
 
 
@@ -148,6 +168,9 @@ def _to_solver_demand(doc: dict, extra_remaining_kg: float = 0.0) -> Demand:
         price_offer_per_kg=doc["price_offer_per_kg"],
         accepted_quality_grades=tuple(doc.get("accepted_quality_grades", ["unknown", "dry", "wet", "mixed"])),
         max_price_per_kg=doc.get("max_price_per_kg"),
+        depot_lat=doc.get("depot_lat"),
+        depot_lon=doc.get("depot_lon"),
+        service_radius_km=doc.get("service_radius_km") or DEFAULT_SERVICE_RADIUS_KM,
     )
 
 
@@ -168,6 +191,14 @@ def _run_global_solve(db) -> list[dict]:
     custom_constraints = {d["id"]: d["custom_constraints"] for d in open_demand_docs if d.get("custom_constraints")}
     results = solve_matches(all_listings, all_demand, custom_constraints=custom_constraints)
     return store.save_matches(db, results)
+
+
+def _with_slots(db, match: dict) -> dict:
+    """The match as it stands after planning (its status may now be
+    waitlisted), with its pickup slots and a human-readable window."""
+    current = store.get_match(db, match["id"]) or match
+    slots = store.get_slots_for_match(db, match["id"])
+    return {**current, "slots": slots, "pickup_window": pickups.window_label(slots[0]) if slots else None}
 
 
 @app.get("/health")
@@ -214,7 +245,8 @@ def _create_listing_from_text(farmer_id: str, raw_text: str, language: str, qual
     listing_doc = store.save_listing(db, farmer_id, extracted, language)
 
     all_saved = _run_global_solve(db)
-    saved_matches = [m for m in all_saved if m["listing_id"] == listing_doc["id"]]
+    pickups.plan_companies(db, {m["company_id"] for m in all_saved})
+    saved_matches = [_with_slots(db, m) for m in all_saved if m["listing_id"] == listing_doc["id"]]
 
     explanation = None
     explanation_audio_base64 = None
@@ -234,7 +266,7 @@ def _create_listing_from_text(farmer_id: str, raw_text: str, language: str, qual
                 "company_name": company_name,
                 "matched_kg": m["matched_kg"],
                 "price_agreed_per_kg": m["price_agreed_per_kg"],
-                "pickup_window": listing_doc.get("ready_by", "to be confirmed"),
+                "pickup_window": m.get("pickup_window") or "to be confirmed",
             },
             language,
         )
@@ -422,9 +454,17 @@ def create_demand(company_id: str, req: DemandRequest):
             custom_constraints = [parsed]
 
     data["custom_constraints"] = custom_constraints
+    # Demand is collected from the buyer's depot, so it inherits the depot's
+    # location and reach; matching then only offers it farms its crews can serve.
+    company = store.get_company(db, company_id) or {}
+    for field in ("depot_lat", "depot_lon", "service_radius_km"):
+        if company.get(field) is not None:
+            data[field] = company[field]
     demand_doc = store.save_demand(db, company_id, data)
-    # New capacity may fit farmers who are already waiting -- match them now.
+    # New capacity may fit farmers who are already waiting -- match them now,
+    # then plan pickups for every buyer whose matches changed.
     new_matches = _run_global_solve(db)
+    pickups.plan_companies(db, {company_id, *(m["company_id"] for m in new_matches)})
     return {**demand_doc, "new_matches_count": len(new_matches)}
 
 
@@ -646,3 +686,81 @@ def set_match_status(match_id: str, req: MatchStatusRequest):
     except store.InvalidTransition as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     return updated
+
+
+@app.post("/schedule/solve")
+def solve_schedule(req: ScheduleSolveRequest):
+    """Re-plans pickups for one buyer, or for every buyer. Locked slots stay
+    where they are; everything else is planned around them."""
+    db = store.get_firestore_client()
+    company_ids = [req.company_id] if req.company_id else [c["id"] for c in store.get_companies(db)]
+    return {"plans": pickups.plan_companies(db, company_ids, time_limit_seconds=3)}
+
+
+@app.get("/buyers/{company_id}/fleet")
+def buyer_fleet(company_id: str):
+    db = store.get_firestore_client()
+    return {"company": store.get_company(db, company_id), "crews": store.get_crews_for_company(db, company_id)}
+
+
+@app.get("/buyers/{company_id}/schedule")
+def buyer_schedule(company_id: str):
+    """Pickup Ops: one route sheet per crew per day, in visiting order, plus
+    the waitlist (with reasons) and any promises that need a person."""
+    db = store.get_firestore_client()
+    matches = {m["id"]: m for m in store.get_matches_for_company(db, company_id)}
+    listings = {lid: doc for lid in {m["listing_id"] for m in matches.values()} if (doc := store.get_listing(db, lid))}
+
+    def farm(match: dict) -> dict:
+        listing = listings.get(match["listing_id"], {})
+        location = pickups.listing_location(listing)
+        return {
+            "match_id": match["id"], "farmer_id": match["farmer_id"],
+            "place": listing.get("village_or_district"), "crop_type": listing.get("crop_type"),
+            "quality_grade": listing.get("quality_grade"), "matched_kg": match["matched_kg"],
+            "price_agreed_per_kg": match["price_agreed_per_kg"], "status": match.get("status"),
+            "lat": location[0] if location else None, "lon": location[1] if location else None,
+            "location_approximate": location[2] if location else None,
+        }
+
+    sheets: dict[tuple[str, str], list[dict]] = {}
+    for slot in store.get_slots_for_company(db, company_id):
+        match = matches.get(slot["match_id"])
+        if match is None or match.get("status") in ("rejected",):
+            continue
+        sheets.setdefault((slot["date"], slot["crew_id"]), []).append({**slot, "window": pickups.window_label(slot), **farm(match)})
+    route_sheets = [
+        {"date": day, "crew_id": crew_id, "stops": sorted(stops, key=lambda s: s["sequence"]),
+         "acres": round(sum(s["acres"] for s in stops), 2)}
+        for (day, crew_id), stops in sorted(sheets.items())
+    ]
+    waitlist = [{**farm(m), "reason": m.get("status_reason")} for m in matches.values() if m.get("status") == "waitlisted"]
+    attention = [{**farm(m), "note": m["schedule_note"]} for m in matches.values()
+                 if m.get("status") == "scheduled" and m.get("schedule_note")]
+    return {"company_id": company_id, "route_sheets": route_sheets, "waitlist": waitlist, "needs_attention": attention}
+
+
+@app.post("/stops/{match_id}/collected")
+def stop_collected(match_id: str, req: CollectedRequest):
+    """The crew marks a farm collected: the match moves to collected, a
+    (simulated) payout of collected kg x agreed price is recorded, and the
+    match moves to paid. There is no real payment rail in the prototype."""
+    db = store.get_firestore_client()
+    match = store.get_match(db, match_id)
+    if match is None:
+        raise HTTPException(status_code=404, detail="Match not found")
+    kg = req.collected_kg if req.collected_kg is not None else match["matched_kg"]
+    if kg > match["matched_kg"] * 1.2:
+        raise HTTPException(status_code=422, detail="Collected weight is more than 20% above the matched quantity")
+    try:
+        store.update_match_status(db, match_id, "collected", {"collected_kg": kg})
+    except store.InvalidTransition as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    store.set_slots_status(db, match_id, "collected")
+    payout = store.save_payout(db, {
+        "match_id": match_id, "farmer_id": match["farmer_id"], "company_id": match["company_id"],
+        "kg": kg, "price_per_kg": match["price_agreed_per_kg"],
+        "amount_inr": round(kg * match["price_agreed_per_kg"], 2), "status": "recorded", "simulated": True,
+    })
+    paid = store.update_match_status(db, match_id, "paid", {"payout_id": payout["id"], "payout_inr": payout["amount_inr"]})
+    return {"match": paid, "payout": payout}

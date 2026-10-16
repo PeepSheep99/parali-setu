@@ -332,3 +332,27 @@ def test_seed_demo_set_is_solvable_end_to_end():
     for r in results:
         assert r.matched_kg > 0
         assert r.price_agreed_per_kg > 0
+
+
+def test_matching_respects_the_buyers_service_radius():
+    """A farm beyond a buyer's reach must go to a reachable buyer even at a
+    lower price -- otherwise the pickup could never be scheduled."""
+    from geo import DISTRICT_COORDS
+    sangrur, karnal = DISTRICT_COORDS["Sangrur"], DISTRICT_COORDS["Karnal"]
+    listings = [Listing(id="l1", farmer_id="f1", quantity_kg=500, crop_type="rice_stubble",
+                        lat=sangrur[0], lon=sangrur[1])]
+    demands = [
+        Demand(id="far", company_id="c_far", crop_type="rice_stubble", quantity_needed_kg=500,
+               price_offer_per_kg=1.5, depot_lat=karnal[0], depot_lon=karnal[1]),
+        Demand(id="near", company_id="c_near", crop_type="rice_stubble", quantity_needed_kg=500,
+               price_offer_per_kg=1.0, depot_lat=sangrur[0], depot_lon=sangrur[1]),
+    ]
+    results = solve_matches(listings, demands)
+    assert [r.demand_id for r in results] == ["near"]
+
+
+def test_unknown_locations_never_exclude_a_farmer():
+    listings = [Listing(id="l1", farmer_id="f1", quantity_kg=500, crop_type="rice_stubble")]
+    demands = [Demand(id="d1", company_id="c1", crop_type="rice_stubble", quantity_needed_kg=500,
+                      price_offer_per_kg=1.0, depot_lat=29.68, depot_lon=76.99)]
+    assert len(solve_matches(listings, demands)) == 1
