@@ -9,7 +9,6 @@ Needs Application Default Credentials (gcloud auth application-default login).
 Everything it creates is tagged with a "smoke_" farmer id and deleted at the end.
 """
 import sys
-from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -19,8 +18,6 @@ from google.cloud import texttospeech  # noqa: E402
 
 import firestore_store as store  # noqa: E402
 import main  # noqa: E402
-from extraction import extract_listing  # noqa: E402
-from gemini_client import get_gemini_client  # noqa: E402
 
 client = TestClient(main.app)
 PHOTO = Path(__file__).resolve().parent.parent / "seed" / "reference_photos" / "paddy_stubble_coorg_dry_example.jpg"
@@ -36,48 +33,43 @@ def punjabi_wav(text: str) -> bytes:
     ).audio_content
 
 
-def check_no_date_fabrication():
-    """A month without a day must not become an invented date (a real bug,
-    found 2026-10-15, fixed in the extraction prompt)."""
-    vague = "ਮੇਰੇ ਕੋਲ 12 ਕੁਇੰਟਲ ਪਰਾਲੀ ਹੈ ਸੰਗਰੂਰ ਵਿੱਚ ਵੀ ਅਕਤੂਬਰ ਤੱਕ ਚੁੱਕ ਲਓ"
-    result = extract_listing(get_gemini_client(), vague, "Punjabi", today=date(2026, 10, 15))
-    assert result["ready_by"] is None, f"no date should be invented from a month alone, got {result['ready_by']}"
-    print("no date fabrication: ok")
+def turn(conversation_id, **form):
+    data = {"farmer_id": FARMER, "speak": "false", **({"conversation_id": conversation_id} if conversation_id else {})}
+    files = form.pop("files", None)
+    resp = client.post("/agent/turn", data={**data, **form}, files=files)
+    assert resp.status_code == 200, resp.text
+    return resp.json()
 
 
-def check_voice_booking_collect_and_pay():
-    """The whole farmer journey on real services: Punjabi speech and a photo
-    -> draft -> confirm (posted price, depot, slot, spoken offer) -> price
-    explanation -> accept -> collect -> same-day payout and depot stock."""
+def check_voice_booking_verify_collect_and_pay():
+    """The whole farmer journey on real services: Punjabi speech and a photo,
+    no language chosen -> the agent asks for name and phone -> an offer at
+    today's posted price with a slot -> the farmer's yes -> our team verifies
+    -> collect -> same-day payout and depot stock."""
     audio = punjabi_wav("ਮੇਰੇ ਕੋਲ ਦਸ ਕਿੱਲੇ ਝੋਨੇ ਦੀ ਪਰਾਲੀ ਹੈ ਸੰਗਰੂਰ ਵਿੱਚ, ਪੱਚੀ ਅਕਤੂਬਰ ਤੱਕ ਕਣਕ ਬੀਜਣੀ ਹੈ")
-    resp = client.post("/listings/draft", data={"farmer_id": FARMER, "language": "Punjabi"},
-                       files={"audio": ("listing.wav", audio, "audio/wav"),
+    first = turn(None, files={"audio": ("speech.wav", audio, "audio/wav"),
                               "photo": ("stubble.jpg", PHOTO.read_bytes(), "image/jpeg")})
-    assert resp.status_code == 200, resp.text
-    draft = resp.json()
-    print("heard:", draft["transcript"], "| fields:", draft["fields"], "| quality:", draft["quality"])
-    assert draft["fields"].get("acres") == 10 and draft["district"] == "Sangrur", draft
-    assert draft["quality"]["grade"] in ("dry", "wet", "mixed"), "the real photo read should grade the stubble"
+    print("heard:", first["heard"]["text"], "|", first["language"], "|", first["reply"]["text"])
+    assert first["language"] == "Punjabi" and first["fields"].get("acres") == 10, first["fields"]
+    assert {"name", "phone"} <= set(first["missing_fields"]), "the agent asks who and how to reach them"
 
-    resp = client.post(f"/listings/{draft['draft_id']}/confirm", json={"farmer_id": FARMER})
-    assert resp.status_code == 200, resp.text
-    offer = resp.json()
-    booking = offer["booking"]
-    posted = store.get_posted_price(store.get_firestore_client(), booking["created_at"][:10], "Sangrur")
-    assert offer["status"] == "offered" and booking["pickup_window"], offer
-    assert booking["price_per_kg"] == posted["price_per_kg"], "the farmer is offered today's posted price"
-    assert offer["explanation"]["audio_base64"], "the offer is spoken back"
-    print("offer:", booking["depot_name"], booking["pickup_window"], booking["price_per_kg"], "Rs/kg |", offer["explanation"]["text"])
+    second = turn(first["conversation_id"], text="ਮੇਰਾ ਨਾਮ ਗੁਰਮੀਤ ਸਿੰਘ ਹੈ, ਨੰਬਰ 9876543210")
+    offer = next((c for c in second["cards"] if c["type"] == "offer"), None)
+    assert offer, second
+    posted = store.get_posted_price(store.get_firestore_client(), main._today().isoformat(), "Sangrur")
+    assert offer["price_per_kg"] == posted["price_per_kg"], "the farmer is offered today's posted price"
+    print("offer:", offer["depot"], offer["pickup_window"], offer["price_per_kg"], "Rs/kg |", second["reply"]["text"])
 
-    why = client.get(f"/bookings/{booking['id']}/price-explanation", params={"language": "Punjabi"}).json()
-    assert why["explanation"] and why["reason_code"] in ("base", "scarce"), why
-    print("why this price:", why["explanation"])
-
-    assert client.post(f"/bookings/{booking['id']}/accept", json={"farmer_id": FARMER}).status_code == 200
-    paid = client.post(f"/stops/{booking['id']}/collected", json={}).json()
+    third = turn(first["conversation_id"], text="ਹਾਂ ਜੀ, ਬੁੱਕ ਕਰ ਦਿਓ")
+    booked = next((c for c in third["cards"] if c["type"] == "booked"), None)
+    assert booked and booked["booking_code"].startswith("PS-"), third
+    booking_id = offer["booking_id"]
+    assert client.post(f"/stops/{booking_id}/collected", json={}).status_code == 409, "no crew before the call"
+    assert client.post(f"/ops/bookings/{booking_id}/verify", json={"notes": "smoke test"}).status_code == 200
+    paid = client.post(f"/stops/{booking_id}/collected", json={}).json()
     assert paid["booking"]["status"] == "paid"
-    assert paid["purchase"]["amount_inr"] == round(booking["kg"] * booking["price_per_kg"], 2)
-    print("collected and paid:", paid["purchase"]["amount_inr"], "Rs on", paid["purchase"]["paid_on"])
+    assert paid["purchase"]["amount_inr"] == round(offer["kg"] * offer["price_per_kg"], 2)
+    print("verified, collected and paid:", paid["purchase"]["amount_inr"], "Rs on", paid["purchase"]["paid_on"])
 
 
 def check_no_burn_proof_disputed_path():
@@ -105,14 +97,16 @@ def check_customer_quote():
     quote = client.post(f"/customers/{customers[0]['id']}/quote",
                         json={"tonnes_per_month": 100, "months": 6, "start_month": "2026-12-01"}).json()
     q = quote["quote"]
-    assert abs(q["price_per_t"] - (q["cost_per_t"] + q["margin_per_t"])) < 0.05
-    print("quote:", customers[0]["name"], q["price_per_t"], "Rs/t vs in-season", q["in_season_benchmark_per_t"])
+    assert q["price_per_t"] == q["cost_per_t"] + q["margin_per_t"]
+    assert quote["commit"]["asked_t"] == 600
+    print("quote:", customers[0]["name"], q["price_per_t"], "Rs/t vs in-season", q["in_season_benchmark_per_t"],
+          "| can commit", quote["commit"]["committable_t"], "t")
 
 
 def cleanup():
     db = store.get_firestore_client()
     removed = 0
-    for coll in ("listing_drafts", "listings", "bookings", "purchases", "no_burn_proofs"):
+    for coll in ("listings", "bookings", "purchases", "no_burn_proofs", "conversations"):
         for d in db.collection(coll).stream():
             if not str(d.to_dict().get("farmer_id", "")).startswith("smoke_"):
                 continue
@@ -129,8 +123,7 @@ def cleanup():
 def run():
     assert client.get("/health").status_code == 200
     try:
-        check_no_date_fabrication()
-        check_voice_booking_collect_and_pay()
+        check_voice_booking_verify_collect_and_pay()
         check_no_burn_proof_disputed_path()
         check_customer_quote()
     finally:

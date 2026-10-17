@@ -1,4 +1,4 @@
-"""Pickup scheduler tests: windows, capacity, depot crews, partner crews, locked
+"""Pickup scheduler tests: windows, capacity, depot crews, on-call crews, locked
 slots, splitting, unschedulable reasons and determinism. All run the
 deterministic first-solution mode (time_limit_seconds=0)."""
 import sys
@@ -145,7 +145,7 @@ def test_today_never_offers_a_slot_that_has_already_passed():
 
 def test_partner_crews_are_used_only_when_our_crews_cannot_make_it():
     """Two 8-acre farms that must both be done today. Our one crew does 10
-    acres a day, so one farm needs a hired partner crew; with a single farm,
+    acres a day, so one farm needs an on-call crew; with a single farm,
     the partner stays idle."""
     crews = [crew("own", acres=10.0), crew("hired", acres=20.0, partner=True)]
     one = plan([job("m1", earliest=START, latest=START)], crews)

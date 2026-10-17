@@ -5,9 +5,9 @@ call_gemini() pattern verbatim -- same project, same already-solved
 gotchas (Developer API's 20/day cap, gemini-2.5-flash deprecation,
 region-specific endpoints 404ing), no reason to rediscover any of them.
 
-Every function here does language in, language or JSON-shaped-text out.
-None of them touch a price or a quantity decision -- that's solver.py's
-job, always (PRD docs/PARALI_SETU_PRD.md, Section 9 / 13).
+Every function here does language in, language or JSON-shaped text out.
+None of them decide a price or a quantity: that is the planners' job
+(procurement.py, scheduler.py, deliveries.py, costs.py).
 """
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ def call_gemini(client: genai.Client, contents, json_mode: bool = False) -> str 
     plain error -- never let the model guess a price or quantity.'
 
     `contents` is whatever the SDK accepts: a plain string for the
-    text-only jobs (extraction, negotiation parsing, narration), or a
+    text-only jobs (translation), or a
     list of Parts (text + image) for the multimodal quality read -- the
     retry/quota logic doesn't care which.
 

@@ -37,20 +37,12 @@ import firestore_store as store
 import live
 import operations
 import pickups
-from extraction import (
-    explain_offer,
-    explain_price,
-    extract_listing,
-    follow_up_question,
-    read_no_burn_proof,
-    read_stubble_quality,
-)
+from extraction import read_no_burn_proof, read_stubble_quality
 from forecast.demand_segments import EX_SITU_SOURCE, EX_SITU_TOTAL_T, SEGMENTS, segment_totals
 from geo import demo_farm_location, district_from_text
 from gemini_client import get_gemini_client
 from impact import impact_for_kg, punjab_scenario
 from scheduler import STRAW_T_PER_ACRE
-from phrases import confirm_summary, window_words
 from speech import synthesize_speech, transcribe_audio
 from trust import score_no_burn_submission
 
@@ -73,16 +65,13 @@ ALLOWED_ORIGINS = [
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"], allow_headers=["*"])
 
 Language = Literal["Hindi", "Punjabi", "English"]
-CropType = Literal["rice_stubble", "wheat_stubble"]
 MAX_QUANTITY_KG = 10_000_000.0
-Phone = Field(default=None, pattern=r"^\+?[0-9 ]{10,15}$")
 
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
 
-DRAFT_FIELDS = ("quantity_kg", "acres", "crop_type", "village_or_district", "ready_by", "sowing_deadline", "contact")
 
 
 def _today() -> date:
@@ -94,18 +83,6 @@ def _spoken(text: str | None, language: str, say: str | None = None) -> dict | N
         return None
     audio = synthesize_speech(say or text, language)
     return {"text": text, "audio_base64": base64.b64encode(audio).decode("ascii") if audio else None}
-
-
-async def _transcribe_upload(audio: UploadFile, language: str) -> str:
-    audio_bytes = await audio.read()
-    if audio.content_type and "wav" in audio.content_type:
-        audio_format, sample_rate = "linear16", 16000
-    else:
-        audio_format, sample_rate = "webm_opus", 48000
-    transcript = transcribe_audio(audio_bytes, language, sample_rate_hertz=sample_rate, audio_format=audio_format)
-    if transcript is None:
-        raise HTTPException(status_code=422, detail="Could not hear that clearly -- please try again or type it")
-    return transcript
 
 
 def _posted_price(db, district: str) -> dict:
@@ -185,166 +162,6 @@ def prices_today(district: str | None = Query(None, max_length=60)):
 # Farmer: speak once, confirm once, get a slot and a price
 # ---------------------------------------------------------------------------
 
-@app.post("/listings/draft")
-async def listing_draft(
-    farmer_id: str = Form(..., min_length=1, max_length=64),
-    language: Language = Form("Hindi"),
-    text: str | None = Form(None, max_length=1000),
-    draft_id: str | None = Form(None, max_length=64),
-    lat: float | None = Form(None, ge=-90, le=90),
-    lon: float | None = Form(None, ge=-180, le=180),
-    audio: UploadFile | None = File(None),
-    photo: UploadFile | None = File(None),
-):
-    """Step 1: understand what the farmer said (voice or text, optional photo
-    and location). Returns the draft for the confirm card and -- only the
-    first time something is missing -- ONE question asking for all of it.
-    Nothing is booked until /confirm."""
-    db = store.get_firestore_client()
-    client = get_gemini_client()
-
-    draft = None
-    if draft_id:
-        draft = store.get_draft(db, draft_id)
-        if draft is None or draft.get("farmer_id") != farmer_id:
-            raise HTTPException(status_code=404, detail="Draft not found")
-        if draft.get("listing_id"):
-            raise HTTPException(status_code=409, detail="This listing was already confirmed")
-
-    if audio is not None:
-        utterance = await _transcribe_upload(audio, language)
-    elif text and text.strip():
-        utterance = text.strip()
-    elif draft is None:
-        raise HTTPException(status_code=422, detail="Say or type what you want to list")
-    else:
-        utterance = ""
-
-    transcript = " ".join(t for t in ((draft or {}).get("transcript", ""), utterance) if t).strip()
-    fields = dict((draft or {}).get("fields") or {})
-    if utterance:
-        extracted = extract_listing(client, transcript, language)
-        if extracted is None:
-            raise HTTPException(status_code=503, detail="Could not understand that right now -- please try again")
-        for key in DRAFT_FIELDS:
-            if extracted.get(key) is not None:
-                fields[key] = extracted[key]
-    if lat is not None and lon is not None:
-        fields["lat"], fields["lon"] = lat, lon
-    fields = pickups.complete_quantities(fields)
-
-    quality = (draft or {}).get("quality") or {"grade": "unknown", "note": None}
-    if photo is not None:
-        result = read_stubble_quality(client, await photo.read(), mime_type=photo.content_type or "image/jpeg")
-        if result and result.get("quality_grade"):
-            quality = {"grade": result["quality_grade"], "note": result.get("note")}
-
-    missing = pickups.missing_fields(fields)
-    asked_before = bool((draft or {}).get("asked_follow_up"))
-    follow_up = None
-    if missing and not asked_before:
-        follow_up = _spoken(follow_up_question(client, missing, language), language)
-
-    saved = store.save_draft(db, {
-        **(draft or {}), "farmer_id": farmer_id, "language": language, "transcript": transcript,
-        "fields": fields, "quality": quality, "missing_fields": missing,
-        "asked_follow_up": asked_before or follow_up is not None,
-    })
-    location = pickups.listing_location(fields)
-    district = pickups.listing_district(fields)
-    return {
-        "draft_id": saved["id"],
-        "transcript": transcript,
-        "fields": fields,
-        "district": district,
-        "quality": quality,
-        "location_approximate": location[2] if location else None,
-        "missing_fields": missing,
-        "follow_up": follow_up,
-        "confirm_summary": None if follow_up else _spoken(confirm_summary(fields, language), language),
-    }
-
-
-class DraftEdits(BaseModel):
-    acres: float | None = Field(default=None, gt=0, le=1000)
-    crop_type: CropType | None = None
-    village_or_district: str | None = Field(default=None, max_length=120)
-    ready_by: date | None = None
-    sowing_deadline: date | None = None
-    contact: str | None = Phone
-
-
-class ConfirmDraftRequest(BaseModel):
-    farmer_id: str = Field(min_length=1, max_length=64)
-    edits: DraftEdits | None = None
-
-
-@app.post("/listings/{draft_id}/confirm")
-def confirm_listing(draft_id: str, req: ConfirmDraftRequest):
-    """Step 2: the farmer confirmed the card. The listing is saved, priced at
-    today's posted price for its district, sent to the depot the procurement
-    plan intends, and given a pickup slot by the scheduler (our crews first,
-    partner crews if ours can't make it before sowing)."""
-    db = store.get_firestore_client()
-    client = get_gemini_client()
-    draft = store.get_draft(db, draft_id)
-    if draft is None or draft.get("farmer_id") != req.farmer_id:
-        raise HTTPException(status_code=404, detail="Draft not found")
-    if draft.get("listing_id"):
-        raise HTTPException(status_code=409, detail="This listing was already confirmed")
-
-    fields = dict(draft.get("fields") or {})
-    if req.edits:
-        edits = req.edits.model_dump(exclude_none=True)
-        if "acres" in edits:
-            fields.pop("quantity_kg", None)   # re-derive weight from the corrected area
-        for key, value in edits.items():
-            fields[key] = value.isoformat() if isinstance(value, date) else value
-    fields = pickups.complete_quantities(fields)
-    if not fields.get("quantity_kg") or not fields.get("crop_type"):
-        raise HTTPException(status_code=422, detail="Tell us how much stubble and which crop before confirming")
-    location = pickups.listing_location(fields)
-    district = pickups.listing_district(fields)
-    if location is None or district is None:
-        raise HTTPException(status_code=422, detail="Tell us your village or district, or share your location")
-
-    language = draft.get("language", "Hindi")
-    quality = draft.get("quality") or {}
-    listing = store.save_listing(db, req.farmer_id, {
-        **fields, "district": district, "quality_grade": quality.get("grade", "unknown"),
-        "quality_note": quality.get("note"), "draft_id": draft_id,
-    }, language)
-    store.save_draft(db, {**draft, "listing_id": listing["id"], "fields": fields})
-
-    replaced = pickups.replace_open_offers(db, req.farmer_id)
-    booking, price = operations.book_listing(db, listing)
-    if booking is None:
-        pickups.plan_depots(db, replaced)
-        return {"listing": listing, "status": "out_of_area", "district": district, "price": price}
-    pickups.expire_stale_offers(db)
-    pickups.plan_depots(db, {*replaced, booking["depot_id"]})
-    view = pickups.booking_view(db, store.get_booking(db, booking["id"]))
-
-    explanation = None
-    if view["status"] == "offered" and view["pickup_window"]:
-        slot = view["slots"][0]
-        explanation = explain_offer(client, {
-            "price_per_kg": view["price_per_kg"], "district": district, "kg": round(view["kg"]),
-            "payout_inr": round(view["payout_estimate_inr"]),
-            "pickup_window": window_words(slot["date"], slot["window_start_min"], slot["window_end_min"], language),
-        }, language)
-    return {
-        "listing": listing,
-        "status": view["status"],
-        "booking": view,
-        "price": price,
-        "impact_if_collected": impact_for_kg(view["kg"]),
-        "window_assumed": pickups.listing_window(listing, _today())[2],
-        "location_approximate": location[2],
-        "explanation": _spoken(explanation, language),
-    }
-
-
 class FarmerRequest(BaseModel):
     farmer_id: str = Field(min_length=1, max_length=64)
 
@@ -391,21 +208,6 @@ def farmer_bookings(farmer_id: str):
     bookings = [pickups.booking_view(db, b, depots) for b in store.get_bookings_for_farmer(db, farmer_id)
                 if b.get("status") not in ("cancelled",)]
     return {"farmer_id": farmer_id, "bookings": bookings}
-
-
-@app.get("/bookings/{booking_id}/price-explanation")
-def price_explanation(booking_id: str, language: Language = "Hindi"):
-    """Why the farmer's price is what it is, in their language, from the
-    procurement planner's own stated reason."""
-    db = store.get_firestore_client()
-    booking = store.get_booking(db, booking_id)
-    if booking is None:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    created = (booking.get("created_at") or _today().isoformat())[:10]
-    row = store.get_posted_price(db, created, booking["district"]) or _posted_price(db, booking["district"])
-    facts = {"district": booking["district"], "price_per_kg": booking["price_per_kg"], "reason": row["reason"]}
-    text = explain_price(get_gemini_client(), facts, language)
-    return {"explanation": text or row["reason"], "reason_code": row.get("reason_code"), "facts": facts}
 
 
 @app.post("/farmers/{farmer_id}/no-burn-proof")
@@ -753,7 +555,7 @@ class CrewRequest(BaseModel):
 
 @app.post("/depots/{depot_id}/crews")
 def add_crew(depot_id: str, req: CrewRequest):
-    """Adds a crew (ours or a hired partner) to a depot and re-plans it."""
+    """Adds a crew (ours or an on-call) to a depot and re-plans it."""
     db = store.get_firestore_client()
     depot = store.get_depot(db, depot_id)
     if depot is None:
@@ -997,7 +799,7 @@ def cost_model():
          "unit": "Rs/t", "kind": "sourced", "note": "Rs 2,500-4,000 per acre (Tribune) at 1.75 t/acre"},
         {"key": "own_collection", "label": "Our crews' collection cost", "value": costs.OWN_COLLECTION_PER_T_INR,
          "unit": "Rs/t", "kind": "assumption", "note": "below the hired rate because routes are planned densely"},
-        {"key": "partner_collection", "label": "Partner crew cost", "value": costs.PARTNER_COLLECTION_PER_T_INR,
+        {"key": "partner_collection", "label": "On-call crew cost", "value": costs.PARTNER_COLLECTION_PER_T_INR,
          "unit": "Rs/t", "kind": "assumption", "note": "low end of the hired rate"},
         {"key": "haul", "label": "Truck freight", "value": costs.HAUL_PER_T_KM_INR, "unit": "Rs/t-km", "kind": "assumption",
          "note": "road distance = straight line x 1.3"},

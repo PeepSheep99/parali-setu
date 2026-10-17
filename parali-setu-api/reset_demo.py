@@ -3,8 +3,8 @@
 WIPES Parali Setu's own operational collections (never AidAtlas's, never the
 satellite fire batch or the forecasts), then seeds, through the same code the
 API uses:
-- 5 Parali Setu depots with our own crews and a pool of hired partner crews
-  (Patiala has a single own crew, so partner crews visibly step in there)
+- 5 Parali Setu depots with our own crews and a pool of on-call crews
+  (Patiala has a single own crew, so on-call crews visibly step in there)
 - 5 demo customers, one per industry segment, with 12-month forward orders
   priced by the cost model
 - today's posted prices from the procurement LP
@@ -123,7 +123,7 @@ def seed_listings(db, today: date, seed: int = 17) -> list[dict]:
             sowing = ready + timedelta(days=rng.randint(4, 8))
             if district == "Patiala":
                 # One own crew and every farm due within three days: more acres
-                # than it can bale, so hired partner crews step in.
+                # than it can bale, so on-call crews step in.
                 acres = rng.choice([10, 12, 14])
                 ready, sowing = today, today + timedelta(days=3)
             listings.append(store.save_listing(db, f"demo_farmer_{n}", {

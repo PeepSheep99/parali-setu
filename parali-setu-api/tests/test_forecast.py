@@ -72,15 +72,6 @@ def test_demand_segments_are_sourced_and_match_state_totals():
     assert high <= 1.15 * demand_segments.EX_SITU_TOTAL_T["2025 target"]
 
 
-def test_monthly_demand_spreads_evenly_and_scales_by_share():
-    rows = demand_segments.monthly_demand(2026, share=0.02)
-    assert len(rows) == 12 * len(demand_segments.SEGMENTS)
-    power = [r for r in rows if r["segment"] == "biomass_power"]
-    assert sum(r["tonnes_low"] for r in power) == pytest.approx(11.7e5 * 0.02, rel=1e-3)
-    with pytest.raises(ValueError):
-        demand_segments.monthly_demand(2026, share=0)
-
-
 def test_season_weeks_start_on_the_first_monday_in_september():
     from datetime import date
     from forecast.pipeline import season_weeks

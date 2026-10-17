@@ -62,21 +62,3 @@ EX_SITU_SOURCE = (
 
 def segment_totals() -> tuple[float, float]:
     return sum(s.annual_t_low for s in SEGMENTS), sum(s.annual_t_high for s in SEGMENTS)
-
-
-def monthly_demand(year: int, share: float = 1.0) -> list[dict]:
-    """One row per segment per month: the segment's annual use spread evenly
-    over twelve months, times `share` (Parali Setu's assumed share of it).
-    Even spreading is an assumption, stated in every row."""
-    if not 0 < share <= 1:
-        raise ValueError("share must be in (0, 1]")
-    rows = []
-    for s in SEGMENTS:
-        for month in range(1, 13):
-            rows.append({
-                "month": f"{year}-{month:02d}-01", "segment": s.key,
-                "tonnes_low": round(s.annual_t_low * share / 12, 1),
-                "tonnes_high": round(s.annual_t_high * share / 12, 1),
-                "basis": f"{s.as_of} annual figure / 12 (plants run year-round)",
-            })
-    return rows

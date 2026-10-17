@@ -30,7 +30,7 @@ HIRED_BALING_PER_T_INR = tuple(round(x / STRAW_T_PER_ACRE) for x in HIRED_BALING
 # ASSUMPTION: our own crews' cost per tonne (baling, loading, haul to depot),
 # below the hired rate because routes are planned densely.
 OWN_COLLECTION_PER_T_INR = 1100.0
-# ASSUMPTION: a hired partner crew, at the low end of the market rate.
+# ASSUMPTION: an on-call crew, at the low end of the market rate.
 PARTNER_COLLECTION_PER_T_INR = float(HIRED_BALING_PER_T_INR[0])
 # ASSUMPTION: truck freight for baled straw, Rs per tonne-km of road.
 HAUL_PER_T_KM_INR = 4.0

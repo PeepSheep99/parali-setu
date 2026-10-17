@@ -7,8 +7,8 @@ A FastAPI service on Cloud Run. The design is in [../docs/ARCHITECTURE.md](../do
 | `agent.py` | The farmer's talking agent: Gemini function calling, tools, guardrails enforced in code (numbers, claims, language, an explicit yes), regional fallback model |
 | `language.py` | Which language the farmer speaks, from the script and romanised cue words; the trilingual reply for other languages |
 | `live.py` | Live words: streaming transcription that hears Punjabi, Hindi and English at once |
-| `extraction.py`, `gemini_client.py` | Gemini calls: listing extraction, the single follow-up question, audio understanding, photo grading, explanations. A quota error triggers a 60-second cooldown. |
-| `speech.py`, `phrases.py` | Speech-to-Text and Text-to-Speech (pa/hi/en); deterministic read-backs, fallbacks and spoken pickup windows |
+| `extraction.py`, `gemini_client.py` | Gemini perception jobs: audio understanding, photo grading (straw and no-burn proof), English records. A quota error triggers a 60-second cooldown. |
+| `speech.py`, `phrases.py` | Speech-to-Text and Text-to-Speech (pa/hi/en); the agent's deterministic fallbacks and spoken pickup windows |
 | `procurement.py` | LP: tonnes per district, depot and week; posted prices from shadow prices |
 | `scheduler.py` | Routing over crew-days; on-call crews in a second pass; reason codes |
 | `deliveries.py` | LP: depot → customer orders by month, stock carried over, earliest signed order served first |
@@ -24,8 +24,7 @@ A FastAPI service on Cloud Run. The design is in [../docs/ARCHITECTURE.md](../do
 | Who | Endpoint |
 |---|---|
 | Farmer, talking | `POST /agent/turn` (voice or text, optional photo; the language is detected), `WS /agent/live`, `POST /speech`, `POST /demo/locate` |
-| Farmer, step by step | `POST /listings/draft`, `POST /listings/{draft_id}/confirm` |
-| Farmer, either way | `POST /bookings/{id}/accept`, `POST /bookings/{id}/cancel`, `GET /farmers/{id}/bookings`, `GET /bookings/{id}/price-explanation`, `POST /farmers/{id}/no-burn-proof` |
+| Farmer, pickups | `POST /bookings/{id}/accept`, `POST /bookings/{id}/cancel`, `GET /farmers/{id}/bookings`, `POST /farmers/{id}/no-burn-proof` |
 | Ops | `GET /ops/dispatch?day=`, `POST /ops/bookings/{id}/verify`, `POST /ops/bookings/{id}/needs-change`, `POST /ops/verify-all` (demo), `GET /ops/summary`, `GET /depots`, `GET /depots/{id}/schedule`, `POST /depots/{id}/replan`, `POST /depots/{id}/crews`, `POST /ops/bookings/{id}/accept` (demo), `POST /stops/{id}/collected` |
 | Ops | `GET /inventory`, `GET /purchases`, `GET\|POST /plan/procurement`, `GET /plan/deliveries`, `GET /forecast`, `GET /forecast/seasons`, `GET /costs`, `GET /agent/conversations/{id}` |
 | Customers | `GET /customers`, `POST /customers/{id}/quote` (with what we can commit), `POST /customers/{id}/orders`, `GET /customers/{id}/orders`, `POST /customers/{id}/orders/{oid}/cancel` |

@@ -185,7 +185,7 @@ stateDiagram-v2
 
 | Collection | Holds |
 |---|---|
-| `listings`, `listing_drafts` | The farmer's field: name, phone, acres, kg, crop, district, location (and whether it is a demo pin), sowing date |
+| `listings` | The farmer's field: name, phone, acres, kg, crop, district, location (and whether it is a demo pin), sowing date |
 | `bookings` | Listing → depot at the posted price; lifecycle status, verification record (pending, verified, needs a change), reason code, payout |
 | `depots`, `crews`, `pickup_slots` | Storage sites and radius; own and on-call crews; planned visits (arrival window, planned start and end, locked flag) |
 | `posted_prices` | Price per district per day (locked once posted), shadow price, reason |

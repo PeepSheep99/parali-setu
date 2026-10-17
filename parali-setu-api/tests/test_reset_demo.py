@@ -1,5 +1,5 @@
 """The demo scenario reset_demo.py seeds, run in memory through the real
-planners: every farm gets a slot, Patiala's overflow goes to partner crews,
+planners: every farm gets a slot, Patiala's overflow goes to on-call crews,
 the demo run leaves real stock and payouts, and the delivery plan has no
 shortfall."""
 import firestore_store as store

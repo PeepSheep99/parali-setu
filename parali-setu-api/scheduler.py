@@ -15,7 +15,7 @@ Model
   sowing). A farm bigger than a crew-day's capacity is split into
   day-sized visits.
 - A visit may only use crews of the depot it was booked into.
-- Partner crews (hired balers) are planned in a second pass, only for farms
+- On-call crews (hired balers) are planned in a second pass, only for farms
   our own crews could not fit before sowing. This is what lets every booking
   get a slot, and it keeps the extra cost visible: ops can see exactly which
   pickups needed a hired crew.
@@ -192,8 +192,8 @@ def plan_pickups(
     `used_acres` is work already done on a crew-day (farms collected today),
     which that crew-day can no longer offer to new farms.
 
-    Two passes: our own crews first, then partner crews for whatever our
-    crews could not fit. A slot locked onto a partner crew stays with it.
+    Two passes: our own crews first, then on-call crews for whatever our
+    crews could not fit. A slot locked onto an on-call crew stays with it.
 
     `not_before_min_today` (minutes after midnight, local time) keeps crews
     on day 0 from being planned before that time, so a farmer is never

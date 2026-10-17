@@ -22,7 +22,6 @@ from pathlib import Path
 
 STATES = ("Punjab", "Haryana")
 SEASON_START = "09-01"   # paddy harvest and burning run Sep-Dec
-SEASON_END = "12-31"
 FIRMS_SCALE_M = 1000     # FIRMS is a 1 km product
 FIELDS = ("date", "state", "district", "fire_pixels")
 

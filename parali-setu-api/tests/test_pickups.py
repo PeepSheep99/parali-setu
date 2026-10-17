@@ -1,5 +1,5 @@
 """Pickup planning: locations, windows, depot choice, offer expiry, planning
-a depot (with partner crews), and collect-and-pay."""
+a depot (with on-call crews), and collect-and-pay."""
 from datetime import date, datetime, timedelta
 
 import pytest

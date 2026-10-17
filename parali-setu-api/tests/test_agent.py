@@ -237,7 +237,7 @@ def test_service_terms_answer_the_questions_farmers_ask(chat):
                   "ਪੈਸੇ ਕਿਵੇਂ ਮਿਲਣਗੇ? ਟਰੱਕ ਨਾ ਆਇਆ ਤਾਂ?")
     assert result["guardrails"]["tool_calls"][0] == {"name": "get_service_terms", "args": {}, "ok": True}
     terms = agent.SERVICE_TERMS
-    assert "partner crew" in terms["if_crew_does_not_come"] and "simulated" in terms["payment"]
+    assert "on-call crew" in terms["if_crew_does_not_come"] and "simulated" in terms["payment"]
     assert not agent.forbidden_claims(" ".join(str(v) for v in terms.values()), []), "our own answers pass our own guardrail"
     assert not agent.numbers_in(" ".join(str(v) for v in terms.values() if isinstance(v, str)))
 

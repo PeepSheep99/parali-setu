@@ -1,91 +1,60 @@
 """The API end to end over HTTP, against the in-memory Parali Setu (`world`):
-the farmer's speak-once/confirm-once booking, accepting, cancelling and
-expiry; ops collecting and paying, crews and re-planning; customers quoting
-and ordering. Gemini and speech are mocked; the planners are real."""
+the farmer's offer, accepting, cancelling and expiry; ops verifying,
+collecting and paying, dispatch, crews and re-planning; customers quoting,
+ordering and cancelling. Offers are made through the agent's own tools, as in
+the product; Gemini and speech are mocked; the planners are real."""
 from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
+import agent
 import firestore_store as store
 import main
 import pickups
 
 client = TestClient(main.app)
-SANGRUR_FIELDS = {"acres": 10, "crop_type": "rice_stubble", "village_or_district": "Bahadurpur, Sangrur"}
+SANGRUR_FIELDS = {"acres": 10, "crop_type": "rice_stubble", "village_or_district": "Bahadurpur, Sangrur",
+                  "farmer_name": "Gurmeet Singh", "contact": "9876543210"}
 
 
 @pytest.fixture
 def api(world, monkeypatch):
-    state = {"extracted": {}, "questions": 0}
     monkeypatch.setattr(main, "get_gemini_client", lambda: object())
     monkeypatch.setattr(main, "synthesize_speech", lambda text, lang: b"mp3")
-    monkeypatch.setattr(main, "extract_listing", lambda c, text, lang: dict(state["extracted"]))
-
-    def ask(c, missing, lang):
-        state["questions"] += 1
-        return "Kitne kille, aur kab tak khet khali chahiye?"
-    monkeypatch.setattr(main, "follow_up_question", ask)
-    monkeypatch.setattr(main, "explain_offer", lambda c, offer, lang: f"{offer['price_per_kg']} {offer['pickup_window']}")
-    monkeypatch.setattr(main, "explain_price", lambda c, facts, lang: f"why {facts['price_per_kg']}")
-    state["db"] = world
-    return state
+    return {"db": world}
 
 
-def _draft(api, fields, farmer="f1", language="Hindi"):
-    api["extracted"] = dict(fields)
-    return client.post("/listings/draft", data={"farmer_id": farmer, "language": language, "text": "..."}).json()
-
-
-def _offer(api, farmer="f1", sowing="2026-10-24"):
-    draft = _draft(api, {**SANGRUR_FIELDS, "sowing_deadline": sowing}, farmer)
-    return client.post(f"/listings/{draft['draft_id']}/confirm", json={"farmer_id": farmer}).json()
+def _offer(api, farmer="f1", sowing="2026-10-24", pin=None):
+    """What the agent does when the farmer's details are complete: record them
+    and get back an offer at today's posted price with a slot. `pin` is a farm
+    location set the way the locate button sets it."""
+    start = {"lat": pin[0], "lon": pin[1]} if pin else {}
+    conv = store.save_conversation(api["db"], {"farmer_id": farmer, "language": "Hindi", "turns": [], "fields": start, "facts": {}})
+    result = agent.Turn(api["db"], conv).tool_update_listing(**{**SANGRUR_FIELDS, "sowing_deadline": sowing})
+    offer = result.get("offer") or {}
+    booking = store.get_booking(api["db"], offer["booking_id"]) if offer.get("booking_id") else None
+    return {"offer": offer, "booking": pickups.booking_view(api["db"], booking) if booking else None}
 
 
 # ---- farmer
 
-def test_one_question_covers_everything_missing_and_is_asked_only_once(api):
-    first = _draft(api, {"acres": 10, "crop_type": "rice_stubble"})
-    assert first["missing_fields"] == ["location", "sowing_deadline"]
-    assert first["follow_up"]["text"] and first["confirm_summary"] is None
-    assert first["fields"]["quantity_kg"] == 17500.0, "kg is derived in code from acres at 1.75 t/acre"
-
-    api["extracted"] = {"village_or_district": "Sangrur"}
-    second = client.post("/listings/draft", data={"farmer_id": "f1", "draft_id": first["draft_id"], "text": "Sangrur"}).json()
-    assert api["questions"] == 1, "never a second question"
-    assert second["follow_up"] is None and second["district"] == "Sangrur"
-    assert second["confirm_summary"]["text"]
-
-
-def test_confirm_books_at_the_posted_price_with_a_slot(api):
+def test_an_offer_is_at_the_posted_price_with_a_slot(api):
     body = _offer(api)
     booking = body["booking"]
-    assert body["status"] == "offered" and booking["status"] == "offered"
+    assert booking["status"] == "offered"
     posted = store.get_posted_price(api["db"], "2026-10-17", "Sangrur")
-    assert booking["price_per_kg"] == posted["price_per_kg"] == body["price"]["price_per_kg"]
+    assert booking["price_per_kg"] == posted["price_per_kg"] == body["offer"]["price_per_kg"]
     assert booking["pickup_window"] and booking["slots"]
     assert booking["payout_estimate_inr"] == round(17500 * booking["price_per_kg"], 2)
     assert booking["offer_expires_at"].startswith("2026-10-17T10:00")
-    spoken = body["explanation"]["text"]
-    assert spoken.startswith(str(booking["price_per_kg"])) and booking["pickup_window"] not in spoken,         "the offer is narrated with a spoken window, not the raw ISO label"
-    assert body["impact_if_collected"]["acres_cleared"] == 10.0
-
-
-def test_confirm_only_once_and_needs_a_place(api):
-    draft = _draft(api, {**SANGRUR_FIELDS, "sowing_deadline": "2026-10-24"})
-    assert client.post(f"/listings/{draft['draft_id']}/confirm", json={"farmer_id": "f1"}).status_code == 200
-    assert client.post(f"/listings/{draft['draft_id']}/confirm", json={"farmer_id": "f1"}).status_code == 409
-    nowhere = _draft(api, {"acres": 4, "crop_type": "rice_stubble"})
-    assert client.post(f"/listings/{nowhere['draft_id']}/confirm", json={"farmer_id": "f1"}).status_code == 422
+    assert not body["offer"]["pickup_window_spoken"][0].isdigit(), "the window is said as words, not an ISO label"
 
 
 def test_a_farm_beyond_every_depot_is_told_so(api):
-    draft = _draft(api, {"acres": 4, "crop_type": "rice_stubble", "sowing_deadline": "2026-10-24"})
-    store.save_draft(api["db"], {**store.get_draft(api["db"], draft["draft_id"]),
-                                 "fields": {**store.get_draft(api["db"], draft["draft_id"])["fields"],
-                                            "lat": 28.61, "lon": 77.21, "quantity_kg": 7000.0}})
-    body = client.post(f"/listings/{draft['draft_id']}/confirm", json={"farmer_id": "f1"}).json()
-    assert body["status"] == "out_of_area"
+    body = _offer(api, pin=(28.61, 77.21))   # Delhi
+    assert body["offer"]["error"] == "out_of_area" and body["booking"] is None
+    assert "Sangrur" in body["offer"]["served_districts"]
 
 
 def test_accept_locks_the_slot_and_only_the_farmer_can(api):
@@ -110,13 +79,6 @@ def test_cancel_frees_the_slot(api):
     assert body["booking"]["status"] == "cancelled"
     assert all(s["status"] == "cancelled" for s in store.get_slots_for_booking(api["db"], booking["id"]))
     assert client.get("/farmers/f1/bookings").json()["bookings"] == []
-
-
-def test_price_explanation_uses_the_posted_reason(api):
-    booking = _offer(api)["booking"]
-    body = client.get(f"/bookings/{booking['id']}/price-explanation", params={"language": "Hindi"}).json()
-    assert body["explanation"] == f"why {booking['price_per_kg']}"
-    assert body["reason_code"] in ("base", "scarce")
 
 
 # ---- ops
@@ -149,7 +111,7 @@ def test_depot_schedule_shows_farms_crews_and_arrival_windows(api):
     stop = next(s for s in stops if s["booking_id"] == booking["id"])
     assert stop["village"] == "Bahadurpur, Sangrur" and stop["sowing_deadline"] == "2026-10-24"
     assert stop["planned_start_min"] >= stop["window_start_min"]
-    assert all("crew_name" in r and "partner" in r for r in sheet["route_sheets"])
+    assert all("crew_name" in r and "partner" in r for r in sheet["route_sheets"]), "partner marks an on-call crew"
     assert client.get("/depots/nope/schedule").status_code == 404
 
 
@@ -202,8 +164,7 @@ def test_customer_quote_then_order_lands_in_the_delivery_plan(api):
 
 def test_a_new_listing_replaces_the_farmers_open_offer(api):
     first = _offer(api)["booking"]
-    draft = _draft(api, {**SANGRUR_FIELDS, "sowing_deadline": "2026-10-25"})
-    second = client.post(f"/listings/{draft['draft_id']}/confirm", json={"farmer_id": "f1"}).json()["booking"]
+    second = _offer(api, sowing="2026-10-25")["booking"]
     states = {b["id"]: b["status"] for b in store.get_bookings_for_farmer(api["db"], "f1")}
     assert states[first["id"]] == "cancelled" and states[second["id"]] == "offered"
     assert sum(s == "offered" for s in states.values()) == 1

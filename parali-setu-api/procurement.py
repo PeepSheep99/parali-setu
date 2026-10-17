@@ -4,7 +4,7 @@ it goes to, and the farm-gate price to post. OR-Tools linear program (GLOP).
 Decision variables (tonnes, over the planning weeks):
 - buy[d, p, w]   straw bought in district d, taken to depot p, in week w
 - own[p, w], partner[p, w]   how much of depot p's intake our own crews and
-  hired partner crews collect
+  on-call crews collect
 - sell_committed, sell_forecast   straw sold against signed forward orders
   and against forecast demand
 

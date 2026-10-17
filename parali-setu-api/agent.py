@@ -153,7 +153,7 @@ SERVICE_TERMS = {
     "price": "One posted price per district per day, set by our planner from how much straw we need and how much we expect. There is no bargaining, and the price you are offered does not change during the day.",
     "payment": "In this prototype payment is a simulated UPI transfer on the day our crew collects. No real money moves.",
     "weighing": "The straw is weighed on a weighbridge at the depot and you are paid for the weighed kilograms. The weight in the offer is an estimate from your area.",
-    "if_crew_does_not_come": "If our own crew cannot come, a partner crew is booked before your sowing date, our team is alerted, and you can cancel for free at any time before collection.",
+    "if_crew_does_not_come": "If our own crew cannot come, an on-call crew is booked before your sowing date, our team is alerted, and you can cancel for free at any time before collection.",
     "field_cleared_free": True,
 }
 

@@ -1,9 +1,9 @@
 """Firestore read/write helpers for Parali Setu's data model. Thin wrappers
 only: numbers come from the planners (procurement.py, scheduler.py,
-deliveries.py, costs.py) and language from extraction.py.
+deliveries.py, costs.py) and language from agent.py and extraction.py.
 
 Collections
-- listings, listing_drafts    a farmer's field and the draft before confirming
+- listings                    a farmer's field, as the agent recorded it
 - bookings                    a farmer selling a field's straw to a Parali Setu depot
 - depots, crews, pickup_slots our storage sites, baling crews and planned visits
 - posted_prices               farm-gate price per district per day
@@ -86,21 +86,13 @@ def get_listing(db: firestore.Client, listing_id: str) -> dict | None:
     return _get(db, "listings", listing_id)
 
 
-def save_draft(db: firestore.Client, draft: dict) -> dict:
-    draft = {**draft, "updated_at": _now()}
-    return _save(db, "listing_drafts", "draft", draft)
-
-
-def get_draft(db: firestore.Client, draft_id: str) -> dict | None:
-    return _get(db, "listing_drafts", draft_id)
-
-
 # ---- bookings
 
 # offered: a slot is planned and the posted price shown; the farmer has not
-#   accepted yet, and the offer lapses after a few hours so it never holds
-#   crew time forever.
-# booked: the farmer accepted; the slot is locked.
+#   accepted yet, and the offer lapses after a few hours (and an hour before
+#   its slot) so it never holds crew time forever.
+# booked: the farmer accepted; the slot is locked; our team still has to call.
+# verified: a person confirmed the details; the pickup goes on a crew's sheet.
 # collected -> paid: the crew collected; the same-day payout is recorded.
 # unschedulable: no slot can exist (for example the sowing date has passed).
 BOOKING_TRANSITIONS = {
