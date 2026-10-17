@@ -126,6 +126,7 @@ def impact_summary():
     db = store.get_firestore_client()
     collected_kg = booked_kg = paid_inr = 0.0
     farmers = set()
+    paid = []
     for b in store.get_bookings(db, ("booked", "verified", "collected", "paid")):
         if b["status"] in ("booked", "verified"):
             booked_kg += b["kg"]
@@ -133,8 +134,11 @@ def impact_summary():
             collected_kg += b.get("collected_kg") or b["kg"]
             paid_inr += b.get("payout_inr") or 0.0
             farmers.add(b["farmer_id"])
+            paid.append(b)
+    import satellite_check
     return {"collected": impact_for_kg(collected_kg), "booked": impact_for_kg(booked_kg),
-            "paid_to_farmers_inr": round(paid_inr, 2), "farmers_paid": len(farmers)}
+            "paid_to_farmers_inr": round(paid_inr, 2), "farmers_paid": len(farmers),
+            "field_checks": satellite_check.summary(paid, pickups.now_ist().date())}
 
 
 @app.get("/impact/scenario")
@@ -698,6 +702,11 @@ def dispatch(day: date | None = None):
     if deliveries.get("shortfall_t"):
         exceptions.append({"kind": "deliveries_short", "tonnes": deliveries["shortfall_t"],
                            "orders": sorted({s["order_id"] for s in deliveries.get("shortfall", [])})})
+    if deliveries.get("overflow_t"):
+        exceptions.append({"kind": "depot_overflow", "tonnes": deliveries["overflow_t"],
+                           "depots": sorted({s["depot_id"] for s in deliveries.get("overflow", [])})})
+    if deliveries and deliveries.get("status") != "optimal":
+        exceptions.append({"kind": "delivery_plan_failed", "status": deliveries.get("status")})
     return {"date": day.isoformat(), "today": today.isoformat(), "depots": depots_out, "verify_queue": queue,
             "readiness": operations.readiness(db, today, 21), "exceptions": exceptions}
 
@@ -718,7 +727,7 @@ def stop_collected(booking_id: str, req: CollectedRequest):
         raise HTTPException(status_code=422, detail="Collected weight is more than 20% above the booked quantity")
     try:
         return pickups.complete_pickup(db, booking_id, req.collected_kg)
-    except store.InvalidTransition as exc:
+    except (store.InvalidTransition, pickups.BookingError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
 
@@ -759,11 +768,38 @@ def rerun_procurement():
     return {"plan": plan, "deliveries": operations.run_deliveries(db)}
 
 
+@app.get("/ops/agent-health")
+def agent_health_view(limit: int = Query(100, ge=1, le=500)):
+    """The farmer agent's speed and what its guardrails caught, counted from
+    the last conversations' stored reports, next to the measured benchmark."""
+    import agent_health
+    db = store.get_firestore_client()
+    convs = [c for c in store.get_recent_conversations(db, limit) if not str(c.get("farmer_id", "")).startswith("bench_")]
+    return {"live": agent_health.summarise(convs), "benchmark": agent_health.benchmark()}
+
+
 @app.get("/plan/deliveries")
 def get_delivery_plan():
     db = store.get_firestore_client()
     return {"plan": store.get_plan(db, "deliveries_current") or operations.run_deliveries(db),
             "deliveries": store.get_deliveries(db)}
+
+
+class ShippedRequest(BaseModel):
+    tonnes: float | None = Field(default=None, gt=0, le=10_000)
+
+
+@app.post("/deliveries/{delivery_id}/shipped")
+def delivery_shipped(delivery_id: str, req: ShippedRequest):
+    """A planned delivery has left its depot: the straw comes out of stock
+    (an outbound move), and the next plan counts it as delivered."""
+    db = store.get_firestore_client()
+    try:
+        return operations.ship_delivery(db, delivery_id, req.tonnes)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    except pickups.BookingError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 @lru_cache(maxsize=1)
@@ -933,6 +969,21 @@ def quote_customer(customer_id: str, req: OrderRequest):
     total_t = req.tonnes_per_month * req.months
     can = operations.committable(db, (customer["lat"], customer["lon"]), _order_months(req), q["price_per_t"])
     return {"quote": q, "total_t": total_t, "total_inr": round(total_t * q["price_per_t"], 2), "commit": can}
+
+
+@app.get("/economics/farmer")
+def farmer_economics(acres: float = Query(..., gt=0, le=500), district: str | None = Query(None, max_length=60)):
+    """One farm cleared three ways: booking us, hiring a baler, or burning,
+    at today's posted price for the district (the lowest posted, if none given)."""
+    import economics
+    db = store.get_firestore_client()
+    today = pickups.now_ist().date().isoformat()
+    prices = {p["district"]: p["price_per_kg"] for p in store.get_posted_prices_for_day(db, today)}
+    named = district_from_text(district) if district else None
+    price = prices.get(named) if named else (min(prices.values()) if prices else None)
+    if price is None:
+        price = operations.FARM_GATE_BASE_PER_KG
+    return {**economics.farmer_case(acres, price), "district": named, "date": today}
 
 
 @app.post("/customers/{customer_id}/orders")

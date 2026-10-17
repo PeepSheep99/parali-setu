@@ -1,0 +1,18 @@
+/* Fire map (shared/firemap.js): canvas map, season scrubber, legend. */
+.firemap { display: grid; gap: 10px; }
+.fm-stage { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.fm-canvas { display: block; width: 100%; touch-action: pan-y; }
+.fm-tip { position: absolute; z-index: 2; pointer-events: none; max-width: 240px; padding: 6px 10px; border-radius: var(--r-sm);
+          background: var(--thread); color: #fff6ef; font-size: var(--step--1); }
+.fm-controls { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; align-items: center; }
+.fm-controls .fm-out { grid-column: 1 / -1; font-variant-numeric: tabular-nums; color: var(--thread-soft); font-size: var(--step--1); }
+.fm-scrub { display: grid; gap: 2px; }
+.fm-bars { display: block; width: 100%; height: 42px; cursor: ew-resize; touch-action: none; }
+.fm-scrub input[type="range"] { width: 100%; accent-color: var(--madder); margin: 0; }
+.fm-play { min-width: 92px; }
+.fm-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: var(--step--1); color: var(--thread-soft); }
+.fm-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.fm-key { display: inline-block; width: 10px; height: 10px; }
+.fm-key.fire { background: var(--fire); }
+.fm-key.depot { background: var(--madder); transform: rotate(45deg) scale(.85); box-shadow: inset 0 0 0 3px var(--madder), inset 0 0 0 5px var(--silk); }
+.fm-key.farm { background: var(--ok); border-radius: 50%; }

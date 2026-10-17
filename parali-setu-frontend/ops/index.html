@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Baloo+Paaji+2:wght@500;600;700&family=Hind:wght@400;500;600&family=Mukta+Mahee:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../shared/tokens.css">
 <link rel="stylesheet" href="ops.css">
+<link rel="stylesheet" href="../shared/firemap.css">
 </head>
 <body>
 <header class="bar">
@@ -105,6 +106,11 @@
       <div id="fc-curve" class="chart"></div>
       <details><summary>Show as a table</summary><div id="fc-table"></div></details>
     </section>
+    <section class="panel">
+      <h2>Fires this week, around our farms</h2>
+      <p class="muted small" id="fm-sub">NASA FIRMS fire detections from the last daily refresh, our depots and the farms booked with us. A fire near a booked farm is a farm to reach first.</p>
+      <div id="ops-firemap"></div>
+    </section>
     <div class="two">
       <section class="panel">
         <h2>Where the straw comes first</h2>
@@ -118,6 +124,12 @@
         <details><summary>All scores</summary><p class="muted small">Held-out seasons: each model saw data up to 30 June and forecast September to December. Fire counts fell sharply under enforcement, so we use the forecast for timing only and take straw volumes from crop statistics.</p><div id="fc-backtest"></div></details>
       </section>
     </div>
+    <section class="panel">
+      <h2>How good is the farmer agent?</h2>
+      <p class="muted small">Gemini only talks; code checks every reply. Measured: 40 scripted farmers booking in Punjabi, Hindi, English and romanised Punjabi plus 10 trick conversations against real Gemini (bench/bench_agent.py), and the guardrail reports of the last real conversations.</p>
+      <div id="ag-health" class="ag-grid"></div>
+      <details><summary>Show the benchmark in detail</summary><div id="ag-detail"></div></details>
+    </section>
     <section class="panel">
       <h2>Who buys the straw</h2>
       <p class="muted small" id="fc-demand-note"></p>
@@ -156,6 +168,11 @@
   <section id="tab-impact" class="tab" hidden>
     <div class="tab-head"><div><h1>Impact</h1><p class="muted">From straw actually collected. Methane and nitrous oxide only; CO₂ from burning straw is biogenic and not counted.</p></div></div>
     <div id="impact-stats" class="kpis"></div>
+    <section class="panel">
+      <h2>Did the fields stay unburned?</h2>
+      <p class="muted small">After each pickup, Google Earth Engine compares Sentinel-2 images of the field from before and 3–25 days after (a burn scar stays for weeks, unlike a fire a satellite has to catch while it burns). On the 2024 season this rule found scars at 66% of NASA FIRMS fire locations and at 11% of fields FIRMS never saw burning.</p>
+      <div id="field-checks" class="kpis"></div>
+    </section>
     <section class="panel"><h2>Latest payouts</h2><div id="payouts"></div></section>
   </section>
 </main>
@@ -163,6 +180,7 @@
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
 <script src="../config.js"></script>
+<script src="../shared/firemap.js"></script>
 <script src="ops.js"></script>
 </body>
 </html>

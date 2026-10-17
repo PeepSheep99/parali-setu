@@ -25,10 +25,10 @@ _WORD = re.compile(r"[a-z]+")
 # are not also common English, so "I have 10 acres" stays English.
 _ROMAN_PUNJABI = {"kille", "killa", "killey", "jhona", "jhone", "kanak", "mere", "kol", "sanu", "tuhanu", "mainu",
                   "tusi", "asi", "kithe", "kado", "kinne", "hega", "pind", "parali", "bijai", "chahidi", "karo",
-                  "dasso", "ji", "haanji", "nahi", "nahin"}
+                  "dasso", "ji", "haanji", "nahi", "nahin", "mera", "naam", "nu", "karni", "sadda", "saada"}
 _ROMAN_HINDI = {"mere", "paas", "hai", "hain", "ekad", "ekar", "dhaan", "dhan", "gehun", "gehu", "gaon", "gaanv",
                 "kitne", "kab", "tak", "bona", "bowai", "chahiye", "karna", "kijiye", "nahi", "nahin", "haan",
-                "ji", "kya", "aap", "hum", "parali", "zila"}
+                "ji", "kya", "aap", "hum", "parali", "zila", "mera", "naam", "hamara", "mujhe"}
 # Words that tip a romanised message one way when both lists match.
 _PUNJABI_ONLY = {"kille", "killa", "killey", "jhona", "jhone", "kanak", "kol", "sanu", "tuhanu", "mainu", "tusi",
                  "asi", "kithe", "kado", "kinne", "hega", "pind", "chahidi", "dasso", "haanji"}
@@ -36,28 +36,45 @@ _HINDI_ONLY = {"paas", "ekad", "ekar", "dhaan", "gehun", "gehu", "gaon", "gaanv"
                "chahiye", "kijiye", "kya", "aap", "hum", "zila"}
 
 
+# Everyday English words. A Latin-script message with fewer than two of these
+# and no romanised cue words ("mera naam Gurpreet, number 98...") is not
+# evidence of English: it is a name and a number, in whatever language the
+# farmer has been speaking.
+_ENGLISH = {"i", "my", "me", "is", "am", "are", "the", "a", "an", "have", "has", "please", "yes", "no", "what", "when",
+            "how", "where", "will", "you", "we", "it", "to", "of", "in", "and", "by", "for", "can", "do", "want",
+            "need", "name", "acres", "village", "sow", "sowing", "wheat", "book", "paid", "pay", "straw", "this", "that"}
+
+
 def detect(text: str | None) -> str | None:
     """'Punjabi', 'Hindi', 'English', UNSUPPORTED, or None when the text has
     no letters to go on (only numbers, say), so the conversation's last
     language carries on."""
+    return detect_with_confidence(text)[0]
+
+
+def detect_with_confidence(text: str | None) -> tuple[str | None, bool]:
+    """(language, decisive). Not decisive when romanised text could be either
+    Punjabi or Hindi, or when Latin text has too little English in it to call
+    it English. The agent then keeps the conversation's language instead of
+    switching a Punjabi farmer to English because they typed their name."""
     if not text:
-        return None
+        return None, False
     pa, hi = len(_GURMUKHI.findall(text)), len(_DEVANAGARI.findall(text))
     other, latin = len(_OTHER.findall(text)), len(_LATIN.findall(text))
     if pa or hi:
-        return "Punjabi" if pa >= hi else "Hindi"
+        return ("Punjabi" if pa >= hi else "Hindi"), True
     if other and other >= latin:
-        return UNSUPPORTED
+        return UNSUPPORTED, True
     if not latin:
-        return None
+        return None, False
     words = set(_WORD.findall(text.lower()))
     pa_hits, hi_hits = len(words & _ROMAN_PUNJABI), len(words & _ROMAN_HINDI)
     if max(pa_hits, hi_hits) < 2:
-        return "English"
+        return "English", len(words & _ENGLISH) >= 2 and not (pa_hits or hi_hits)
     pa_only, hi_only = len(words & _PUNJABI_ONLY), len(words & _HINDI_ONLY)
     if pa_only != hi_only:
-        return "Punjabi" if pa_only > hi_only else "Hindi"
-    return "Punjabi" if pa_hits >= hi_hits else "Hindi"
+        return ("Punjabi" if pa_only > hi_only else "Hindi"), True
+    return ("Punjabi" if pa_hits >= hi_hits else "Hindi"), False
 
 
 # Said in all three when a farmer uses a language we don't serve yet. Spoken in

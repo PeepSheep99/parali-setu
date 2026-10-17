@@ -11,12 +11,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Baloo+Paaji+2:wght@500;600;700&family=Hind:wght@400;500;600&family=Mukta+Mahee:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="shared/tokens.css">
 <link rel="stylesheet" href="landing.css">
+<link rel="stylesheet" href="shared/firemap.css">
 </head>
 <body>
 <header class="nav">
   <div class="nav-inner">
     <a class="brand" href="./"><img src="kisan/icon.svg" alt="" width="30" height="30"> Parali Setu</a>
     <nav aria-label="Sections">
+      <a href="#map">Fire map</a>
       <a href="#how">How it works</a>
       <a href="#record">The record</a>
       <a href="#industry">Industry</a>
@@ -59,6 +61,14 @@
       <div class="toll-item flat"><span class="v">19.17 lakh ha</span><span class="k">burned in Punjab in 2024 against 19.14 lakh ha in 2023, even though recorded fires fell from 36,663 to 10,909 (<a href="https://rsdebate.nic.in/bitstream/123456789/753234/1/PQ_266_20122024_U2905_p94_p95.pdf">CREAMS fire counts, Rajya Sabha reply</a>). The area figures are PRSC/PPCB numbers as reported by <a href="https://currentaffairs.khanglobalstudies.com/declining-farm-fires-in-punjab/">secondary sources</a>; we have not seen the primary report.</span></div>
       <div class="toll-item good"><span class="v">0.18 t CO₂e</span><span class="k">of methane and nitrous oxide kept out of the air for every tonne of straw collected instead of burned, plus about 8 kg of fine smoke particles.</span></div>
     </div>
+  </section>
+
+  <section class="inner" id="map">
+    <p class="eyebrow">Where it burns <span class="badge">NASA FIRMS via Google Earth Engine</span></p>
+    <h2 id="map-title">The 2024 paddy season, seen from space</h2>
+    <p class="muted lede-sm" id="map-lede">Every red square is a satellite fire pixel in Punjab or Haryana between 1 October and 30 November 2024. Press play to watch the harvest burn move across the districts. The diamonds are our five depots; the dashed rings are how far their crews reach.</p>
+    <div id="firemap"></div>
+    <p class="small muted">The bars are fire pixels per day; days near zero are days the satellites saw little of Punjab (cloud, smoke or orbit), not days without burning. Satellites pass over at fixed times, and burning has shifted to times they miss, so this undercounts. We use these fires for <em>when</em> straw comes off the fields, not how much.</p>
   </section>
 
   <section class="band" id="how">
@@ -120,6 +130,14 @@
         </table>
       </div>
       <p class="thesis">Selling straw nets a farmer roughly nothing, and a baler that arrives after the sowing date is worthless. We take the whole job off the farmer: free clearing before sowing and a small payment the same day. We make it pay by planning collection better than anyone else and selling the straw year-round.</p>
+    </div>
+    <div class="inner farm-calc card" id="farm-calc">
+      <form id="fc-form" class="fc-form">
+        <label>My farm: <input id="fc-acres" type="number" min="1" max="200" step="1" value="10" aria-label="Acres"> acres in
+          <select id="fc-district" aria-label="District"></select></label>
+      </form>
+      <div class="fc-ways" id="fc-ways" aria-live="polite"></div>
+      <p class="small muted" id="fc-src"></p>
     </div>
   </section>
 
@@ -233,6 +251,7 @@
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 
 <script src="config.js"></script>
+<script src="shared/firemap.js"></script>
 <script src="landing.js"></script>
 </body>
 </html>

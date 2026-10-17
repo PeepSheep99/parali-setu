@@ -147,3 +147,18 @@ input[type=range] { width: 100%; accent-color: var(--paddy); min-height: 32px; }
 .demo-flag { background: var(--silk-pale); color: #5e3a0c; }
 .btn.primary { background: var(--madder); border-color: var(--madder); }
 @media (max-width: 880px) { .phulkari { min-height: 220px; } }
+
+/* Farmer calculator: one farm, three ways */
+.farm-calc { margin-top: 22px; display: grid; gap: 14px; }
+.fc-form label { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.fc-form input, .fc-form select { font: 600 1.1rem var(--font-body); color: var(--madder); border: 0; border-bottom: 2px solid var(--madder); background: transparent; padding: 2px 4px; }
+.fc-form input { width: 4.5em; text-align: center; }
+.fc-ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.fc-way { border-radius: var(--r); padding: 14px 16px; background: var(--khaddar); border: 1px solid var(--line); display: grid; gap: 2px; align-content: start; }
+.fc-way h3 { font-size: 1rem; }
+.fc-way .v { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 1.7rem; font-variant-numeric: tabular-nums; }
+.fc-way .k { margin: 0; font-size: .9rem; color: var(--thread-soft); }
+.fc-way.us { background: var(--ok-soft); border-color: var(--ok); }
+.fc-way.us .v { color: var(--ok); }
+.fc-way.baler .v { color: var(--warn); }
+.fc-way.burn .v { color: var(--fire); }

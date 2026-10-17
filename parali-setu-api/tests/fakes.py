@@ -2,9 +2,10 @@
 uses, so whole flows (book -> plan -> accept -> collect -> pay -> deliver)
 run in tests without credentials.
 
-`use_fake_firestore(monkeypatch)` installs it and returns the fake. Real
-transactions are replaced by direct read-then-write, which is equivalent in
-a single-threaded test.
+`use_fake_firestore(monkeypatch)` installs it and returns the fake. The
+booking-status transaction is replaced by direct read-then-write, which is
+equivalent in a single-threaded test; ledger transactions buffer their writes
+and apply them only if the whole function succeeds.
 """
 from __future__ import annotations
 
@@ -48,16 +49,26 @@ class DocRef:
 
 
 class Query:
-    def __init__(self, coll, filters):
-        self._coll, self._filters = coll, filters
+    def __init__(self, coll, filters, order=None, limit=None):
+        self._coll, self._filters, self._order, self._limit = coll, filters, order, limit
 
     def where(self, field, op, value):
-        return Query(self._coll, self._filters + [(field, op, value)])
+        return Query(self._coll, self._filters + [(field, op, value)], self._order, self._limit)
+
+    def order_by(self, field, direction="ASCENDING"):
+        return Query(self._coll, self._filters, (field, direction == "DESCENDING"), self._limit)
+
+    def limit(self, n):
+        return Query(self._coll, self._filters, self._order, n)
 
     def stream(self):
-        for doc_id, data in list(self._coll.docs.items()):
-            if all(_match(data, f, op, v) for f, op, v in self._filters):
-                yield Snap(DocRef(self._coll, doc_id), data)
+        rows = [(doc_id, data) for doc_id, data in list(self._coll.docs.items())
+                if all(_match(data, f, op, v) for f, op, v in self._filters)]
+        if self._order:
+            field, desc = self._order
+            rows = sorted((r for r in rows if field in r[1]), key=lambda r: r[1][field], reverse=desc)
+        for doc_id, data in rows[: self._limit]:
+            yield Snap(DocRef(self._coll, doc_id), data)
 
 
 def _match(data, field, op, value) -> bool:
@@ -79,6 +90,9 @@ class Collection:
 
     def where(self, field, op, value):
         return Query(self, [(field, op, value)])
+
+    def order_by(self, field, direction="ASCENDING"):
+        return Query(self, []).order_by(field, direction)
 
     def stream(self):
         return Query(self, []).stream()
@@ -103,6 +117,14 @@ class Batch:
         self._ops = []
 
 
+class Transaction(Batch):
+    """Buffers writes until commit, so a function that raises halfway
+    through leaves nothing behind -- the property real transactions give."""
+
+    def rollback(self):
+        self._ops = []
+
+
 class FakeFirestore:
     def __init__(self):
         self._collections: dict[str, Collection] = {}
@@ -114,7 +136,7 @@ class FakeFirestore:
         return Batch()
 
     def transaction(self):
-        return None
+        return Transaction()
 
     def docs(self, name) -> list[dict]:
         return [copy.deepcopy(d) for d in self.collection(name).docs.values()]

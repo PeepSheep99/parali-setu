@@ -280,26 +280,27 @@ def complete_pickup(db, booking_id: str, collected_kg: float | None = None) -> d
     """The crew has collected a farm: the booking moves to collected, the
     farmer is paid the same day (a simulated UPI transfer of collected kg x
     the posted price they were offered), the booking moves to paid, and the
-    straw is added to the depot's stock."""
+    straw is added to the depot's stock.
+
+    All of it is one transaction (store.record_pickup): a crash halfway can't
+    leave a farm collected but unpaid, or paid without stock. A crew can't
+    mark a farm collected before the day it is scheduled, and a depot can't
+    take in more straw than it has room for."""
     booking = store.get_booking(db, booking_id)
     if booking is None:
         raise KeyError("booking not found")
     kg = collected_kg if collected_kg is not None else booking["kg"]
-    store.update_booking_status(db, booking_id, "collected", {"collected_kg": kg})
-    store.set_slots_status(db, booking_id, "collected")
     today = now_ist().date().isoformat()
-    purchase = store.save_purchase(db, {
-        "booking_id": booking_id, "farmer_id": booking["farmer_id"], "depot_id": booking["depot_id"],
-        "district": booking.get("district"), "kg": kg, "price_per_kg": booking["price_per_kg"],
-        "amount_inr": round(kg * booking["price_per_kg"], 2), "paid_on": today,
-        "method": "UPI", "simulated": True,
-    })
-    move = store.save_inventory_move(db, {
-        "depot_id": booking["depot_id"], "kind": "inbound", "tonnes": round(kg / 1000, 3),
-        "date": today, "booking_id": booking_id,
-    })
-    paid = store.update_booking_status(db, booking_id, "paid", {"purchase_id": purchase["id"], "payout_inr": purchase["amount_inr"]})
-    return {"booking": paid, "purchase": purchase, "inventory_move": move}
+    slots = store.get_slots_for_booking(db, booking_id)
+    if not slots:
+        raise BookingError("This pickup has no scheduled slot, so it can't be marked collected")
+    first_day = min(s["date"] for s in slots)
+    if today < first_day:
+        raise BookingError(f"This pickup is scheduled for {first_day}; it can't be marked collected before then")
+    try:
+        return store.record_pickup(db, booking_id, kg, [s["id"] for s in slots], today)
+    except store.LedgerError as exc:
+        raise BookingError(str(exc)) from exc
 
 
 def replace_open_offers(db, farmer_id: str) -> list[str]:

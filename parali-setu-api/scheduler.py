@@ -50,9 +50,17 @@ SLOT_WINDOW_MIN = 180            # farmers are promised a 3-hour arrival window
 MINUTES_PER_DAY = 24 * 60
 
 _ACRE_SCALE = 100                # OR-Tools dimensions are integers
-_DROP_PENALTY = 10_000_000
+# Leaving a visit unplanned costs in proportion to its acres. A flat penalty
+# made the solver keep many small visits and drop the big ones, which then
+# went to hired crews: the benchmark (bench/bench_planners.py) caught it
+# hiring more on-call crew-days than a nearest-farm-first dispatcher at peak.
+_DROP_PENALTY_PER_ACRE = 1_000_000
 _LOCKED_DROP_PENALTY = 1_000_000_000
 _EARLY_DAY_COST = 50             # small nudge toward earlier pickups
+# A hired crew-day is real money (the market baling rate over our own cost),
+# so using one more must save at least a shift's worth of driving. Without it
+# the solver spread work thinly over extra hired crews to shave minutes.
+_ONCALL_DAY_COST = 600
 SAFETY_TIME_LIMIT_SECONDS = 10
 FIRST_SOLUTION_STRATEGY = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
 
@@ -307,9 +315,9 @@ def _plan_with(
             shift_start = min(max(shift_start, not_before_min_today), crew.shift_end_min)
         time_dim.CumulVar(routing.Start(v)).SetRange(day0 + shift_start, day0 + crew.shift_end_min)
         time_dim.CumulVar(routing.End(v)).SetRange(day0 + crew.shift_start_min, day0 + crew.shift_end_min)
-        routing.SetFixedCostOfVehicle(_EARLY_DAY_COST * (d + 1), v)
+        routing.SetFixedCostOfVehicle(_EARLY_DAY_COST * (d + 1) + (_ONCALL_DAY_COST if crew.partner else 0), v)
 
-    for k, (job, _, _) in enumerate(visits):
+    for k, (job, _, acres) in enumerate(visits):
         index = manager.NodeToIndex(len(crews) + k)
         # Restrict the visit's vehicle variable directly (-1 = left unvisited,
         # which the disjunction below prices). This OR-Tools build doesn't
@@ -323,7 +331,7 @@ def _plan_with(
             first_day = max(0, (job.earliest - start).days)
             last_day = min(horizon_days - 1, (job.latest - start).days)
             time_dim.CumulVar(index).SetRange(first_day * MINUTES_PER_DAY, (last_day + 1) * MINUTES_PER_DAY - 1)
-            routing.AddDisjunction([index], _DROP_PENALTY)
+            routing.AddDisjunction([index], int(_DROP_PENALTY_PER_ACRE * max(1.0, acres)))
 
     params = pywrapcp.DefaultRoutingSearchParameters()
     params.first_solution_strategy = FIRST_SOLUTION_STRATEGY

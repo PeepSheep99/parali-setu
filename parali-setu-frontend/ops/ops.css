@@ -37,6 +37,13 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 @media (max-width: 560px) { .two { grid-template-columns: 1fr; } }
 .two > * { min-width: 0; }
 
+/* Agent health: measured numbers, one per card */
+.ag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.ag-stat { display: grid; gap: 2px; align-content: start; padding: 12px 14px; border-radius: var(--r); background: var(--khaddar); border: 1px solid var(--line); }
+.ag-stat .v { font-family: var(--font-display); font-weight: 700; font-size: var(--step-2); color: var(--madder); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ag-stat .k { font-weight: 600; font-size: var(--step--1); text-wrap: pretty; }
+.ag-stat .note { font-size: var(--step--1); color: var(--thread-soft); text-wrap: pretty; }
+
 .seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
 .seg button { border: 0; background: transparent; border-radius: 999px; padding: 6px 14px; color: var(--thread-soft); font-weight: 500; }
 .seg button[aria-pressed="true"] { background: var(--thread); color: #fff6ef; }

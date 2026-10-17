@@ -91,6 +91,14 @@ Voice booking is the point, so each turn is kept short:
 
 Measured locally against real Gemini on 17 Oct 2026: a typed turn takes 3–4 s in process and a median of about 5.8 s over HTTP, down from 10–25 s. Gemini's own response time (1–3 s a call) is now the floor.
 
+## Measured, not claimed
+
+Scripts in `parali-setu-api/bench/` run the real system and write [bench/RESULTS.md](parali-setu-api/bench/RESULTS.md):
+- **The agent against real Gemini:** 40 scripted farmers in four language styles booked 40/40, every listing field read right, no invented numbers in 181 replies, 10/10 trick conversations handled. (The guard's 21 'catches' in that run were correct '60 paise' answers for a Rs 0.60 price, a false alarm now fixed.) Vertex AI's Gen AI Evaluation autorater scores the replies' groundedness, instruction following, fluency and safety.
+- **The routing model against hand dispatch:** OR-Tools against "nearest farm next" and "most urgent next" on the same farms and crews, 50 to 400 farms: the fewest km at every size (13% fewer than nearest-farm-first at 50 farms, 5% at 200); on hired-crew cost it is within a few percent of the best dispatcher rule, ahead at 200 and 400 farms but behind most-urgent-first at 100. The benchmark first caught the scheduler hiring more crews than a dispatcher at peak; the objective was fixed (per-acre drop penalty, a cost on each hired crew-day).
+- **The travel model against Google's roads:** the Routes API puts real roads at 1.28x the straight line, against the 1.3x the model assumes.
+- **Burn scars that fire counts miss:** Sentinel-2 in Earth Engine finds a burn scar at 66% of 2024 FIRMS fire locations and at 11% of fields FIRMS never saw burning. The same check runs on every collected field (`satellite_check.py`).
+
 ## Forecasting, honestly
 
 - **Supply timing.** The weekly fire detections per district (2002–2026) are real data. Both models saw data up to 30 June of a season and forecast September to December. Scores on two held-out seasons (lower is better):

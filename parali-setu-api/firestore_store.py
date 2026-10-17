@@ -269,6 +269,116 @@ def get_inventory_moves(db: firestore.Client, depot_id: str | None = None) -> li
     return _where(db, "inventory_moves", "depot_id", depot_id) if depot_id else _all(db, "inventory_moves")
 
 
+def stock_from_moves(moves: list[dict]) -> float:
+    return round(sum(m["tonnes"] if m["kind"] == "inbound" else -m["tonnes"] for m in moves), 3)
+
+
+# ---- the stock ledger: every move and its money in one transaction
+
+class LedgerError(ValueError):
+    """A stock or payout write the ledger refuses (depot full, not enough
+    stock, wrong state). Nothing has been written when this is raised."""
+
+
+def run_in_transaction(db, fn, *args):
+    """Runs fn(transaction, *args) atomically: all of its writes land or none
+    do. fn must do every read before its first write (a Firestore rule)."""
+    txn = db.transaction()
+    if isinstance(txn, firestore.Transaction):
+        return firestore.transactional(fn)(txn, *args)
+    try:                       # the in-memory fake buffers writes until fn returns
+        result = fn(txn, *args)
+    except Exception:
+        txn.rollback()
+        raise
+    txn.commit()
+    return result
+
+
+def _depot_stock(db, transaction, depot_ref) -> tuple[dict, float]:
+    snap = depot_ref.get(transaction=transaction)
+    if not snap.exists:
+        raise LedgerError("depot not found")
+    depot = snap.to_dict()
+    stock = depot.get("stock_t")
+    if stock is None:          # depots seeded before the running balance existed
+        stock = stock_from_moves(get_inventory_moves(db, depot["id"]))
+    return depot, float(stock)
+
+
+def record_pickup(db, booking_id: str, kg: float, slot_ids: list[str], today: str) -> dict:
+    """Collected -> paid in one transaction: the booking, its slots, the
+    farmer's payout, the inbound stock move and the depot's running stock.
+    Ids are derived from the booking, so a retry can never pay twice."""
+    booking_ref = db.collection("bookings").document(booking_id)
+
+    def txn_fn(transaction):
+        snap = booking_ref.get(transaction=transaction)
+        if not snap.exists:
+            raise KeyError("booking not found")
+        booking = snap.to_dict()
+        collected = booking_transition_update(booking, "collected", {"collected_kg": kg})
+        paid = booking_transition_update({**booking, **collected}, "paid", {})
+        depot_ref = db.collection("depots").document(booking["depot_id"])
+        depot, stock = _depot_stock(db, transaction, depot_ref)
+        tonnes = round(kg / 1000, 3)
+        if stock + tonnes > depot["capacity_t"] + 1e-6:
+            raise LedgerError(f"{depot.get('name', depot['id'])} has room for {round(depot['capacity_t'] - stock, 1)} t, "
+                              f"not {tonnes} t: move stock out before collecting more")
+        purchase = {"id": f"purchase_{booking_id}", "created_at": _now(), "booking_id": booking_id,
+                    "farmer_id": booking["farmer_id"], "depot_id": booking["depot_id"],
+                    "district": booking.get("district"), "kg": kg, "price_per_kg": booking["price_per_kg"],
+                    "amount_inr": round(kg * booking["price_per_kg"], 2), "paid_on": today,
+                    "method": "UPI", "simulated": True}
+        move = {"id": f"move_in_{booking_id}", "created_at": _now(), "depot_id": booking["depot_id"],
+                "kind": "inbound", "tonnes": tonnes, "date": today, "booking_id": booking_id}
+        update = {**collected, **paid, "status": "paid", "collected_at": collected["status_updated_at"],
+                  "purchase_id": purchase["id"], "payout_inr": purchase["amount_inr"]}
+        transaction.update(booking_ref, update)
+        transaction.set(db.collection("purchases").document(purchase["id"]), purchase)
+        transaction.set(db.collection("inventory_moves").document(move["id"]), move)
+        transaction.update(depot_ref, {"stock_t": round(stock + tonnes, 3)})
+        for sid in slot_ids:
+            transaction.update(db.collection("pickup_slots").document(sid), {"status": "collected"})
+        return {"booking": {**booking, **update}, "purchase": purchase, "inventory_move": move}
+
+    return run_in_transaction(db, txn_fn)
+
+
+def record_shipment(db, delivery_id: str, tonnes: float | None, today: str) -> dict:
+    """A planned delivery leaves the depot: the outbound stock move, the
+    depot's running stock and the delivery's shipped record, atomically.
+    Refused if the depot holds less straw than the truck would carry."""
+    delivery_ref = db.collection("deliveries").document(delivery_id)
+
+    def txn_fn(transaction):
+        snap = delivery_ref.get(transaction=transaction)
+        if not snap.exists:
+            raise KeyError("delivery not found")
+        delivery = snap.to_dict()
+        if delivery.get("status") == "shipped":
+            raise LedgerError("This delivery has already shipped")
+        if delivery["month"] > today:
+            raise LedgerError(f"This delivery is planned for {delivery['month'][:7]}; it can't ship before its month")
+        t = round(float(tonnes if tonnes is not None else delivery["tonnes"]), 3)
+        if t <= 0 or t > delivery["tonnes"] * 1.05 + 1e-6:
+            raise LedgerError("Shipped tonnes must be more than 0 and at most 5% over the plan")
+        depot_ref = db.collection("depots").document(delivery["depot_id"])
+        depot, stock = _depot_stock(db, transaction, depot_ref)
+        if t > stock + 1e-6:
+            raise LedgerError(f"{depot.get('name', depot['id'])} holds {round(stock, 1)} t, not {t} t")
+        move = {"id": f"move_out_{delivery_id}", "created_at": _now(), "depot_id": delivery["depot_id"],
+                "kind": "outbound", "tonnes": t, "date": today, "delivery_id": delivery_id,
+                "order_id": delivery["order_id"]}
+        shipped = {"status": "shipped", "shipped_t": t, "shipped_on": today}
+        transaction.set(db.collection("inventory_moves").document(move["id"]), move)
+        transaction.update(depot_ref, {"stock_t": round(stock - t, 3)})
+        transaction.update(delivery_ref, shipped)
+        return {"delivery": {**delivery, **shipped}, "inventory_move": move}
+
+    return run_in_transaction(db, txn_fn)
+
+
 # ---- customers, orders, deliveries
 
 def save_customer(db: firestore.Client, customer: dict) -> dict:
@@ -302,12 +412,23 @@ def get_orders(db: firestore.Client, customer_id: str | None = None) -> list[dic
 
 
 def replace_deliveries(db: firestore.Client, rows: list[dict]) -> None:
+    """Writes a fresh delivery plan. Shipped deliveries are history and are
+    kept; the planner has already taken them off what each order still needs."""
+    shipped = set()
     batch = db.batch()
     for doc in db.collection("deliveries").stream():
-        batch.delete(doc.reference)
+        if (doc.to_dict() or {}).get("status") == "shipped":
+            shipped.add(doc.id)
+        else:
+            batch.delete(doc.reference)
     for row in rows:
-        batch.set(db.collection("deliveries").document(row["id"]), row)
+        if row["id"] not in shipped:
+            batch.set(db.collection("deliveries").document(row["id"]), {"status": "planned", **row})
     batch.commit()
+
+
+def get_delivery(db: firestore.Client, delivery_id: str) -> dict | None:
+    return _get(db, "deliveries", delivery_id)
 
 
 def get_deliveries(db: firestore.Client, order_id: str | None = None) -> list[dict]:
@@ -337,6 +458,11 @@ def save_conversation(db: firestore.Client, conversation: dict) -> dict:
 
 def get_conversation(db: firestore.Client, conversation_id: str) -> dict | None:
     return _get(db, "conversations", conversation_id)
+
+
+def get_recent_conversations(db: firestore.Client, limit: int = 100) -> list[dict]:
+    query = db.collection("conversations").order_by("updated_at", direction="DESCENDING").limit(limit)
+    return [d.to_dict() for d in query.stream()]
 
 
 # ---- trust and satellite data

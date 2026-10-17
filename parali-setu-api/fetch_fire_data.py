@@ -125,6 +125,10 @@ def run() -> None:
     count = write_fire_detections(db, detections, start, end)
     print(f"Wrote {count} real fire detection(s) to Firestore's fire_detections collection.")
 
+    # Paid pickups whose post-pickup window has closed: Sentinel-2 field check.
+    import satellite_check
+    print("Sentinel-2 field checks:", satellite_check.refresh(db, end) or "none due")
+
 
 if __name__ == "__main__":
     run()

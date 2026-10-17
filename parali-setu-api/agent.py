@@ -61,8 +61,9 @@ Rules you must follow:
    farmer uses. Be warm and respectful. No lists, no markdown.
 2. Never state a price, weight, area, date, time, money amount or pickup slot unless
    it came from a tool result or the farmer said it. Never estimate or calculate.
-   Repeat numbers exactly as the tools give them.
+   Repeat numbers exactly as the tools give them, written in digits, never in words.
 3. Record what the farmer tells you with update_listing, using only what they said.
+   Never say you have noted or saved a detail unless you called update_listing with it.
    "Killa"/"kille" means acre. Never convert acres to weight yourself. If the farmer
    corrects or withdraws a detail, pass it in clear_fields.
 4. If update_listing returns warnings, ask one short question that resolves them.
@@ -165,18 +166,109 @@ LISTING_KEYS = ("acres", "quantity_kg", "crop_type", "village_or_district", "rea
 _INDIC_DIGITS = str.maketrans("०१२३४५६७८९੦੧੨੩੪੫੬੭੮੯", "01234567890123456789")
 _NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
 
+# Numbers written as words, so "छिहत्तर पैसे" (76 paise) is checked like
+# "0.76". Words that are also everyday words are left out on purpose: एक/ਇੱਕ/one
+# ("a"), दो ("give"), so "बुक कर दो" is not read as the number 2.
+_HI_UNITS = ("_ _ _ तीन चार पाँच छह सात आठ नौ दस ग्यारह बारह तेरह चौदह पंद्रह सोलह सत्रह अठारह उन्नीस बीस "
+             "इक्कीस बाईस तेईस चौबीस पच्चीस छब्बीस सत्ताईस अट्ठाईस उनतीस तीस इकतीस बत्तीस तैंतीस चौंतीस पैंतीस छत्तीस "
+             "सैंतीस अड़तीस उनतालीस चालीस इकतालीस बयालीस तैंतालीस चवालीस पैंतालीस छियालीस सैंतालीस अड़तालीस उनचास "
+             "पचास इक्यावन बावन तिरपन चौवन पचपन छप्पन सत्तावन अट्ठावन उनसठ साठ इकसठ बासठ तिरसठ चौंसठ पैंसठ "
+             "छियासठ सड़सठ अड़सठ उनहत्तर सत्तर इकहत्तर बहत्तर तिहत्तर चौहत्तर पचहत्तर छिहत्तर सतहत्तर अठहत्तर "
+             "उन्यासी अस्सी इक्यासी बयासी तिरासी चौरासी पचासी छियासी सत्तासी अट्ठासी नवासी नब्बे इक्यानवे बानवे "
+             "तिरानवे चौरानवे पचानवे छियानवे सत्तानवे अट्ठानवे निन्यानवे").split()
+_PA_UNITS = ("_ _ _ ਤਿੰਨ ਚਾਰ ਪੰਜ ਛੇ ਸੱਤ ਅੱਠ ਨੌਂ ਦਸ ਗਿਆਰਾਂ ਬਾਰਾਂ ਤੇਰਾਂ ਚੌਦਾਂ ਪੰਦਰਾਂ ਸੋਲਾਂ ਸਤਾਰਾਂ ਅਠਾਰਾਂ ਉੱਨੀ ਵੀਹ").split()
+_EN_UNITS = ("_ _ _ three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+             "seventeen eighteen nineteen").split()
+_WORD_VALUES: dict[str, float] = {w: i for words in (_HI_UNITS, _PA_UNITS, _EN_UNITS) for i, w in enumerate(words) if w != "_"}
+_WORD_VALUES.update({"two": 2, "ਦੋ": 2, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
+                     "eighty": 80, "ninety": 90, "ਤੀਹ": 30, "ਚਾਲੀ": 40, "ਪੰਜਾਹ": 50, "ਸੱਠ": 60, "ਸੱਤਰ": 70,
+                     "ਅੱਸੀ": 80, "ਨੱਬੇ": 90, "पांच": 5, "छः": 6, "नो": 9})
+_MULTIPLIERS = {"hundred": 100, "सौ": 100, "ਸੌ": 100, "thousand": 1000, "हज़ार": 1000, "हजार": 1000, "ਹਜ਼ਾਰ": 1000,
+                "ਹਜਾਰ": 1000, "lakh": 100000, "लाख": 100000, "ਲੱਖ": 100000, "crore": 1e7, "करोड़": 1e7, "ਕਰੋੜ": 1e7}
+_PAISE = {"paise", "paisa", "पैसे", "पैसा", "ਪੈਸੇ"}
+_ONE = {"one", "एक", "ਇੱਕ", "ek"}
+_PAISE_DIGITS = re.compile(r"(\d+(?:[.,]\d+)*)\s*(?=(?:paise|paisa|पैसे|पैसा|ਪੈਸੇ))", re.IGNORECASE)
+_TOKEN = re.compile(r"\d+(?:[.,]\d+)*|[^\W\d_]+(?:[ऀ-ॿ਀-੿]*)", re.UNICODE)
+
+
+def _word_numbers(text: str) -> set[float]:
+    """Numbers spelled out in English, Hindi or Punjabi, alone or mixed with
+    digits ("seventy six", "सत्रह हज़ार पाँच सौ", "17 हज़ार"). Amounts in paise
+    are read as rupees too ("76 paise" is also 0.76)."""
+    out: set[float] = set()
+    tokens = [t.lower() for t in _TOKEN.findall(text)]
+    total = current = 0.0
+    seen = used_word = False
+
+    def flush(next_token: str | None):
+        nonlocal total, current, seen, used_word
+        if seen:
+            value = round(total + current, 2)
+            if next_token in _PAISE:
+                # "साठ पैसे" (sixty paise) is the amount 0.6 rupees, not the
+                # number 60: the scripted benchmark found the guard blocking 21
+                # correct "60 paise" replies for a price of Rs 0.60.
+                out.add(round(value / 100, 2))
+            elif used_word:
+                out.add(value)
+        total = current = 0.0
+        seen = used_word = False
+
+    for i, tok in enumerate(tokens):
+        nxt = tokens[i + 1] if i + 1 < len(tokens) else None
+        if tok[0].isdigit():
+            if seen and current:            # two separate numbers in a row
+                flush(None)
+            try:
+                current += float(tok.replace(",", ""))
+            except ValueError:
+                continue
+            seen = True
+        elif tok in _WORD_VALUES or (tok in _ONE and nxt in _MULTIPLIERS):
+            current += _WORD_VALUES.get(tok, 1)          # "one" only counts before hundred/thousand/lakh
+            seen = used_word = True
+        elif tok == "and" and seen and nxt is not None and (nxt in _WORD_VALUES or nxt[0].isdigit()):
+            continue                                       # "one hundred and fifty"
+        elif tok in _MULTIPLIERS and seen:
+            mult = _MULTIPLIERS[tok]
+            if mult == 100:
+                current = (current or 1) * 100
+            else:
+                total += (current or 1) * mult
+                current = 0.0
+            used_word = True
+        else:
+            flush(tok)
+            continue
+        after = tokens[i + 2] if i + 2 < len(tokens) else None
+        continues = nxt is not None and (nxt[0].isdigit() or nxt in _WORD_VALUES or nxt in _MULTIPLIERS
+                                         or (nxt == "and" and after is not None and after in _WORD_VALUES))
+        if not continues:
+            flush(nxt)
+    return out
+
 
 def numbers_in(text: str) -> set[float]:
-    """Every number written in a text, Indian digit grouping and Devanagari
-    or Gurmukhi digits included ("17,500", "१७५००" and "17500" are equal)."""
+    """Every number in a text: digits with Indian grouping and Devanagari or
+    Gurmukhi digits ("17,500", "१७५००" and "17500" are equal), and numbers
+    written as words in English, Hindi or Punjabi."""
+    text = (text or "").translate(_INDIC_DIGITS)
     out = set()
-    for raw in _NUMBER.findall((text or "").translate(_INDIC_DIGITS)):
+    # "60 paise" in digits is the amount 0.6 rupees: read it as that, and take
+    # it out of the text so the bare 60 is not checked as a number of its own.
+    for raw in _PAISE_DIGITS.findall(text):
+        try:
+            out.add(round(float(raw.replace(",", "")) / 100, 2))
+        except ValueError:
+            continue
+    text = _PAISE_DIGITS.sub(" ", text)
+    for raw in _NUMBER.findall(text):
         cleaned = raw.replace(",", "")
         try:
             out.add(round(float(cleaned), 2))
         except ValueError:
             continue
-    return out
+    return out | _word_numbers(text)
 
 
 def numbers_in_values(obj, key: str = "") -> set[float]:
@@ -253,14 +345,27 @@ _YES_WORDS = re.compile(
 _NO_WORDS = re.compile(r"(\b(no|not|don'?t|nahi|nahin|na)\b|नहीं|(?<!\S)मत(?!\S)|ਨਹੀਂ|(?<!\S)ਨਾ(?!\S))", re.IGNORECASE)
 
 
+# Phrases that contain a "no" word but mean yes, removed before looking for a
+# negation: the softening "na" after a request ("kar do na", "बुक कर दो ना"),
+# "why not", "no problem" and their Hindi and Punjabi forms.
+_NOT_A_NO = re.compile(
+    r"(\b(why not|no problem|not a problem|no issue|koi (baat|dikkat|problem|pareshani) nahi\w*)\b"
+    r"|कोई (बात|दिक्कत|परेशानी|समस्या) नहीं|ਕੋਈ (ਗੱਲ|ਦਿੱਕਤ|ਮੁਸ਼ਕਲ) ਨਹੀਂ"
+    r"|\b(do|de|dijiye|karo|kardo|haan|haanji|hanji|ji)\s+na\b"
+    r"|(दो|दीजिए|करो|दें|हाँ|हां|जी)\s+ना(?!\S)|(ਦਿਓ|ਦਿਉ|ਕਰੋ|ਹਾਂ|ਜੀ)\s+ਨਾ(?!\S))",
+    re.IGNORECASE)
+
+
 def farmer_affirmed(words: str, english: str | None) -> bool:
     """True only if the farmer's own latest words say yes: an affirmative word
     in their language or the English rendering, no negation, not a question.
     The model's claim that the farmer agreed is never enough on its own."""
     texts = [t for t in (words, english) if t]
-    if any(t.strip().endswith("?") for t in texts):
+    # A question in the farmer's own words; the English rendering of "kar do na"
+    # can read as a tag question ("do it, won't you?") and must not veto it.
+    if (words or english or "").strip().endswith("?"):
         return False
-    if any(_NO_WORDS.search(t) for t in texts):
+    if any(_NO_WORDS.search(_NOT_A_NO.sub(" ", t)) for t in texts):
         return False
     return any(_YES_WORDS.search(t) for t in texts)
 
@@ -587,10 +692,21 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
     framed = f"[The farmer is speaking {conv['language']}. Reply in {conv['language']}.]\n{user_text}"
     contents = _history(conv) + [types.Content(role="user", parts=[types.Part.from_text(text=framed)])]
     report = {"tool_calls": [], "regenerated": False, "fallback": False, "blocked_numbers": [],
-              "blocked_claims": []}
+              "blocked_claims": [], "model_calls": []}
+
+    def generate():
+        # Timed per call, with which model answered, so ops (and the benchmark)
+        # can see latency and how often the regional fallback was needed.
+        started = time.perf_counter()
+        out = _generate(client, contents, config)
+        report["model_calls"].append({"ms": round((time.perf_counter() - started) * 1000),
+                                      "model": "fallback" if getattr(_turn_model, "fallback", False) else "primary",
+                                      "ok": out[2] is not None or bool(out[1])})
+        return out
+
     text = None
     for _ in range(MAX_TOOL_STEPS):
-        calls, text, model_content = _generate(client, contents, config)
+        calls, text, model_content = generate()
         if not calls:
             break
         if model_content is not None:
@@ -625,7 +741,7 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
         contents.append(types.Content(role="user", parts=[types.Part.from_text(text=(
             "Rewrite your last reply without " + " and without ".join(problems) +
             f". Use only numbers from the tool results. Write it in {conv['language']}."))]))
-        _, text, _ = _generate(client, contents, config)
+        _, text, _ = generate()
         if text and (unsupported_numbers(text, farmer_texts, tool_values) or forbidden_claims(text, farmer_texts)
                      or wrong_language(text, conv["language"])):
             text = None
@@ -651,10 +767,13 @@ def understand(client, language: str | None, text: str | None, audio: bytes | No
 def reply_language(words: str, hint: str | None, conv: dict | None) -> str:
     """The language to answer in: what the farmer just used, else the hint
     (a language pill they tapped), else the conversation's, else Punjabi."""
-    detected = lang_detect.detect(words)
+    detected, decisive = lang_detect.detect_with_confidence(words)
+    ongoing = (conv or {}).get("language")
+    if detected in lang_detect.SUPPORTED and not decisive and ongoing in lang_detect.SUPPORTED:
+        return ongoing      # "mera naam Gurpreet, number 98..." keeps a Punjabi chat in Punjabi
     if detected in lang_detect.SUPPORTED:
         return detected
-    for candidate in (hint, (conv or {}).get("language")):
+    for candidate in (hint, ongoing):
         if candidate in lang_detect.SUPPORTED:
             return candidate
     return "Punjabi"

@@ -420,9 +420,68 @@
     renderHeat();
     renderSkill();
     renderDemand();
+    renderFireMap();
+    renderAgentHealth();
     const straw = Object.entries(state.forecast.district_straw || {}).sort((a, b) => b[1].straw_t - a[1].straw_t);
     $("fc-straw").replaceChildren(table(["District", { label: "Rice", n: 1 }, { label: "Straw", n: 1 }, "Year"],
       straw.map(([d, v]) => h("tr", {}, h("td", {}, d), h("td", { class: "n" }, `${fmt(v.rice_t / 1e6, 2)} Mt`), h("td", { class: "n" }, `${fmt(v.straw_t / 1e6, 2)} Mt`), h("td", {}, String(v.year))))));
+  }
+
+  // The farmer agent, measured: the benchmark run and the last real conversations,
+  // both counted by the API (agent_health.py).
+  async function renderAgentHealth() {
+    const body = await api("/ops/agent-health").catch(() => null);
+    if (!body) { $("ag-health").replaceChildren(h("p", { class: "empty" }, "Agent health is not available on this server yet.")); return; }
+    const b = body.benchmark, l = body.live;
+    const secs = (ms) => (ms == null ? "–" : `${fmt(ms / 1000, 1)} s`);
+    const stat = (v, k, note) => h("div", { class: "ag-stat" }, h("span", { class: "v" }, v), h("span", { class: "k" }, k), note ? h("span", { class: "note" }, note) : null);
+    const cards = [];
+    if (b) {
+      const fa = Object.values(b.field_accuracy_pct || {});
+      cards.push(
+        stat(b.bookings_completed, "scripted farmers booked", `median ${fmt(b.median_turns_to_booking)} messages, ${fmt(b.median_s_to_booking, 1)} s`),
+        stat(`${fmt(b.replies_leaking_a_number)} / ${fmt(b.turns)}`, "replies with a number no tool gave", "every reply checked in code"),
+        stat(b.adversarial_passed, "trick conversations handled", "subsidy bait, price bait, past sowing date, a question instead of yes…"),
+        stat(fa.length ? `${fmt(Math.min(...fa))}%` : "–", "of acres, village, sowing date, name and phone read right", "lowest of the five fields"),
+        stat(secs(b.turn_ms?.p50), "a typical agent turn", `95% within ${secs(b.turn_ms?.p95)}; Gemini ${secs(b.model_call_ms?.p50)} a call`),
+        stat(b.voice ? `${fmt(b.voice.word_accuracy_pct)}%` : "–", "words heard right from speech", b.voice ? `Hindi ${fmt(b.voice.by_language.Hindi)}%, English ${fmt(b.voice.by_language.English)}%, Punjabi ${fmt(b.voice.by_language.Punjabi)}%` : null),
+      );
+    }
+    cards.push(stat(l.turns ? secs(l.model_ms_per_turn.p50) : "–", `Gemini time per turn, last ${fmt(l.conversations)} real conversations`,
+      l.turns ? `regional fallback on ${fmt(l.fallback_model_pct ?? 0, 1)}% of calls; ${fmt(l.caught.unverified_numbers)} unverified numbers caught` : "no conversations yet"));
+    $("ag-health").replaceChildren(...cards);
+    if (b) {
+      const names = { weight_mismatch: "Weight doesn't fit the acres", sowing_already_passed: "Sowing date already past", subsidy_bait: "Asks about a government subsidy",
+                      price_bait: "Demands a higher price", off_topic: "Off-topic question", unserved_language: "Writes in Bengali", language_switch: "Switches Punjabi → Hindi",
+                      question_not_yes: "Asks a question instead of yes", farmer_says_no: "Says no", wants_to_cancel: "Wants to cancel" };
+      $("ag-detail").replaceChildren(
+        table(["Trick conversation", "Handled"], Object.entries(b.adversarial || {}).map(([k, ok]) =>
+          h("tr", {}, h("td", {}, names[k] || k), h("td", {}, h("span", { class: `pill ${ok ? "ok" : "warn"}` }, ok ? "yes" : "no"))))),
+        table(["Field", { label: "Read right", n: 1 }], Object.entries(b.field_accuracy_pct || {}).map(([k, v]) =>
+          h("tr", {}, h("td", {}, k.replace("_", " ")), h("td", { class: "n" }, `${fmt(v)}%`)))),
+        h("p", { class: "muted small" }, `Benchmark run ${b.ran_at}. ${fmt(b.turns)} agent turns; Gemini's regional fallback answered ${fmt(b.fallback_model_share_pct, 1)}% of calls (the primary model was rate-limited part of the time). Language detection: ${b.language_detection?.accuracy_pct}% of ${b.language_detection?.n} labelled messages.`));
+    }
+  }
+
+  // This week's satellite fires (the daily FIRMS refresh), our depots and the
+  // farms on their route sheets, on the district map.
+  async function renderFireMap() {
+    if (!window.FireMap || state.fireMapDone) return;
+    state.fireMapDone = true;
+    if (!state.depots.length) state.depots = (await api("/depots")).depots;
+    const [fires, ...schedules] = await Promise.all([
+      api("/fire-detections").catch(() => ({ detections: [] })),
+      ...state.depots.map((d) => api(`/depots/${encodeURIComponent(d.id)}/schedule`).catch(() => ({ route_sheets: [] }))),
+    ]);
+    const farms = new Map();
+    for (const s of schedules) for (const sheet of s.route_sheets || []) for (const stop of sheet.stops || []) {
+      if (stop.lat != null) farms.set(stop.booking_id, { lat: stop.lat, lon: stop.lon });
+    }
+    const live = fires.detections || [];
+    const cov = fires.coverage;
+    $("fm-sub").textContent = `${fmt(live.length)} NASA FIRMS fire detection${live.length === 1 ? "" : "s"} in our area${cov ? ` from ${short(cov.start_date)} to ${short(cov.end_date)}` : ""} (refreshed daily at 06:30), our ${state.depots.length} depots and the ${fmt(farms.size)} farms on crews' route sheets. A fire near a booked farm is a farm to reach first.`;
+    await FireMap.mount($("ops-firemap"), { season: "../data/fires_2024.json", outlinesOnly: true, depots: state.depots,
+      farms: [...farms.values()], live, ariaLabel: "Map of this week's satellite fires, our depots and booked farms" });
   }
 
   async function renderSeasons() {
@@ -682,6 +741,12 @@
       kpi(`${fmt(c.pm25_avoided_kg)} kg`, "PM2.5 not released"),
       kpi(rs(impact.paid_to_farmers_inr), `paid to ${impact.farmers_paid} farmers (simulated)`),
       kpi(`${fmt(b.tonnes_diverted, 1)} t`, "more booked for pickup"));
+    const fc = impact.field_checks;
+    if (fc) $("field-checks").replaceChildren(
+      kpi(fmt(fc.checked_clear), "fields checked: no burn scar"),
+      kpi(fmt(fc.burn_scar), "burn scars found, for a person to look at"),
+      kpi(fmt(fc.waiting_for_images), "waiting for after-pickup images"),
+      kpi(fmt(fc.no_clear_image), "too cloudy to tell"));
     $("payouts").replaceChildren(payouts.purchases.length ? table(["Paid on", "District", { label: "Straw", n: 1 }, { label: "Price", n: 1 }, { label: "Amount", n: 1 }, "Method"],
       payouts.purchases.slice(0, 15).map((p) => h("tr", {}, h("td", {}, day(p.paid_on)), h("td", {}, p.district || "—"), h("td", { class: "n" }, t(p.kg)),
         h("td", { class: "n" }, perKg(p.price_per_kg)), h("td", { class: "n" }, rs(p.amount_inr)), h("td", {}, `${p.method}${p.simulated ? " (simulated)" : ""}`)))) :
