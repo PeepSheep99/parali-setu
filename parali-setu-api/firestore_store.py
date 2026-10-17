@@ -62,7 +62,8 @@ def _save(db: firestore.Client, collection: str, prefix: str, doc: dict) -> dict
 
 # ---- listings and drafts
 
-LISTING_OPTIONAL_FIELDS = ("acres", "sowing_deadline", "lat", "lon", "quality_note", "draft_id", "district", "contact")
+LISTING_OPTIONAL_FIELDS = ("acres", "sowing_deadline", "lat", "lon", "quality_note", "draft_id", "district", "contact",
+                           "farmer_name", "location_source", "conversation_id")
 
 
 def save_listing(db: firestore.Client, farmer_id: str, fields: dict, language: str) -> dict:

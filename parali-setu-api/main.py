@@ -693,6 +693,7 @@ def _farm(listing: dict, booking: dict) -> dict:
     return {
         "booking_id": booking["id"], "farmer_id": booking["farmer_id"], "district": booking.get("district"),
         "village": listing.get("village_or_district"), "contact": listing.get("contact"),
+        "farmer_name": listing.get("farmer_name"),
         "sowing_deadline": listing.get("sowing_deadline"), "crop_type": listing.get("crop_type"),
         "quality_grade": listing.get("quality_grade"), "kg": booking["kg"], "acres": booking.get("acres"),
         "price_per_kg": booking["price_per_kg"], "status": booking.get("status"),
@@ -843,6 +844,9 @@ def dispatch(day: date | None = None):
             by_crew.setdefault(slot["crew_id"], []).append({
                 **_farm(listings.get(booking["listing_id"], {}), booking), "acres": slot["acres"],
                 "window": pickups.window_label(slot), "window_start_min": slot["window_start_min"],
+                "window_end_min": slot["window_end_min"], "planned_start_min": slot.get("planned_start_min"),
+                "planned_end_min": slot.get("planned_end_min"),
+                "farmer_name": listings.get(booking["listing_id"], {}).get("farmer_name"),
                 "sequence": slot["sequence"], "booking_code": pickups.booking_code(booking["id"]),
                 "dispatch": {"verified": "ready", "booked": "call first", "offered": "awaiting farmer"}[booking["status"]]})
         rows = []
@@ -887,7 +891,7 @@ def dispatch(day: date | None = None):
         exceptions.append({"kind": "deliveries_short", "tonnes": deliveries["shortfall_t"],
                            "orders": sorted({s["order_id"] for s in deliveries.get("shortfall", [])})})
     return {"date": day.isoformat(), "today": today.isoformat(), "depots": depots_out, "verify_queue": queue,
-            "readiness": operations.readiness(db, today, 14), "exceptions": exceptions}
+            "readiness": operations.readiness(db, today, 21), "exceptions": exceptions}
 
 
 class CollectedRequest(BaseModel):
@@ -1004,6 +1008,63 @@ def cost_model():
         {"key": "margin", "label": "Our margin on quotes", "value": costs.DEFAULT_MARGIN_PCT, "unit": "%", "kind": "decision",
          "note": "added to delivered cost"},
     ]}
+
+
+OPERATING_DISTRICTS = ("Sangrur", "Patiala", "Bathinda", "Ludhiana", "Moga", "Karnal", "Kaithal", "Kurukshetra")
+
+
+def _season_start(year: int) -> date:
+    """The first Monday on or after 1 September: week 0 of a paddy season."""
+    first = date(year, 9, 1)
+    return first + timedelta(days=(7 - first.weekday()) % 7)
+
+
+@lru_cache(maxsize=1)
+def _weekly_fires() -> dict[tuple[int, str], dict[int, int]]:
+    """(season, district) -> {week of season: fire detections}, from the
+    NASA FIRMS history in forecast/data (Sep-Dec)."""
+    import csv
+    path = Path(__file__).resolve().parent / "forecast" / "data" / "fires_daily.csv"
+    out: dict[tuple[int, str], dict[int, int]] = {}
+    with path.open(encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            day = date.fromisoformat(row["date"])
+            week = (day - _season_start(day.year)).days // 7
+            if 0 <= week < 18:
+                bucket = out.setdefault((day.year, row["district"]), {})
+                bucket[week] = bucket.get(week, 0) + int(row["fire_pixels"])
+    return out
+
+
+@app.get("/forecast/seasons")
+def forecast_seasons(district: str | None = None, back: int = Query(3, ge=1, le=10)):
+    """Weekly fire detections for this season and the last `back` seasons,
+    aligned by week of season, for one district or our eight; plus the
+    TimesFM forecast for the rest of this season on the same weeks."""
+    db = store.get_firestore_client()
+    year = _today().year
+    names = [district] if district else list(OPERATING_DISTRICTS)
+    weekly = _weekly_fires()
+    seasons = []
+    for y in range(year - back, year + 1):
+        weeks: dict[int, int] = {}
+        for name in names:
+            for w, n in weekly.get((y, name), {}).items():
+                weeks[w] = weeks.get(w, 0) + n
+        seasons.append({"year": y, "weeks": [{"week": w, "fires": weeks[w]} for w in sorted(weeks)]})
+    live = store.get_forecast(db, f"supply_live_{year}") or {}
+    start = _season_start(year)
+    fc: dict[int, dict] = {}
+    for name in names:
+        for row in (live.get("districts") or {}).get(name, []):
+            w = (date.fromisoformat(row["week"]) - start).days // 7
+            cell = fc.setdefault(w, {"week": w, "week_start": row["week"], "fires": 0.0, "low": 0.0, "high": 0.0})
+            cell["fires"] += row["fire_pixels"]; cell["low"] += row["low"]; cell["high"] += row["high"]
+    per_district = {name: [{"week": (date.fromisoformat(r["week"]) - start).days // 7, "fires": r["fire_pixels"]}
+                           for r in (live.get("districts") or {}).get(name, [])] for name in OPERATING_DISTRICTS}
+    return {"districts": names, "season_start": start.isoformat(), "today_week": (_today() - start).days // 7,
+            "seasons": seasons, "forecast": [fc[w] for w in sorted(fc)], "forecast_by_district": per_district,
+            "model": live.get("model"), "context_end": live.get("context_end")}
 
 
 @app.get("/forecast")

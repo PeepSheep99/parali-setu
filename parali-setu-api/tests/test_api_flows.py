@@ -265,7 +265,7 @@ def test_dispatch_board_shows_crews_calls_and_forecast_readiness(api):
     assert any(q["booking_id"] == booking["id"] for q in board["verify_queue"])
     assert all(not c["on_call"] or c["stops"] for c in sangrur["crews"]), "unused on-call crews are not hired"
     assert {"forecast_acres", "own_capacity_acres", "oncall_crews_needed"} <= set(board["readiness"][0])
-    assert len(board["readiness"]) == 14 * len(store.get_depots(api["db"]))
+    assert len(board["readiness"]) == 21 * len(store.get_depots(api["db"]))
 
     client.post(f"/ops/bookings/{booking['id']}/verify", json={})
     board = client.get("/ops/dispatch", params={"day": day}).json()
@@ -281,3 +281,13 @@ def test_a_call_that_finds_a_problem_keeps_the_pickup_off_the_road(api):
     assert client.post(f"/stops/{booking['id']}/collected", json={}).status_code == 409
     assert client.post("/ops/verify-all").json()["verified"] >= 1
     assert store.get_booking(api["db"], booking["id"])["status"] == "verified"
+
+
+def test_forecast_seasons_line_up_by_week_of_season(api):
+    body = client.get("/forecast/seasons").json()
+    assert body["districts"][0] == "Sangrur" and len(body["seasons"]) == 4
+    assert body["season_start"] == "2026-09-07", "first Monday on or after 1 September"
+    past = body["seasons"][-2]
+    assert past["year"] == 2025 and sum(w["fires"] for w in past["weeks"]) > 0
+    assert all(0 <= w["week"] < 18 for s in body["seasons"] for w in s["weeks"])
+    assert body["forecast"] and set(body["forecast_by_district"]) >= {"Sangrur", "Karnal"}

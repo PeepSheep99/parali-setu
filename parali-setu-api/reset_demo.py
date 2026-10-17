@@ -49,7 +49,7 @@ DEPOTS = [
 # Crews hired for a day when our own are full. The scheduler uses them only
 # after our own crews (scheduler.plan_pickups' second pass), so an unused
 # on-call crew costs nothing; ops sees each one as a hire on the dispatch board.
-ONCALL_CREWS_PER_DEPOT = 6
+ONCALL_CREWS_PER_DEPOT = 8
 ONCALL_NAMES = "ABCDEFGH"
 
 # id, name, segment, district, tonnes per month (12-month forward order)

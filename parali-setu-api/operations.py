@@ -35,8 +35,10 @@ from scheduler import STRAW_T_PER_ACRE
 
 RICE_CSV = Path(__file__).resolve().parent / "forecast" / "data" / "rice_production.csv"
 # ASSUMPTION: share of a district's paddy straw we expect farmers to book
-# with us this season (a first-year operator in a few districts).
-BOOKING_SHARE = 0.03
+# with us this season: a first-season pilot in eight districts. 0.5% is about
+# a thousand acres a day at the peak, which our crews plus on-call crews can
+# reach; 3% would be several thousand acres a day, about 300 crews.
+BOOKING_SHARE = 0.005
 # ASSUMPTION: share of Punjab's published industrial straw demand we could
 # sell beyond signed orders, and the discount on such spot sales.
 FORECAST_MARKET_SHARE = 0.005
@@ -88,9 +90,11 @@ ONCALL_ACRES_PER_DAY = 20.0
 
 def readiness(db, today: date | None = None, days: int = 14) -> list[dict]:
     """For each of the next `days` days and each depot: the farm acres the
-    forecast expects us to clear (TimesFM timing x district straw x our booking
-    share, as in run_procurement, spread over working days), against what our
-    own crews clear in a day, and the on-call crews that gap needs."""
+    forecast expects farmers to book with us (TimesFM timing x district straw x
+    our booking share, as in run_procurement, spread over working days),
+    against what our own crews clear in a day; the on-call crews that gap
+    needs from the depot's pool; and any acres beyond even the pool, which is
+    the signal to sign up more crews before the peak."""
     today = today or pickups.now_ist().date()
     plan = store.get_plan(db, "procurement_current") or {}
     shares = plan.get("district_depot_share", {})
@@ -107,14 +111,18 @@ def readiness(db, today: date | None = None, days: int = 14) -> list[dict]:
     for depot in store.get_depots(db):
         crews = store.get_crews_for_depot(db, depot["id"])
         own = sum(c.get("acres_per_day", 20.0) for c in crews if not c.get("partner"))
+        pool = len([c for c in crews if c.get("partner")])
         for i in range(days):
             day = today + timedelta(days=i)
             tonnes = by_week.get(_monday(day).isoformat(), {}).get(depot["id"], 0.0)
             acres = round(tonnes / WORK_DAYS_PER_WEEK / STRAW_T_PER_ACRE, 1)
             gap = max(0.0, acres - own)
+            needed = int(-(-gap // ONCALL_ACRES_PER_DAY))
             out.append({"date": day.isoformat(), "depot_id": depot["id"], "depot_name": depot["name"],
                         "forecast_acres": acres, "own_capacity_acres": own,
-                        "oncall_crews_needed": int(-(-gap // ONCALL_ACRES_PER_DAY))})
+                        "oncall_crews_needed": min(needed, pool), "oncall_pool": pool,
+                        "beyond_pool_acres": round(max(0.0, gap - pool * ONCALL_ACRES_PER_DAY), 1),
+                        "crews_to_sign_up": max(0, needed - pool)})
     return out
 
 

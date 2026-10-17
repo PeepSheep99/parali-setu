@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Parali Setu · Operations</title>
 <link rel="icon" href="../kisan/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Baloo+Paaji+2:wght@500;600;700&family=Hind:wght@400;500;600&family=Mukta+Mahee:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/tokens.css">
 <link rel="stylesheet" href="ops.css">
 </head>
 <body>
@@ -13,39 +15,57 @@
   <div class="bar-inner">
     <a class="brand" href="../"><img src="../kisan/icon.svg" alt="" width="28" height="28"> Parali Setu <em>Operations</em></a>
     <nav class="tabs" role="tablist" aria-label="Sections">
-      <button role="tab" data-tab="today" aria-selected="true">Today</button>
-      <button role="tab" data-tab="pickups">Pickups</button>
-      <button role="tab" data-tab="stock">Depots &amp; stock</button>
+      <button role="tab" data-tab="today" aria-selected="true">Dispatch</button>
+      <button role="tab" data-tab="pickups">Routes</button>
       <button role="tab" data-tab="forecast">Forecast</button>
+      <button role="tab" data-tab="stock">Depots</button>
       <button role="tab" data-tab="plan">Prices &amp; plan</button>
       <button role="tab" data-tab="orders">Orders</button>
       <button role="tab" data-tab="impact">Impact</button>
     </nav>
   </div>
 </header>
+<div class="bagh-band" aria-hidden="true"></div>
 
 <main class="wrap">
-  <!-- Today -->
+  <!-- Dispatch: who goes out, who to call, are we ready for the forecast -->
   <section id="tab-today" class="tab">
     <div class="tab-head">
-      <div><h1>Today</h1><p class="muted" id="today-date"></p></div>
-      <button type="button" class="primary" id="rerun-plan">Re-run the plan</button>
+      <div><h1 id="board-title">Who goes out</h1><p class="muted" id="board-sub"></p></div>
+      <div class="row">
+        <div class="seg" role="group" aria-label="Day">
+          <button type="button" data-day="0">Today</button>
+          <button type="button" data-day="1" aria-pressed="true">Tomorrow</button>
+        </div>
+        <button type="button" class="btn quiet" id="rerun-plan">Re-run the plan</button>
+      </div>
     </div>
-    <div id="today-stats" class="summary"></div>
+    <div id="board-kpis" class="kpis"></div>
+    <div id="board-depots" class="board-depots"></div>
     <div class="two">
-      <section class="panel"><h2>Needs a person</h2><div id="today-attention"></div></section>
-      <section class="panel"><h2>Pickups today by depot</h2><div id="today-depots"></div></section>
+      <section class="panel">
+        <div class="panel-head"><h2>Calls to make</h2><button type="button" class="btn quiet small" id="verify-all">Verify all (demo)</button></div>
+        <p class="muted small">Booked pickups wait for a call from our team: check the phone, the farm location, the acres and the price. Only confirmed pickups go on a crew's sheet. Calls are simulated in this prototype.</p>
+        <div id="verify-queue"></div>
+      </section>
+      <section class="panel">
+        <h2>Are we ready for the forecast?</h2>
+        <p class="muted small" id="ready-sub"></p>
+        <div id="ready-chart" class="chart"></div>
+        <p id="ready-action" class="action"></p>
+        <details><summary>By depot and day</summary><div id="ready-table"></div></details>
+      </section>
     </div>
-    <p class="muted small">Every number here comes from the planners: the procurement LP sets prices and intake, the routing model plans crews, the delivery LP plans shipments. Payouts and partner crews are simulated in this prototype.</p>
+    <section class="panel"><h2>Needs a person</h2><div id="exceptions"></div></section>
   </section>
 
-  <!-- Pickups -->
+  <!-- Routes -->
   <section id="tab-pickups" class="tab" hidden>
     <div class="tab-head">
-      <div><h1>Pickups</h1><p class="muted">Route sheets from the OR-Tools routing model. Accepted pickups stay fixed; offers are planned around them.</p></div>
+      <div><h1>Routes</h1><p class="muted">Route sheets from the OR-Tools routing model. Booked pickups stay fixed; offers are planned around them. On-call crews are used only when our own crews are full.</p></div>
       <div class="row">
         <label class="picker">Depot <select id="depot"></select></label>
-        <button type="button" class="ghost" id="replan">Re-plan this depot</button>
+        <button type="button" class="btn quiet" id="replan">Re-plan this depot</button>
       </div>
     </div>
     <p id="replan-msg" class="banner" hidden></p>
@@ -58,7 +78,7 @@
       </div>
     </div>
     <section class="panel">
-      <h2>Farms we can't serve yet</h2>
+      <h2>Farms without a slot</h2>
       <div id="unschedulable"></div>
     </section>
     <section class="panel">
@@ -67,39 +87,55 @@
       <form id="crew-form" class="inline-form">
         <label>Name <input id="crew-name" type="text" maxlength="60" required placeholder="Crew 3"></label>
         <label>Acres per day <input id="crew-acres" type="number" min="1" max="80" step="1" value="20" required></label>
-        <label class="check"><input id="crew-partner" type="checkbox"> Hired partner crew</label>
-        <button type="submit" class="primary">Add crew and re-plan</button>
+        <label class="check"><input id="crew-partner" type="checkbox"> On-call (hired by the day)</label>
+        <button type="submit" class="btn">Add crew and re-plan</button>
       </form>
     </section>
   </section>
 
-  <!-- Depots & stock -->
-  <section id="tab-stock" class="tab" hidden>
-    <div class="tab-head"><div><h1>Depots &amp; stock</h1><p class="muted">Straw in from collected pickups, out on customer deliveries.</p></div></div>
-    <div id="stock" class="depot-cards"></div>
-  </section>
-
   <!-- Forecast -->
   <section id="tab-forecast" class="tab" hidden>
-    <div class="tab-head"><div><h1>Forecast</h1><p class="muted">When straw comes off the fields (supply) and who buys it all year (demand).</p></div>
-      <label class="picker">District <select id="fc-district"></select></label></div>
+    <div class="tab-head">
+      <div><h1 id="fc-headline">When the straw comes</h1><p class="muted" id="fc-lede"></p></div>
+      <label class="picker">Area <select id="fc-district"></select></label>
+    </div>
     <section class="panel">
-      <h2 id="fc-title">Harvest timing, rest of this season</h2>
+      <h2>This season against the last three</h2>
       <p class="muted small" id="fc-sub"></p>
-      <div id="fc-chart" class="chart"></div>
+      <div id="fc-curve" class="chart"></div>
       <details><summary>Show as a table</summary><div id="fc-table"></div></details>
     </section>
     <div class="two">
-      <section class="panel"><h2>How good is the forecast?</h2><p class="muted small">Held-out seasons: each model saw data up to 30 June and forecast Sep–Dec. Lower is better. Fire counts fell sharply under enforcement, so volume is not predictable from fires; we use the forecast for timing only and take volumes from crop statistics.</p><div id="fc-backtest"></div></section>
-      <section class="panel"><h2>Straw in our districts</h2><p class="muted small">Rice production (APY crop statistics via Kaggle) x 1.5 straw-to-grain.</p><div id="fc-straw"></div></section>
+      <section class="panel">
+        <h2>Where the straw comes first</h2>
+        <p class="muted small">Forecast fire detections per week in each of our districts, darker for more. Ordered by each district's peak week, so you can see the harvest move.</p>
+        <div id="fc-heat" class="heat"></div>
+      </section>
+      <section class="panel">
+        <h2>How good is the forecast?</h2>
+        <p id="fc-skill"></p>
+        <div id="fc-dots" class="chart"></div>
+        <details><summary>All scores</summary><p class="muted small">Held-out seasons: each model saw data up to 30 June and forecast September to December. Fire counts fell sharply under enforcement, so we use the forecast for timing only and take straw volumes from crop statistics.</p><div id="fc-backtest"></div></details>
+      </section>
     </div>
-    <section class="panel"><h2>Who buys Punjab's straw</h2><p class="muted small" id="fc-demand-note"></p><div id="fc-demand"></div></section>
+    <section class="panel">
+      <h2>Who buys the straw</h2>
+      <p class="muted small" id="fc-demand-note"></p>
+      <div id="fc-demand"></div>
+    </section>
+    <details class="panel"><summary>Straw in our districts</summary><p class="muted small">Rice production (APY crop statistics via Kaggle) x 1.5 straw-to-grain.</p><div id="fc-straw"></div></details>
+  </section>
+
+  <!-- Depots & stock -->
+  <section id="tab-stock" class="tab" hidden>
+    <div class="tab-head"><div><h1>Depots</h1><p class="muted">Straw in from collected pickups, out on customer deliveries.</p></div></div>
+    <div id="stock" class="depot-cards"></div>
   </section>
 
   <!-- Prices & plan -->
   <section id="tab-plan" class="tab" hidden>
-    <div class="tab-head"><div><h1>Prices &amp; plan</h1><p class="muted">The procurement LP decides how much to buy where; a district's posted price rises when the plan needs more straw from it than we expect to be booked.</p></div></div>
-    <div id="plan-stats" class="summary"></div>
+    <div class="tab-head"><div><h1>Prices &amp; plan</h1><p class="muted">The procurement plan decides how much to buy where; a district's posted price rises when the plan needs more straw from it than we expect to be booked. Today's price never changes once posted.</p></div></div>
+    <div id="plan-stats" class="kpis"></div>
     <section class="panel"><h2>Today's posted prices</h2><div id="plan-prices"></div></section>
     <section class="panel"><h2>Weekly buying plan (tonnes planned / bookable)</h2><div id="plan-weekly" class="scroll"></div></section>
     <div class="two">
@@ -110,16 +146,16 @@
 
   <!-- Orders -->
   <section id="tab-orders" class="tab" hidden>
-    <div class="tab-head"><div><h1>Orders &amp; deliveries</h1><p class="muted">Forward orders from companies, met month by month from depot stock by the delivery LP.</p></div>
-      <a class="ghost link-btn" href="../company/">Open the customer portal</a></div>
-    <div id="orders-stats" class="summary"></div>
+    <div class="tab-head"><div><h1>Orders &amp; deliveries</h1><p class="muted">Forward orders from companies, met month by month from depot stock. Orders signed first keep their stock.</p></div>
+      <a class="btn quiet" href="../company/">Open the customer portal</a></div>
+    <div id="orders-stats" class="kpis"></div>
     <div id="orders"></div>
   </section>
 
   <!-- Impact -->
   <section id="tab-impact" class="tab" hidden>
-    <div class="tab-head"><div><h1>Impact</h1><p class="muted">Computed by impact.py from straw actually collected. Methane and nitrous oxide only; CO₂ from burning straw is biogenic and not counted.</p></div></div>
-    <div id="impact-stats" class="summary"></div>
+    <div class="tab-head"><div><h1>Impact</h1><p class="muted">From straw actually collected. Methane and nitrous oxide only; CO₂ from burning straw is biogenic and not counted.</p></div></div>
+    <div id="impact-stats" class="kpis"></div>
     <section class="panel"><h2>Latest payouts</h2><div id="payouts"></div></section>
   </section>
 </main>
