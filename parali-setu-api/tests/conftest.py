@@ -16,6 +16,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 NOW = (2026, 10, 17, 9, 0)
 
 
+@pytest.fixture(autouse=True)
+def no_rate_limit(monkeypatch):
+    """Tests all call from one address; only test_ratelimit.py tests the limits."""
+    import ratelimit
+    monkeypatch.setattr(ratelimit, "PER_VISITOR_PER_MINUTE", 10**9)
+    monkeypatch.setattr(ratelimit, "PER_VISITOR_PER_HOUR", 10**9)
+    monkeypatch.setattr(ratelimit, "SERVICE_PER_HOUR", 10**9)
+    ratelimit.reset()
+
+
 @pytest.fixture
 def fake_db(monkeypatch):
     import pickups

@@ -37,6 +37,7 @@ import firestore_store as store
 import live
 import operations
 import pickups
+import ratelimit
 from extraction import (
     explain_offer,
     explain_price,
@@ -71,6 +72,7 @@ ALLOWED_ORIGINS = [
     if o.strip()
 ]
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"], allow_headers=["*"])
+app.middleware("http")(ratelimit.limit_middleware)   # caps on the endpoints that call Gemini or speech
 
 Language = Literal["Hindi", "Punjabi", "English"]
 CropType = Literal["rice_stubble", "wheat_stubble"]
@@ -552,6 +554,10 @@ async def agent_live(ws: WebSocket):
     origin = ws.headers.get("origin")
     if origin and origin not in ALLOWED_ORIGINS:
         await ws.close(code=1008)
+        return
+    forwarded = ws.headers.get("x-forwarded-for", "")
+    if ratelimit.check(forwarded.split(",")[0].strip() if forwarded else (ws.client.host if ws.client else "unknown")):
+        await ws.close(code=1013)          # try again later
         return
     await ws.accept()
     try:
