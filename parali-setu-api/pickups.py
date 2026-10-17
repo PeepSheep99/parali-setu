@@ -1,13 +1,15 @@
 """Pickup planning service: the glue between Firestore and scheduler.py.
 
-Pure functions (job building, plan interpretation) are kept separate from
-the Firestore orchestration so they can be tested without a database.
+Pure functions (job building, plan interpretation, depot choice, offer
+expiry) are kept separate from the Firestore orchestration so they can be
+tested without a database.
 """
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
 import firestore_store as store
+from costs import road_km
 from geo import DISTRICT_COORDS, district_from_text
 from scheduler import (
     HORIZON_DAYS,
@@ -17,13 +19,16 @@ from scheduler import (
     ScheduleResult,
     acres_from_kg,
     plan_pickups,
+    reason_code,
 )
 
-ACTIVE_STATUSES = ("proposed", "waitlisted", "scheduled")
 REASON_LOCATION_UNKNOWN = "We don't know where this farm is yet."
 # When a farmer gives no sowing date we plan as if it were this many days
 # after the stubble is ready, and say so wherever the slot is shown.
 ASSUMED_WINDOW_DAYS = 10
+# An offer the farmer hasn't accepted lapses after this, so abandoned offers
+# never hold crew time. The farmer sees the deadline on the offer.
+OFFER_HOLD_HOURS = 4
 # Farms and crews are in India; Cloud Run's clock is UTC. Planning uses IST
 # so "today" and today's earliest slot are right for the farmer.
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -46,6 +51,17 @@ def listing_location(listing: dict) -> tuple[float, float, bool] | None:
     return None
 
 
+def listing_district(listing: dict) -> str | None:
+    """The district a listing is priced in: named in the text, else the
+    nearest district HQ to a shared location."""
+    named = district_from_text(listing.get("district") or listing.get("village_or_district"))
+    if named:
+        return named
+    if listing.get("lat") is not None and listing.get("lon") is not None:
+        return min(DISTRICT_COORDS, key=lambda d: road_km(listing["lat"], listing["lon"], *DISTRICT_COORDS[d]))
+    return None
+
+
 def _parse_date(value) -> date | None:
     if not value:
         return None
@@ -65,61 +81,87 @@ def listing_window(listing: dict, today: date) -> tuple[date, date, bool]:
     return earliest, sowing - timedelta(days=1), False
 
 
+def offer_expires_at(booking: dict) -> datetime | None:
+    created = booking.get("created_at")
+    if not created:
+        return None
+    return datetime.fromisoformat(created) + timedelta(hours=OFFER_HOLD_HOURS)
+
+
+def offer_expired(booking: dict, now: datetime) -> bool:
+    expires = offer_expires_at(booking)
+    return booking.get("status") in ("offered", "unschedulable") and expires is not None and now >= expires
+
+
+def choose_depot(depots: list[dict], planned_share: dict[str, float], lat: float, lon: float) -> dict | None:
+    """The depot a new booking goes to: the one the procurement plan intends
+    for this district (largest planned tonnes) if it can reach the farm,
+    else the nearest depot whose radius covers the farm."""
+    in_reach = [d for d in depots if road_km(lat, lon, d["lat"], d["lon"]) <= d.get("radius_km", 80)]
+    if not in_reach:
+        return None
+    planned = [d for d in in_reach if planned_share.get(d["id"], 0) > 0]
+    if planned:
+        return max(planned, key=lambda d: planned_share[d["id"]])
+    return min(in_reach, key=lambda d: road_km(lat, lon, d["lat"], d["lon"]))
+
+
 def crew_from_doc(doc: dict) -> Crew:
     return Crew(
-        id=doc["id"], company_id=doc["company_id"],
+        id=doc["id"], depot_id=doc["depot_id"],
         depot_lat=doc["depot_lat"], depot_lon=doc["depot_lon"],
         shift_start_min=doc.get("shift_start_min", 7 * 60),
         shift_end_min=doc.get("shift_end_min", 18 * 60),
         acres_per_day=doc.get("acres_per_day", 20.0),
+        partner=doc.get("partner", False),
     )
 
 
-def build_jobs(matches: list[dict], listings: dict[str, dict], locked_slots: dict[str, list[dict]],
+def build_jobs(bookings: list[dict], listings: dict[str, dict], locked_slots: dict[str, list[dict]],
                today: date) -> tuple[list[PickupJob], list[dict]]:
-    """Turns active matches into scheduler jobs. A match's acres are its
-    share of the listing (matched kg at 1.75 t/acre). A scheduled match with
-    locked slots becomes one job per locked visit, each pinned to its slot.
+    """Turns active bookings into scheduler jobs. A booked farm with locked
+    slots becomes one job per locked visit, each pinned to its slot.
     Returns (jobs, unschedulable) where unschedulable covers farms we can't
     place on a map."""
     jobs, unschedulable = [], []
-    for match in matches:
-        listing = listings.get(match["listing_id"]) or {}
+    for booking in bookings:
+        listing = listings.get(booking["listing_id"]) or {}
         location = listing_location(listing)
         if location is None:
-            unschedulable.append({"match_id": match["id"], "reason": REASON_LOCATION_UNKNOWN})
+            unschedulable.append({"booking_id": booking["id"], "reason": REASON_LOCATION_UNKNOWN})
             continue
         lat, lon, _ = location
         earliest, latest, _ = listing_window(listing, today)
-        locks = locked_slots.get(match["id"]) or []
-        if match.get("status") == "scheduled" and locks:
+        locks = locked_slots.get(booking["id"]) or []
+        if booking.get("status") == "booked" and locks:
             for slot in locks:
                 jobs.append(PickupJob(
-                    match_id=f"{match['id']}#v{slot['visit']}", company_id=match["company_id"],
+                    booking_id=f"{booking['id']}#v{slot['visit']}", depot_id=booking["depot_id"],
                     lat=lat, lon=lon, acres=slot["acres"], earliest=earliest, latest=latest,
                     locked=LockedSlot(crew_id=slot["crew_id"], day=date.fromisoformat(slot["date"]),
                                       window_start_min=slot["window_start_min"],
                                       window_end_min=slot["window_end_min"])))
             continue
         jobs.append(PickupJob(
-            match_id=match["id"], company_id=match["company_id"], lat=lat, lon=lon,
-            acres=acres_from_kg(match["matched_kg"]), earliest=earliest, latest=latest))
+            booking_id=booking["id"], depot_id=booking["depot_id"], lat=lat, lon=lon,
+            acres=acres_from_kg(booking["kg"]), earliest=earliest, latest=latest))
     return jobs, unschedulable
 
 
-def base_match_id(job_id: str) -> str:
+def base_booking_id(job_id: str) -> str:
     return job_id.split("#v", 1)[0]
 
 
-def slots_from_result(result: ScheduleResult, company_id: str, locked_job_ids: set[str]) -> list[dict]:
+def slots_from_result(result: ScheduleResult, depot_id: str, locked_job_ids: set[str],
+                      partner_crew_ids: set[str] = frozenset()) -> list[dict]:
     slots = []
     for a in result.assignments:
-        match_id = base_match_id(a.match_id)
-        visit = int(a.match_id.split("#v", 1)[1]) if "#v" in a.match_id else a.visit
-        locked = a.match_id in locked_job_ids
+        booking_id = base_booking_id(a.booking_id)
+        visit = int(a.booking_id.split("#v", 1)[1]) if "#v" in a.booking_id else a.visit
+        locked = a.booking_id in locked_job_ids
         slots.append({
-            "id": f"slot_{match_id}_{visit}", "match_id": match_id, "visit": visit, "company_id": company_id,
-            "crew_id": a.crew_id, "date": a.day.isoformat(),
+            "id": f"slot_{booking_id}_{visit}", "booking_id": booking_id, "visit": visit, "depot_id": depot_id,
+            "crew_id": a.crew_id, "partner": a.crew_id in partner_crew_ids, "date": a.day.isoformat(),
             "window_start_min": a.window_start_min, "window_end_min": a.window_end_min,
             "planned_start_min": a.start_min, "planned_end_min": a.end_min,
             "sequence": a.sequence, "acres": a.acres,
@@ -128,66 +170,116 @@ def slots_from_result(result: ScheduleResult, company_id: str, locked_job_ids: s
     return slots
 
 
-def plan_company(db, company_id: str, today: date | None = None, time_limit_seconds: int = 2) -> dict:
-    """Re-plans every active match of one buyer and writes the result.
+def window_label(slot: dict) -> str:
+    def hhmm(m: int) -> str:
+        return f"{m // 60:02d}:{m % 60:02d}"
+    return f"{slot['date']} {hhmm(slot['window_start_min'])}-{hhmm(slot['window_end_min'])}"
 
-    - proposed with a slot: stays proposed, offer shows the tentative slot
-    - proposed or waitlisted without a slot: waitlisted, with the reason
-    - waitlisted that now fits: back to proposed
-    - scheduled (locked) that can't be kept: stays scheduled, flagged for a
-      person to resolve -- a promise is never silently moved
+
+# ---- Firestore orchestration
+
+def expire_stale_offers(db, now: datetime | None = None) -> list[str]:
+    """Lapses offers nobody accepted within OFFER_HOLD_HOURS and frees their
+    tentative slots. Booked pickups never expire."""
+    now = now or now_ist()
+    expired = []
+    for booking in store.get_bookings(db, ("offered", "unschedulable")):
+        if offer_expired(booking, now):
+            try:
+                store.update_booking_status(db, booking["id"], "expired", {"status_reason_code": "expired"})
+            except store.InvalidTransition:
+                continue
+            store.delete_tentative_slots(db, booking["id"])
+            expired.append(booking["id"])
+    return expired
+
+
+def plan_depot(db, depot_id: str, today: date | None = None, time_limit_seconds: int = 2) -> dict:
+    """Re-plans every active booking of one depot and writes the result.
+
+    - offered with a slot: stays offered with its tentative slot
+    - offered or unschedulable without a slot: unschedulable, with the reason
+    - unschedulable that now fits: back to offered
+    - booked (locked) that can't be kept: stays booked, flagged for a person
+      to resolve -- a promise is never silently moved
     """
     not_before = None
     if today is None:
         now = now_ist()
         today = now.date()
         not_before = now.hour * 60 + now.minute + SAME_DAY_LEAD_MIN
-    matches = [m for m in store.get_matches_for_company(db, company_id) if m.get("status", "proposed") in ACTIVE_STATUSES]
-    crews = [crew_from_doc(c) for c in store.get_crews_for_company(db, company_id)]
-    listings = {lid: doc for lid in {m["listing_id"] for m in matches} if (doc := store.get_listing(db, lid))}
+    bookings = [b for b in store.get_bookings_for_depot(db, depot_id) if b.get("status") in store.ACTIVE_BOOKING_STATUSES]
+    crew_docs = store.get_crews_for_depot(db, depot_id)
+    crews = [crew_from_doc(c) for c in crew_docs]
+    listings = {lid: doc for lid in {b["listing_id"] for b in bookings} if (doc := store.get_listing(db, lid))}
     locked: dict[str, list[dict]] = {}
-    for slot in store.get_slots_for_company(db, company_id):
+    for slot in store.get_slots_for_depot(db, depot_id):
         if slot.get("locked") and slot.get("status") == "locked":
-            locked.setdefault(slot["match_id"], []).append(slot)
+            locked.setdefault(slot["booking_id"], []).append(slot)
 
-    jobs, unschedulable = build_jobs(matches, listings, locked, today)
+    jobs, unschedulable = build_jobs(bookings, listings, locked, today)
     result = plan_pickups(jobs, crews, today, horizon_days=HORIZON_DAYS, time_limit_seconds=time_limit_seconds,
                           not_before_min_today=not_before)
     unschedulable += result.unschedulable
-    locked_job_ids = {j.match_id for j in jobs if j.locked is not None}
-    store.replace_company_plan(db, company_id, slots_from_result(result, company_id, locked_job_ids))
+    locked_job_ids = {j.booking_id for j in jobs if j.locked is not None}
+    partner_ids = {c["id"] for c in crew_docs if c.get("partner")}
+    slots = slots_from_result(result, depot_id, locked_job_ids, partner_ids)
+    store.replace_depot_plan(db, depot_id, slots)
 
     reasons: dict[str, str] = {}
     for u in unschedulable:
-        reasons.setdefault(base_match_id(u["match_id"]), u["reason"])
-    summary = {"company_id": company_id, "scheduled": 0, "proposed_with_slot": 0, "waitlisted": 0, "needs_attention": 0}
-    for match in matches:
-        status = match.get("status", "proposed")
-        reason = reasons.get(match["id"])
-        if status == "scheduled":
-            summary["scheduled"] += 1
+        reasons.setdefault(base_booking_id(u["booking_id"]), u["reason"])
+    on_partner = {s["booking_id"] for s in slots if s["partner"]}
+    summary = {"depot_id": depot_id, "booked": 0, "offered": 0, "unschedulable": 0, "needs_attention": 0,
+               "on_partner_crews": len(on_partner)}
+    for booking in bookings:
+        status = booking.get("status")
+        reason = reasons.get(booking["id"])
+        if status == "booked":
+            summary["booked"] += 1
             if reason:
                 summary["needs_attention"] += 1
-                store.update_match_fields(db, match["id"], {"schedule_note": reason})
+                store.update_booking_fields(db, booking["id"], {"schedule_note": reason})
             continue
         if reason:
-            summary["waitlisted"] += 1
-            if status == "waitlisted":
-                store.update_match_fields(db, match["id"], {"status_reason": reason})
+            summary["unschedulable"] += 1
+            extra = {"status_reason": reason, "status_reason_code": reason_code(reason)}
+            if status == "unschedulable":
+                store.update_booking_fields(db, booking["id"], extra)
             else:
-                store.update_match_status(db, match["id"], "waitlisted", {"status_reason": reason})
+                store.update_booking_status(db, booking["id"], "unschedulable", extra)
         else:
-            summary["proposed_with_slot"] += 1
-            if status == "waitlisted":
-                store.update_match_status(db, match["id"], "proposed", {"status_reason": None})
+            summary["offered"] += 1
+            if status == "unschedulable":
+                store.update_booking_status(db, booking["id"], "offered", {"status_reason": None, "status_reason_code": None})
     return summary
 
 
-def plan_companies(db, company_ids, **kwargs) -> list[dict]:
-    return [plan_company(db, cid, **kwargs) for cid in sorted(set(company_ids))]
+def plan_depots(db, depot_ids, **kwargs) -> list[dict]:
+    return [plan_depot(db, did, **kwargs) for did in sorted(set(depot_ids))]
 
 
-def window_label(slot: dict) -> str:
-    def hhmm(m: int) -> str:
-        return f"{m // 60:02d}:{m % 60:02d}"
-    return f"{slot['date']} {hhmm(slot['window_start_min'])}-{hhmm(slot['window_end_min'])}"
+def complete_pickup(db, booking_id: str, collected_kg: float | None = None) -> dict:
+    """The crew has collected a farm: the booking moves to collected, the
+    farmer is paid the same day (a simulated UPI transfer of collected kg x
+    the posted price they were offered), the booking moves to paid, and the
+    straw is added to the depot's stock."""
+    booking = store.get_booking(db, booking_id)
+    if booking is None:
+        raise KeyError("booking not found")
+    kg = collected_kg if collected_kg is not None else booking["kg"]
+    store.update_booking_status(db, booking_id, "collected", {"collected_kg": kg})
+    store.set_slots_status(db, booking_id, "collected")
+    today = now_ist().date().isoformat()
+    purchase = store.save_purchase(db, {
+        "booking_id": booking_id, "farmer_id": booking["farmer_id"], "depot_id": booking["depot_id"],
+        "district": booking.get("district"), "kg": kg, "price_per_kg": booking["price_per_kg"],
+        "amount_inr": round(kg * booking["price_per_kg"], 2), "paid_on": today,
+        "method": "UPI", "simulated": True,
+    })
+    move = store.save_inventory_move(db, {
+        "depot_id": booking["depot_id"], "kind": "inbound", "tonnes": round(kg / 1000, 3),
+        "date": today, "booking_id": booking_id,
+    })
+    paid = store.update_booking_status(db, booking_id, "paid", {"purchase_id": purchase["id"], "payout_inr": purchase["amount_inr"]})
+    return {"booking": paid, "purchase": purchase, "inventory_move": move}

@@ -119,8 +119,12 @@ def live(today: date) -> dict:
         })
     for weeks in by_district.values():
         weeks.sort(key=lambda w: w["week"])
+    season_start = season_weeks(today.year)[0] - timedelta(days=1)
+    observed = _series(_rows(client, queries.actuals_sql(WEEKLY, season_start.isoformat(), last.isoformat())),
+                       "week", "fire_pixels")
     return {"model": "TimesFM (BigQuery AI.FORECAST)", "context_end": last.isoformat(),
-            "horizon_weeks": horizon, "districts": by_district}
+            "horizon_weeks": horizon, "districts": by_district,
+            "observed_to_date": {d: round(sum(v.values()), 1) for d, v in observed.items()}}
 
 
 def save(doc_id: str, payload: dict, out_dir: Path) -> None:

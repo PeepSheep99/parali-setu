@@ -1,4 +1,4 @@
-"""Pickup scheduler tests: windows, capacity, buyer-owned crews, locked
+"""Pickup scheduler tests: windows, capacity, depot crews, partner crews, locked
 slots, splitting, unschedulable reasons and determinism. All run the
 deterministic first-solution mode (time_limit_seconds=0)."""
 import sys
@@ -28,12 +28,12 @@ SANGRUR = DISTRICT_COORDS["Sangrur"]
 PATIALA = DISTRICT_COORDS["Patiala"]
 
 
-def crew(cid="crew1", company="c1", acres=20.0, depot=SANGRUR):
-    return Crew(id=cid, company_id=company, depot_lat=depot[0], depot_lon=depot[1], acres_per_day=acres)
+def crew(cid="crew1", company="c1", acres=20.0, depot=SANGRUR, partner=False):
+    return Crew(id=cid, depot_id=company, depot_lat=depot[0], depot_lon=depot[1], acres_per_day=acres, partner=partner)
 
 
 def job(mid, acres=8.0, earliest=START, latest=None, company="c1", where=SANGRUR, locked=None):
-    return PickupJob(match_id=mid, company_id=company, lat=where[0] + 0.02, lon=where[1] + 0.02, acres=acres,
+    return PickupJob(booking_id=mid, depot_id=company, lat=where[0] + 0.02, lon=where[1] + 0.02, acres=acres,
                      earliest=earliest, latest=latest or earliest + timedelta(days=5), locked=locked)
 
 
@@ -57,7 +57,7 @@ def test_capacity_per_crew_day_is_respected_and_overflow_reported():
     jobs = [job(f"m{i}", earliest=START, latest=START) for i in range(3)]
     result = plan(jobs, [crew()])
     assert len(result.assignments) == 2
-    assert result.unschedulable == [{"match_id": result.unschedulable[0]["match_id"], "reason": REASON_BOOKED}]
+    assert result.unschedulable == [{"booking_id": result.unschedulable[0]["booking_id"], "reason": REASON_BOOKED}]
     assert sum(a.acres for a in result.assignments) <= 20.0
 
 
@@ -71,7 +71,7 @@ def test_spare_days_absorb_the_overflow():
     assert all(total <= 20.0 for total in per_day.values())
 
 
-def test_only_the_matched_buyers_crews_are_used():
+def test_only_the_booked_depots_crews_are_used():
     crews = [crew("own", company="c1", depot=SANGRUR), crew("other", company="c2", depot=SANGRUR)]
     result = plan([job("m1", company="c1")], crews)
     assert {a.crew_id for a in result.assignments} == {"own"}
@@ -84,13 +84,13 @@ def test_deadline_passed_and_no_crews_are_reported_with_reasons():
     ]
     result = plan(jobs, [crew()])
     assert result.assignments == []
-    reasons = {u["match_id"]: u["reason"] for u in result.unschedulable}
+    reasons = {u["booking_id"]: u["reason"] for u in result.unschedulable}
     assert reasons == {"late": REASON_DEADLINE_PASSED, "orphan": REASON_NO_CREWS}
 
 
 def test_not_enough_capacity_in_window_says_so():
     result = plan([job("big", acres=50.0, earliest=START, latest=START)], [crew(acres=20.0)])
-    assert result.unschedulable == [{"match_id": "big", "reason": REASON_NO_CAPACITY}]
+    assert result.unschedulable == [{"booking_id": "big", "reason": REASON_NO_CAPACITY}]
 
 
 def test_big_farm_is_split_into_day_sized_visits():
@@ -118,7 +118,7 @@ def test_locked_slot_stays_fixed_when_new_work_arrives():
 def test_lock_outside_the_horizon_is_reported_not_moved():
     lock = LockedSlot(crew_id="crew1", day=START + timedelta(days=30), window_start_min=540, window_end_min=720)
     result = plan([job("m1", locked=lock)], [crew()])
-    assert result.unschedulable == [{"match_id": "m1", "reason": REASON_LOCK_LOST}]
+    assert result.unschedulable == [{"booking_id": "m1", "reason": REASON_LOCK_LOST}]
 
 
 def test_planning_is_deterministic():
@@ -141,3 +141,23 @@ def test_today_never_offers_a_slot_that_has_already_passed():
     late = plan_pickups([job("m2", earliest=START, latest=START)], [crew()], START,
                         time_limit_seconds=0, not_before_min_today=17 * 60 + 50)
     assert late.assignments == [] and late.unschedulable, "no time left today -> reported, not a past slot"
+
+
+def test_partner_crews_are_used_only_when_our_crews_cannot_make_it():
+    """Two 8-acre farms that must both be done today. Our one crew does 10
+    acres a day, so one farm needs a hired partner crew; with a single farm,
+    the partner stays idle."""
+    crews = [crew("own", acres=10.0), crew("hired", acres=20.0, partner=True)]
+    one = plan([job("m1", earliest=START, latest=START)], crews)
+    assert {a.crew_id for a in one.assignments} == {"own"}
+    two = plan([job(f"m{i}", earliest=START, latest=START) for i in range(2)], crews)
+    assert two.unschedulable == []
+    assert sorted(a.crew_id for a in two.assignments) == ["hired", "own"]
+
+
+def test_reason_codes_cover_every_reason():
+    from scheduler import REASON_BEYOND_HORIZON, reason_code
+    for reason in (REASON_BOOKED, REASON_DEADLINE_PASSED, REASON_LOCK_LOST, REASON_NO_CAPACITY,
+                   REASON_NO_CREWS, REASON_BEYOND_HORIZON):
+        assert reason_code(reason)
+    assert reason_code(None) is None

@@ -1,4 +1,4 @@
-"""Mocked tests for extraction.py's three Gemini jobs -- fast, no real
+"""Mocked tests for extraction.py's Gemini jobs -- fast, no real
 API calls. These were each also live-verified once by hand against the
 real Vertex AI endpoint (extract_listing's date-anchoring and the
 Punjabi narration were both fixed after that live check caught real
@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from extraction import explain_match, extract_listing, parse_negotiation_price, read_stubble_quality  # noqa: E402
+from extraction import explain_offer, explain_price, extract_listing, read_stubble_quality  # noqa: E402
 
 
 def make_fake_client(response_text):
@@ -57,19 +57,6 @@ def test_extract_listing_returns_none_on_malformed_json():
     assert result is None
 
 
-def test_parse_negotiation_price_extracts_requested_price():
-    client = make_fake_client(json.dumps({"requested_price_per_kg": 9.5, "is_price_request": True}))
-    result = parse_negotiation_price(client, "Can we get 9.50 per kg instead?", current_price_per_kg=8.0)
-    assert result["requested_price_per_kg"] == 9.5
-    assert result["is_price_request"] is True
-
-
-def test_parse_negotiation_price_non_price_message():
-    client = make_fake_client(json.dumps({"requested_price_per_kg": None, "is_price_request": False}))
-    result = parse_negotiation_price(client, "Can you pick up on Thursday instead?", current_price_per_kg=8.0)
-    assert result["is_price_request"] is False
-
-
 def test_read_stubble_quality_parses_valid_grade():
     client = make_fake_client(json.dumps({"quality_grade": "dry", "note": "pale, no moisture"}))
     result = read_stubble_quality(client, b"fake-image-bytes", mime_type="image/jpeg")
@@ -102,17 +89,21 @@ def test_read_stubble_quality_returns_none_on_gemini_unavailable():
         pass
 
 
-def test_explain_match_never_asked_to_change_the_numbers():
-    """The prompt itself instructs Gemini not to alter the figures --
-    this test just confirms the exact match figures are passed through
-    into the prompt text unmodified, which is the one thing we can
-    actually assert without a live call."""
+def test_offer_narration_passes_the_planners_numbers_through_unchanged():
+    """Gemini only phrases the offer; every figure in the prompt is the
+    planners' own, which is the one thing we can assert without a live call."""
     client = make_fake_client("plain narration text")
-    match = {"company_name": "Co_Pellets_Punjab", "matched_kg": 800,
-             "price_agreed_per_kg": 8.5, "pickup_window": "2026-10-26"}
-    result = explain_match(client, match, "Punjabi")
-    assert result == "plain narration text"
+    offer = {"price_per_kg": 0.76, "district": "Bathinda", "kg": 14000.0, "payout_inr": 10640.0,
+             "pickup_window": "2026-10-19 09:00-12:00"}
+    assert explain_offer(client, offer, "Punjabi") == "plain narration text"
     prompt_sent = client.models.generate_content.call_args.kwargs["contents"]
-    assert "800" in prompt_sent
-    assert "8.5" in prompt_sent
-    assert "Co_Pellets_Punjab" in prompt_sent
+    for figure in ("0.76", "14000.0", "10640.0", "2026-10-19 09:00-12:00", "Bathinda"):
+        assert figure in prompt_sent
+
+
+def test_price_explanation_uses_only_the_planners_reason():
+    client = make_fake_client("plain words")
+    facts = {"district": "Bathinda", "price_per_kg": 0.76, "reason": "Our orders need more straw from Bathinda this week."}
+    assert explain_price(client, facts, "Hindi") == "plain words"
+    prompt_sent = client.models.generate_content.call_args.kwargs["contents"]
+    assert facts["reason"] in prompt_sent and "0.76" in prompt_sent and "no English words" in prompt_sent

@@ -1,19 +1,24 @@
-"""Pickup scheduling: turns matches into guaranteed pickup slots.
+"""Pickup scheduling: turns bookings into guaranteed pickup slots.
 
-The matching LP (solver.py) decides which buyer takes which listing. This
-module decides *when* and *by whom* it is collected: a capacitated vehicle
-routing problem with time windows, solved with OR-Tools routing.
+The procurement planner (procurement.py) decides how much straw to buy where
+and which depot each district feeds. This module decides *when* and *by whom*
+each booked farm is collected: a capacitated vehicle routing problem with time
+windows, solved with OR-Tools routing.
 
 Model
 - A vehicle is one crew on one day of the planning horizon (a "crew-day").
-  It leaves the buyer's collection depot after the shift starts and must be
-  back before it ends.
+  It leaves its Parali Setu depot after the shift starts and must be back
+  before it ends.
 - A node is one farm visit. Its load is the acres to bale, its service time
   is acres / BALING_ACRES_PER_HOUR, and its time window runs from the start
   of its ready day to the end of its last allowed day (the day before
   sowing). A farm bigger than a crew-day's capacity is split into
   day-sized visits.
-- A visit may only use crews of the buyer it was matched to.
+- A visit may only use crews of the depot it was booked into.
+- Partner crews (hired balers) are planned in a second pass, only for farms
+  our own crews could not fit before sowing. This is what lets every booking
+  get a slot, and it keeps the extra cost visible: ops can see exactly which
+  pickups needed a hired crew.
 - A locked slot (one the farmer accepted) pins the visit to that crew-day
   and that arrival window; everything else is planned around it.
 - Every visit carries a large drop penalty, so the solver drops one only
@@ -52,22 +57,36 @@ SAFETY_TIME_LIMIT_SECONDS = 10
 FIRST_SOLUTION_STRATEGY = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
 
 REASON_DEADLINE_PASSED = "The sowing deadline has already passed."
-REASON_NO_CREWS = "This buyer has no pickup crews."
-REASON_NO_CAPACITY = "The buyer's crews don't have enough capacity before the sowing deadline."
-REASON_BOOKED = "The buyer's crews are fully booked before the sowing deadline."
+REASON_NO_CREWS = "This depot has no pickup crews."
+REASON_NO_CAPACITY = "Our crews don't have enough capacity before the sowing deadline."
+REASON_BOOKED = "Our crews are fully booked before the sowing deadline."
 REASON_LOCK_LOST = "The accepted slot could no longer be kept."
 REASON_BEYOND_HORIZON = "The stubble is ready after the current planning window; it will be planned in a later run."
+REASON_TOO_FAR = "The farm is too far from the depot for a crew to reach, bale and return within a shift."
+
+# Stable codes for each reason, so the farmer app can say it in Punjabi or
+# Hindi instead of showing this English text.
+REASON_CODES = {
+    REASON_DEADLINE_PASSED: "deadline_passed", REASON_NO_CREWS: "no_crews",
+    REASON_NO_CAPACITY: "no_capacity", REASON_BOOKED: "booked",
+    REASON_LOCK_LOST: "lock_lost", REASON_BEYOND_HORIZON: "beyond_horizon", REASON_TOO_FAR: "too_far",
+}
+
+
+def reason_code(reason: str | None) -> str | None:
+    return REASON_CODES.get(reason) if reason else None
 
 
 @dataclass(frozen=True)
 class Crew:
     id: str
-    company_id: str
+    depot_id: str
     depot_lat: float
     depot_lon: float
     shift_start_min: int = DEFAULT_SHIFT_START_MIN
     shift_end_min: int = DEFAULT_SHIFT_END_MIN
     acres_per_day: float = DEFAULT_ACRES_PER_CREW_DAY
+    partner: bool = False       # a hired baler crew, used only when ours can't make it
 
 
 @dataclass(frozen=True)
@@ -80,8 +99,8 @@ class LockedSlot:
 
 @dataclass(frozen=True)
 class PickupJob:
-    match_id: str
-    company_id: str
+    booking_id: str
+    depot_id: str
     lat: float
     lon: float
     acres: float
@@ -92,7 +111,7 @@ class PickupJob:
 
 @dataclass(frozen=True)
 class Assignment:
-    match_id: str
+    booking_id: str
     visit: int
     crew_id: str
     day: date
@@ -107,10 +126,10 @@ class Assignment:
 @dataclass
 class ScheduleResult:
     assignments: list[Assignment]
-    unschedulable: list[dict]   # {"match_id", "reason"}
+    unschedulable: list[dict]   # {"booking_id", "reason"}
 
-    def slots_for(self, match_id: str) -> list[Assignment]:
-        return sorted((a for a in self.assignments if a.match_id == match_id), key=lambda a: (a.day, a.start_min))
+    def slots_for(self, booking_id: str) -> list[Assignment]:
+        return sorted((a for a in self.assignments if a.booking_id == booking_id), key=lambda a: (a.day, a.start_min))
 
 
 def acres_from_kg(kg: float) -> float:
@@ -132,6 +151,18 @@ def promised_window(start_min: int, shift_end_min: int) -> tuple[int, int]:
     return window_start, min(window_start + SLOT_WINDOW_MIN, shift_end_min)
 
 
+def max_visit_acres(job: PickupJob, depot_crews: list[Crew]) -> float:
+    """The most one visit can bale: a crew-day's acre capacity, and what fits
+    in a shift after driving there and back. A distant farm is split into
+    several day-sized visits; 0 means not even a small visit fits."""
+    best = 0.0
+    for c in depot_crews:
+        round_trip = 2 * travel_minutes(c.depot_lat, c.depot_lon, job.lat, job.lon)
+        work_min = c.shift_end_min - c.shift_start_min - round_trip
+        best = max(best, min(c.acres_per_day, work_min * BALING_ACRES_PER_HOUR / 60))
+    return round(max(0.0, best) * 0.95, 2)   # a little slack so the visit fits the time dimension
+
+
 def _split_visits(job: PickupJob, max_crew_acres: float) -> list[float]:
     if job.acres <= max_crew_acres or max_crew_acres <= 0:
         return [job.acres]
@@ -140,6 +171,10 @@ def _split_visits(job: PickupJob, max_crew_acres: float) -> list[float]:
     visits = [base] * (count - 1)
     visits.append(round(job.acres - base * (count - 1), 2))
     return visits
+
+
+# Reasons a hired crew can fix; a passed deadline or a lost lock it cannot.
+_PARTNER_CAN_HELP = {REASON_BOOKED, REASON_NO_CAPACITY, REASON_NO_CREWS}
 
 
 def plan_pickups(
@@ -153,13 +188,40 @@ def plan_pickups(
     """Plans every job over [start, start + horizon_days). Deterministic when
     time_limit_seconds is 0 (first solution only, used by tests).
 
+    Two passes: our own crews first, then partner crews for whatever our
+    crews could not fit. A slot locked onto a partner crew stays with it.
+
     `not_before_min_today` (minutes after midnight, local time) keeps crews
     on day 0 from being planned before that time, so a farmer is never
     offered a slot that has already passed."""
+    kwargs = dict(horizon_days=horizon_days, time_limit_seconds=time_limit_seconds,
+                  not_before_min_today=not_before_min_today)
+    partners = [c for c in crews if c.partner]
+    partner_ids = {c.id for c in partners}
+    on_partner_lock = {j.booking_id for j in jobs if j.locked is not None and j.locked.crew_id in partner_ids}
+    first = _plan_with([j for j in jobs if j.booking_id not in on_partner_lock],
+                       [c for c in crews if not c.partner], start, **kwargs)
+    if not partners:
+        return first
+    retry = {u["booking_id"] for u in first.unschedulable if u["reason"] in _PARTNER_CAN_HELP} | on_partner_lock
+    second = _plan_with([j for j in jobs if j.booking_id in retry], partners, start, **kwargs)
+    assignments = sorted(first.assignments + second.assignments, key=lambda a: (a.day, a.crew_id, a.sequence))
+    unschedulable = [u for u in first.unschedulable if u["booking_id"] not in retry] + second.unschedulable
+    return ScheduleResult(assignments, unschedulable)
+
+
+def _plan_with(
+    jobs: list[PickupJob],
+    crews: list[Crew],
+    start: date,
+    horizon_days: int,
+    time_limit_seconds: int,
+    not_before_min_today: int | None,
+) -> ScheduleResult:
     unschedulable: list[dict] = []
-    crews_by_company: dict[str, list[Crew]] = {}
+    crews_by_depot: dict[str, list[Crew]] = {}
     for crew in crews:
-        crews_by_company.setdefault(crew.company_id, []).append(crew)
+        crews_by_depot.setdefault(crew.depot_id, []).append(crew)
 
     # Vehicles: one per crew per day.
     vehicles: list[tuple[Crew, int]] = [(crew, d) for crew in crews for d in range(horizon_days)]
@@ -171,23 +233,29 @@ def plan_pickups(
             return [] if v is None else [v]
         first_day = max(0, (job.earliest - start).days)
         last_day = min(horizon_days - 1, (job.latest - start).days)
-        return [vehicle_index[(c.id, d)] for c in crews_by_company[job.company_id] for d in range(first_day, last_day + 1)]
+        return [vehicle_index[(c.id, d)] for c in crews_by_depot[job.depot_id] for d in range(first_day, last_day + 1)]
 
     # Jobs with no valid crew-day are reported here and never reach the
     # model (in OR-Tools an empty allowed-vehicle set can mean "any vehicle").
     candidates: list[PickupJob] = []
     allowed_by_job: dict[str, list[int]] = {}
+    visit_cap: dict[str, float] = {}
     for job in jobs:
+        depot_crews = crews_by_depot.get(job.depot_id) or []
+        if depot_crews:
+            visit_cap[job.booking_id] = max_visit_acres(job, depot_crews)
         if job.latest < start or job.latest < job.earliest:
-            unschedulable.append({"match_id": job.match_id, "reason": REASON_DEADLINE_PASSED})
-        elif not crews_by_company.get(job.company_id):
-            unschedulable.append({"match_id": job.match_id, "reason": REASON_NO_CREWS})
+            unschedulable.append({"booking_id": job.booking_id, "reason": REASON_DEADLINE_PASSED})
+        elif not crews_by_depot.get(job.depot_id):
+            unschedulable.append({"booking_id": job.booking_id, "reason": REASON_NO_CREWS})
+        elif job.locked is None and visit_cap[job.booking_id] <= 0:
+            unschedulable.append({"booking_id": job.booking_id, "reason": REASON_TOO_FAR})
         elif not (allowed := allowed_vehicles(job)):
             reason = REASON_LOCK_LOST if job.locked is not None else REASON_BEYOND_HORIZON
-            unschedulable.append({"match_id": job.match_id, "reason": reason})
+            unschedulable.append({"booking_id": job.booking_id, "reason": reason})
         else:
             candidates.append(job)
-            allowed_by_job[job.match_id] = allowed
+            allowed_by_job[job.booking_id] = allowed
     if not candidates:
         return ScheduleResult([], unschedulable)
 
@@ -198,7 +266,7 @@ def plan_pickups(
     load: list[int] = [0] * len(crews)
     visits: list[tuple[PickupJob, int, float]] = []   # (job, visit number, acres)
     for job in candidates:
-        max_acres = max(c.acres_per_day for c in crews_by_company[job.company_id])
+        max_acres = job.acres if job.locked is not None else visit_cap[job.booking_id]
         for k, acres in enumerate(_split_visits(job, max_acres)):
             visits.append((job, k, acres))
             points.append((job.lat, job.lon))
@@ -240,7 +308,7 @@ def plan_pickups(
         # Restrict the visit's vehicle variable directly (-1 = left unvisited,
         # which the disjunction below prices). This OR-Tools build doesn't
         # accept a Python list in SetAllowedVehiclesForIndex.
-        routing.VehicleVar(index).SetValues([-1, *allowed_by_job[job.match_id]])
+        routing.VehicleVar(index).SetValues([-1, *allowed_by_job[job.booking_id]])
         if job.locked is not None:
             day0 = (job.locked.day - start).days * MINUTES_PER_DAY
             time_dim.CumulVar(index).SetRange(day0 + job.locked.window_start_min, day0 + job.locked.window_end_min)
@@ -279,7 +347,7 @@ def plan_pickups(
                 else:
                     window = promised_window(arrival, crew.shift_end_min)
                 assignments.append(Assignment(
-                    match_id=job.match_id, visit=visit_no, crew_id=crew.id, day=start + timedelta(days=d),
+                    booking_id=job.booking_id, visit=visit_no, crew_id=crew.id, day=start + timedelta(days=d),
                     start_min=arrival, end_min=arrival + service[node],
                     window_start_min=window[0], window_end_min=window[1], sequence=sequence, acres=acres))
                 index = solution.Value(routing.NextVar(index))
@@ -288,26 +356,26 @@ def plan_pickups(
     # reported with the most specific reason we can give.
     visits_per_job: dict[str, int] = {}
     for job, _, _ in visits:
-        visits_per_job[job.match_id] = visits_per_job.get(job.match_id, 0) + 1
+        visits_per_job[job.booking_id] = visits_per_job.get(job.booking_id, 0) + 1
     placed: dict[str, int] = {}
     for a in assignments:
-        placed[a.match_id] = placed.get(a.match_id, 0) + 1
+        placed[a.booking_id] = placed.get(a.booking_id, 0) + 1
     incomplete = {mid for mid, count in visits_per_job.items() if placed.get(mid, 0) < count}
-    assignments = [a for a in assignments if a.match_id not in incomplete]
+    assignments = [a for a in assignments if a.booking_id not in incomplete]
     for job in candidates:
-        if job.match_id not in incomplete:
+        if job.booking_id not in incomplete:
             continue
-        unschedulable.append({"match_id": job.match_id, "reason": _drop_reason(job, crews_by_company[job.company_id], start, horizon_days)})
+        unschedulable.append({"booking_id": job.booking_id, "reason": _drop_reason(job, crews_by_depot[job.depot_id], start, horizon_days)})
 
     assignments.sort(key=lambda a: (a.day, a.crew_id, a.sequence))
     return ScheduleResult(assignments, unschedulable)
 
 
-def _drop_reason(job: PickupJob, company_crews: list[Crew], start: date, horizon_days: int) -> str:
+def _drop_reason(job: PickupJob, depot_crews: list[Crew], start: date, horizon_days: int) -> str:
     if job.locked is not None:
         return REASON_LOCK_LOST
     first_day = max(0, (job.earliest - start).days)
     last_day = min(horizon_days - 1, (job.latest - start).days)
     days = max(0, last_day - first_day + 1)
-    capacity = days * sum(c.acres_per_day for c in company_crews)
+    capacity = days * sum(c.acres_per_day for c in depot_crews)
     return REASON_NO_CAPACITY if capacity < job.acres else REASON_BOOKED

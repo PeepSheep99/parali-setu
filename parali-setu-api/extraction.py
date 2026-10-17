@@ -206,231 +206,32 @@ reasonable call, respond with {"field_condition": "inconclusive", "note":
     return parsed
 
 
-PRICE_SOURCE_TEXT = {
-    "standing_offer": "the price is this buyer's posted standing offer",
-    "negotiated": "the price was agreed in a negotiation, within the buyer's stated maximum",
-}
-
-
-def explain_pricing(client: genai.Client, match: dict, context: dict, language: str) -> str | None:
-    """Feature 3 -- narrate where a match's price came from and why this
-    buyer was matched, using only already-computed numbers (same
-    verbatim-numbers contract as explain_match).
-
-    Kept honest about causality (judge-eval finding): the price is the
-    buyer's offer (or a negotiated price within its ceiling). Urgency and
-    trust only change matching *priority*, and the demand forecast is
-    background about the buyer -- none of them changes the price, and the
-    prompt says so rather than letting them read as price factors.
-    """
-    priority_notes = []
-    if context.get("urgency_multiplier_applied", 1.0) > 1.0:
-        priority_notes.append(
-            f"the farmer's pickup deadline gave this listing {context['urgency_multiplier_applied']:.2f}x "
-            "priority when buyers were assigned"
-        )
-    if context.get("trust_score") is not None:
-        priority_notes.append(f"the farmer's trust score of {context['trust_score']:.2f} (of 1.0) also counts toward priority")
-
-    price_source = PRICE_SOURCE_TEXT.get(context.get("price_source"), PRICE_SOURCE_TEXT["standing_offer"])
-    ceiling = context.get("buyer_ceiling_per_kg")
-    ceiling_line = f"- The most this buyer will pay: {ceiling} rupees per kg\n" if ceiling is not None else ""
-    priority_line = (
-        "- Why this listing was matched early (these do NOT change the price): " + "; ".join(priority_notes)
-        if priority_notes else "- No priority factors applied."
-    )
-    forecast_line = (
-        f"- Background about the buyer (does NOT change the price): {context['forecast_summary']}\n"
-        if context.get("forecast_summary") else ""
-    )
-
-    prompt = f"""Write a short, plain-language explanation in {language} (2-3
-sentences) telling a farmer where the price of their crop-residue match comes
-from. Use exactly these facts, do not change or round any numbers, and do not
-invent any factor not listed here:
-- Price: {match.get('price_agreed_per_kg')} rupees per kg; {price_source}
-{ceiling_line}- Quantity matched: {match.get('matched_kg')} kg
-- Quality grade read from the photo: {context.get('quality_grade', 'unknown')}
-{priority_line}
-{forecast_line}
-Be explicit that deadline urgency and trust affect who is matched first, not
-the price. Plain prose only, no markdown formatting, no asterisks.
-"""
-    return call_gemini(client, prompt, json_mode=False)
-
-
-def cross_check_voice_and_photo(
-    client: genai.Client, transcript: str, quality_grade: str | None, quality_note: str | None, language: str
-) -> dict | None:
-    """Feature 4 -- flags an explicit contradiction between what a farmer
-    said and what their photo showed (e.g. transcript claims "dry" while
-    the photo read came back "wet"). Informational only in this pass --
-    does not feed the solver or the trust score; a stretch goal to wire
-    it into Feature 5's scoring is deliberately not bundled here. Flags
-    only explicit contradictions, never infers fraud from silence or an
-    unclear photo read.
-    """
-    if not quality_grade or quality_grade == "unknown":
-        return {"mismatch_detected": False, "note": "no photo quality read to cross-check against"}
-
-    prompt = f"""A farmer's spoken listing (in {language}) was transcribed as:
-"{transcript}"
-
-A separate photo of the same stubble was independently read as quality grade
-"{quality_grade}" (note: {quality_note or "none"}). Respond with ONLY a JSON
-object:
-
-{{
-  "mismatch_detected": <true ONLY if the transcript explicitly states a
-    quality/condition that directly contradicts "{quality_grade}" (e.g. the
-    farmer says "sukhi" (dry) but the photo read is "wet") -- false if the
-    transcript says nothing about quality at all, or is ambiguous>,
-  "note": <one short phrase explaining the finding, or null if no mismatch>
-}}
-"""
-    text = call_gemini(client, prompt, json_mode=True)
-    if text is None:
-        return None
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return None
-
-
-def parse_custom_constraint(client: genai.Client, raw_text: str, language: str) -> dict | None:
-    """Part D -- a company states a custom sourcing rule in plain language
-    ("at least 60% of what I buy should be dry"), Gemini classifies it
-    into one closed, bounded template the solver can actually enforce as
-    a real LP term (solver.py's `_add_custom_constraint_terms`). Same
-    bounded-extraction contract as extract_listing: a human-stated value,
-    parsed, never invented -- the only thing different from every other
-    function in this file is where the parsed value lands afterward
-    (inside the optimization model's structure, not just a listing/match
-    attribute).
-
-    Only one constraint type exists in this build (`quality_ratio_min`) --
-    an earlier `single_farmer_cap_pct` design was cut after five rounds of
-    judge-eval kept finding new errors specific to its self-referential
-    shape (`x <= cap*T` where `T` includes `x` itself); `quality_ratio_min`
-    doesn't share that shape.
-
-    Returns {"constraint_type": "quality_ratio_min", "quality_grade": ...,
-    "threshold": <float, clamped to [0.0, 1.0]>} on a recognized request,
-    or {"constraint_type": None} for anything else -- rejected, not
-    improvised into a new template, same enum-rejection discipline as
-    read_stubble_quality/extract_listing. The clamp is a plain sanity
-    bound here, not a math-safety one: solver.py's constraint is anchored
-    to the demand's fixed `quantity_needed_kg`, not a ratio denominator
-    that could divide by zero, so there's no blow-up risk at threshold=1.0
-    the way an earlier, reverted formulation had.
-    """
-    prompt = f"""A company states a custom sourcing rule for crop-residue
-purchases, in {language}:
-"{raw_text}"
-
-Respond with ONLY a JSON object:
-
-{{
-  "constraint_type": <"quality_ratio_min" if the message states a minimum
-    fraction/percentage of purchases that should be a specific quality
-    grade (e.g. "at least 60% dry", "mostly dry, say 70%"), else null for
-    anything else (a price request, a farmer cap, a delivery timeline, or
-    anything this template doesn't cover -- do NOT invent a new type)>,
-  "quality_grade": <one of "dry", "wet", "mixed" if constraint_type is
-    "quality_ratio_min", else null>,
-  "threshold": <float between 0 and 1 (convert a stated percentage by
-    dividing by 100) if constraint_type is "quality_ratio_min", else null>
-}}
-"""
-    text = call_gemini(client, prompt, json_mode=True)
-    if text is None:
-        return None
-    try:
-        parsed = json.loads(text)
-    except json.JSONDecodeError:
-        return None
-
-    if parsed.get("constraint_type") != "quality_ratio_min":
-        return {"constraint_type": None}
-    if parsed.get("quality_grade") not in VALID_QUALITY_GRADES or parsed.get("threshold") is None:
-        return {"constraint_type": None}
-
-    threshold = max(0.0, min(float(parsed["threshold"]), 1.0))
-    return {
-        "constraint_type": "quality_ratio_min",
-        "quality_grade": parsed["quality_grade"],
-        "threshold": threshold,
-    }
-
-
-def parse_negotiation_price(client: genai.Client, raw_text: str, current_price_per_kg: float) -> dict | None:
-    """PRD 8.1.7 / 8.2.3 -- turn a counter-offer like "I need at least
-    9.50 a kilo" into a structured price delta. Only ever returns a
-    *requested* price for the solver to re-run against -- this function
-    never decides whether the request is accepted; apply_negotiation()
-    in solver.py re-solves and the result is the actual answer.
-    """
-    prompt = f"""A party in a crop-residue sale negotiation sent this message:
-"{raw_text}"
-
-The current agreed price is {current_price_per_kg} rupees per kg. Respond with
-ONLY a JSON object:
-
-{{
-  "requested_price_per_kg": <number if the message requests a specific new
-    price per kg (convert per-quintal to per-kg by dividing by 100 if
-    needed), else null if no specific price was requested>,
-  "is_price_request": <true or false -- false if the message is about
-    something else (e.g. pickup timing) that this system doesn't yet
-    parse into a structured delta>
-}}
-"""
-    text = call_gemini(client, prompt, json_mode=True)
-    if text is None:
-        return None
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return None
-
-
-def narrate_negotiation_turn(
-    client: genai.Client, persona: str, proposed_price_per_kg: float, context: dict, language: str
-) -> str | None:
-    """Feature 2 -- one short, grounded sentence in the voice of
-    `persona` ("farmer" or "buyer") proposing `proposed_price_per_kg` as
-    the next offer. `context["reason"]` must be a real fact about THIS
-    negotiation (the listing's real urgency multiplier and why), not
-    generic negotiating language -- the output never contains a number
-    Gemini invented, only the one already decided by
-    solver.negotiation_concession_schedule.
-    """
-    prompt = f"""Write exactly ONE short sentence in {language}, in the voice
-of the {persona} side of a crop-residue price negotiation, proposing
-{proposed_price_per_kg} rupees per kg as the next offer. Ground the tone in
-this real fact about the situation, do not invent any other reason:
-{context.get('reason', 'an ongoing negotiation')}.
-
-Do not state any number other than {proposed_price_per_kg}. Plain prose only,
-no markdown formatting, no asterisks.
-"""
-    return call_gemini(client, prompt, json_mode=False)
-
-
-def explain_match(client: genai.Client, match: dict, language: str) -> str | None:
-    """PRD 8.1.6 -- narrate the solver's result in the farmer's language.
-    Takes already-computed numbers (matched_kg, price_agreed_per_kg,
-    company name) and only ever repeats them in prose; never recomputes
-    or adjusts them.
-    """
-    prompt = f"""Write a short, warm message in {language} (2-3 sentences) telling
-a farmer the result of their crop-residue stubble listing. Use exactly these
-facts, do not change or round any numbers:
-- Buyer: {match.get('company_name')}
-- Quantity matched: {match.get('matched_kg')} kg
-- Price: {match.get('price_agreed_per_kg')} rupees per kg
-- Pickup window: {match.get('pickup_window', 'to be confirmed')}
+def explain_offer(client: genai.Client, offer: dict, language: str) -> str | None:
+    """Narrate a pickup offer in the farmer's language. Every number comes
+    from the planners and is repeated verbatim; Gemini adds no facts."""
+    prompt = f"""Write a short, warm message in {language} (2-3 sentences) telling a
+farmer that Parali Setu will buy their paddy straw. Use exactly these facts and
+do not change or round any number:
+- Price: {offer.get('price_per_kg')} rupees per kg (today's posted price in {offer.get('district')})
+- Straw: {offer.get('kg')} kg
+- Payment: {offer.get('payout_inr')} rupees, paid the same day the crew collects
+- Pickup: {offer.get('pickup_window', 'to be confirmed')}
+- The field is cleared free of charge.
 
 Plain prose only, no markdown formatting, no asterisks.
 """
     return call_gemini(client, prompt, json_mode=False)
+
+
+def explain_price(client: genai.Client, facts: dict, language: str) -> str | None:
+    """Why today's price is what it is, from the procurement planner's own
+    reason. Plain words, no jargon, in the farmer's language."""
+    prompt = f"""In {language}, explain in two short sentences, in plain words a farmer
+uses (no English words, no technical terms), why Parali Setu's price for paddy
+straw in {facts.get('district')} today is {facts.get('price_per_kg')} rupees per kg.
+Use only this reason, and keep the number exactly as written: {facts.get('reason')}
+Also say the field is cleared for free and payment comes the same day.
+Plain prose only, no markdown, no asterisks.
+"""
+    return call_gemini(client, prompt, json_mode=False)
+

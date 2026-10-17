@@ -3,2890 +3,226 @@
   "context_end": "2026-10-05",
   "horizon_weeks": 12,
   "districts": {
-    "Jind": [
+    "Panipat": [
       {
         "week": "2026-10-12",
-        "fire_pixels": 4.6,
-        "low": 0.0,
-        "high": 36.9
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 45.0,
-        "low": 0.1,
-        "high": 100.0
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 117.9,
-        "low": 49.8,
-        "high": 196.8
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 173.5,
-        "low": 94.4,
-        "high": 264.8
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 204.8,
-        "low": 126.4,
-        "high": 299.2
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 129.8,
-        "low": 63.5,
-        "high": 214.4
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 55.8,
-        "low": 9.1,
-        "high": 121.9
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 8.6,
-        "low": 0.0,
-        "high": 54.3
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 7.1,
-        "low": 0.0,
-        "high": 36.6
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 1.9,
-        "low": 0.0,
-        "high": 19.4
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 1.4,
-        "low": 0.0,
-        "high": 11.8
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 2.1,
-        "low": 0.0,
-        "high": 8.6
-      }
-    ],
-    "Gurugram": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      }
-    ],
-    "Yamunanagar": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.4
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.4
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.4
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.2
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      }
-    ],
-    "Hisar": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 19.0,
-        "low": 3.0,
-        "high": 40.6
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 32.4,
-        "low": 10.4,
-        "high": 59.7
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 46.2,
-        "low": 19.8,
-        "high": 76.8
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 51.3,
-        "low": 24.3,
-        "high": 82.6
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 44.5,
-        "low": 19.3,
-        "high": 74.3
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 27.1,
-        "low": 5.7,
-        "high": 53.5
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 12.9,
-        "low": 0.0,
-        "high": 34.5
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 5.5,
-        "low": 0.0,
-        "high": 22.3
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 3.3,
-        "low": 0.0,
-        "high": 15.6
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 2.0,
-        "low": 0.0,
-        "high": 10.4
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.3,
-        "low": 0.0,
-        "high": 5.7
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.6,
-        "low": 0.0,
-        "high": 3.8
-      }
-    ],
-    "Hoshiarpur": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 3.2,
-        "low": 0.0,
-        "high": 21.6
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 8.5,
-        "low": 0.0,
-        "high": 36.6
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 28.9,
-        "low": 9.1,
-        "high": 64.0
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 39.2,
-        "low": 18.4,
-        "high": 75.3
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 21.6,
-        "low": 3.7,
-        "high": 54.9
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 4.5,
-        "low": 0.0,
-        "high": 32.4
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 20.8
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 13.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 10.0
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 8.0
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.1,
-        "high": 6.7
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 4.6
-      }
-    ],
-    "Fatehgarh Sahib": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 5.3,
-        "low": 0.0,
-        "high": 39.0
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 28.0,
-        "low": 2.7,
-        "high": 79.4
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 57.7,
-        "low": 21.9,
-        "high": 125.8
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 76.5,
-        "low": 41.5,
-        "high": 143.8
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 41.0,
-        "low": 10.4,
-        "high": 104.3
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 14.2,
-        "low": 0.0,
-        "high": 64.9
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 1.9,
-        "low": 0.0,
-        "high": 41.6
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 25.8
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 21.6
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 15.1
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 12.0
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 5.9
-      }
-    ],
-    "Jalandhar": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 1.4,
-        "low": 0.0,
-        "high": 20.1
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 16.2,
-        "low": 0.0,
-        "high": 45.9
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 39.3,
-        "low": 13.4,
-        "high": 85.6
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 61.5,
-        "low": 32.8,
-        "high": 113.4
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 47.5,
-        "low": 19.8,
-        "high": 102.1
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 27.6,
-        "low": 5.5,
-        "high": 75.7
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 10.4,
-        "low": 0.0,
-        "high": 51.3
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 33.5
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 26.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 20.1
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 1.6,
-        "high": 15.9
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 6.9
-      }
-    ],
-    "Mahendragarh": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      }
-    ],
-    "Sri Muktsar Sahib": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 56.4
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 33.4,
-        "low": 0.0,
-        "high": 165.1
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 126.1,
-        "low": 0.0,
-        "high": 354.1
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 309.7,
-        "low": 68.3,
-        "high": 617.1
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 452.6,
-        "low": 187.1,
-        "high": 809.6
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 330.0,
-        "low": 91.4,
-        "high": 668.5
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 212.9,
-        "low": 29.1,
-        "high": 502.8
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 98.9,
-        "low": 0.0,
-        "high": 324.7
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 37.8,
-        "low": 0.0,
-        "high": 204.8
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 86.8
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 51.5
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 1.4,
-        "low": 0.0,
-        "high": 35.4
-      }
-    ],
-    "Fatehabad": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 3.6,
-        "low": 0.0,
-        "high": 57.1
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 38.1,
-        "low": 0.0,
-        "high": 131.8
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 89.7,
-        "low": 0.0,
-        "high": 224.3
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 151.8,
-        "low": 41.0,
-        "high": 312.0
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 166.8,
-        "low": 54.8,
-        "high": 330.8
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 81.8,
-        "low": 0.0,
-        "high": 226.2
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 31.5,
-        "low": 0.0,
-        "high": 147.5
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 7.0,
-        "low": 0.0,
-        "high": 91.8
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 56.5
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 34.3
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 23.1
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 1.3,
-        "low": 0.0,
-        "high": 14.7
-      }
-    ],
-    "Bathinda": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 8.3,
-        "low": 0.0,
-        "high": 113.4
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 67.3,
-        "low": 0.0,
-        "high": 251.9
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 204.1,
-        "low": 24.4,
-        "high": 476.3
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 365.4,
-        "low": 140.7,
-        "high": 686.0
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 457.0,
-        "low": 229.6,
-        "high": 796.0
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 241.8,
-        "low": 55.4,
-        "high": 539.3
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 113.4,
-        "low": 0.0,
-        "high": 347.4
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 16.4,
-        "low": 0.0,
-        "high": 178.4
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 108.1
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 54.8
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 33.4
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 1.5,
-        "low": 0.0,
-        "high": 29.2
-      }
-    ],
-    "Pathankot": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.4
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 0.6
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 0.5
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 0.6
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.5
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.4
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.4
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.2
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.1
-      }
-    ],
-    "Ludhiana": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 5.3,
-        "low": 0.0,
-        "high": 61.5
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 34.8,
-        "low": 0.0,
-        "high": 105.8
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 66.7,
-        "low": 18.6,
-        "high": 157.9
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 105.7,
-        "low": 56.3,
-        "high": 200.5
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 98.1,
-        "low": 49.8,
-        "high": 193.7
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 65.8,
-        "low": 30.0,
-        "high": 147.6
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 39.0,
-        "low": 15.7,
-        "high": 108.4
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 10.3,
-        "low": 0.0,
-        "high": 66.3
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 2.8,
-        "low": 3.8,
-        "high": 45.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 26.1
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 1.8,
-        "low": 3.6,
-        "high": 28.7
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 11.7
-      }
-    ],
-    "Jhajjar": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.9
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 1.5
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.3,
-        "low": 0.0,
-        "high": 2.1
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.5,
-        "low": 0.0,
-        "high": 2.6
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.5,
-        "low": 0.0,
-        "high": 2.9
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.4,
-        "low": 0.0,
-        "high": 2.9
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.4,
-        "low": 0.0,
-        "high": 2.8
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.3,
-        "low": 0.0,
-        "high": 2.5
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 2.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.8
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.5
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.2
-      }
-    ],
-    "Patiala": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 58.1,
-        "low": 0.5,
-        "high": 239.8
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 198.7,
-        "low": 15.0,
-        "high": 519.4
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 389.8,
-        "low": 124.9,
-        "high": 814.2
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 585.4,
-        "low": 305.5,
-        "high": 1017.2
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 347.1,
-        "low": 107.4,
-        "high": 744.4
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 90.5,
-        "low": 0.0,
-        "high": 406.8
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 229.8
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 112.1
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 87.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 57.4
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 43.0
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 29.9
-      }
-    ],
-    "Palwal": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 9.3,
-        "low": 6.0,
-        "high": 16.5
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 10.1,
-        "low": 6.2,
-        "high": 17.8
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 5.6,
-        "low": 2.3,
-        "high": 12.6
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 2.1,
-        "low": 0.0,
-        "high": 7.9
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.4,
-        "low": 0.0,
-        "high": 4.4
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 2.8
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.3,
-        "low": 0.3,
-        "high": 2.4
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 2.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.7
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.7,
-        "low": 0.2,
-        "high": 2.2
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 1.5
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.2
-      }
-    ],
-    "Fazilka": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 12.0,
-        "low": 0.0,
-        "high": 55.3
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 15.0,
-        "low": 0.0,
-        "high": 104.7
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 72.4,
-        "low": 0.0,
-        "high": 232.6
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 135.5,
-        "low": 0.0,
-        "high": 361.6
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 236.0,
-        "low": 0.0,
-        "high": 524.9
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 386.8,
-        "low": 137.0,
-        "high": 703.2
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 510.1,
-        "low": 267.1,
-        "high": 826.5
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 356.2,
-        "low": 148.4,
-        "high": 630.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 95.5,
-        "low": 0.0,
-        "high": 314.8
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 26.4,
-        "low": 0.0,
-        "high": 170.2
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 9.3,
-        "low": 0.0,
-        "high": 95.3
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 3.1,
-        "low": 0.0,
-        "high": 42.2
-      }
-    ],
-    "Kapurthala": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 1.0,
-        "low": 0.0,
-        "high": 53.4
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 40.3,
-        "low": 0.0,
-        "high": 131.6
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 150.7,
-        "low": 59.1,
-        "high": 279.5
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 200.7,
-        "low": 92.7,
-        "high": 343.2
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 150.7,
-        "low": 52.1,
-        "high": 290.0
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 37.7,
-        "low": 0.0,
-        "high": 151.6
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 78.6
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 47.5
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 31.3
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 1.7,
-        "low": 0.0,
-        "high": 20.6
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.4,
-        "low": 2.5,
-        "high": 15.2
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 11.5
-      }
-    ],
-    "Barnala": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 71.0
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 28.3,
-        "low": 0.0,
-        "high": 166.1
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 117.6,
-        "low": 0.0,
-        "high": 332.1
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 332.0,
-        "low": 102.1,
-        "high": 600.9
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 483.1,
-        "low": 238.0,
-        "high": 783.9
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 297.6,
-        "low": 85.9,
-        "high": 571.5
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 145.5,
-        "low": 0.0,
-        "high": 365.2
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 5.4,
-        "low": 0.0,
-        "high": 157.1
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 83.9
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 50.1
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 21.2
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 12.6
-      }
-    ],
-    "Sirsa": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 19.1,
-        "low": 12.1,
-        "high": 37.8
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 20.6,
-        "low": 4.4,
-        "high": 47.6
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 25.7,
-        "low": 2.9,
-        "high": 62.9
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 41.7,
-        "low": 14.2,
-        "high": 86.2
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 55.9,
-        "low": 26.7,
-        "high": 105.2
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 42.5,
-        "low": 17.5,
-        "high": 89.0
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 30.2,
-        "low": 11.2,
-        "high": 71.3
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 13.2,
-        "low": 0.0,
-        "high": 47.4
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 2.5,
-        "low": 0.0,
-        "high": 29.5
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.6,
-        "low": 0.0,
-        "high": 19.6
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 14.5
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 10.8
-      }
-    ],
-    "Faridabad": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      }
-    ],
-    "Rupnagar": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.6,
-        "low": 0.0,
-        "high": 2.9
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 1.4,
-        "low": 0.0,
-        "high": 3.8
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 2.3,
-        "low": 0.9,
-        "high": 5.2
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 2.7,
-        "low": 1.6,
-        "high": 5.2
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 1.5,
-        "low": 0.6,
-        "high": 4.0
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.6,
-        "low": 0.0,
-        "high": 2.6
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.4,
-        "low": 0.0,
-        "high": 2.4
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 2.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.3,
-        "low": 0.3,
-        "high": 2.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.7
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 1.6
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.1
-      }
-    ],
-    "Sangrur": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 40.5,
-        "low": 0.0,
-        "high": 292.7
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 229.0,
-        "low": 0.0,
-        "high": 741.3
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 732.8,
-        "low": 175.9,
-        "high": 1470.3
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 1800.0,
-        "low": 1097.2,
-        "high": 2658.9
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 1963.8,
-        "low": 1307.1,
-        "high": 2813.3
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 737.2,
-        "low": 220.2,
-        "high": 1438.4
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 138.6,
-        "low": 0.0,
-        "high": 628.9
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 165.6
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 127.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 46.0
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 7.2,
-        "high": 12.1
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 4.9,
-        "low": 0.0,
-        "high": 50.1
-      }
-    ],
-    "Moga": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 95.6
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 23.9,
-        "low": 0.0,
-        "high": 232.2
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 157.7,
-        "low": 0.0,
-        "high": 479.1
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 454.1,
-        "low": 114.1,
-        "high": 860.2
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 707.9,
-        "low": 343.3,
-        "high": 1162.7
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 461.1,
-        "low": 137.9,
-        "high": 882.5
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 278.4,
-        "low": 31.3,
-        "high": 629.3
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 82.4,
-        "low": 0.0,
-        "high": 340.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 168.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 105.2
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 70.3
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 5.7,
-        "low": 0.0,
-        "high": 42.3
-      }
-    ],
-    "Rohtak": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.7,
-        "low": 0.0,
-        "high": 6.6
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 2.6,
-        "low": 0.0,
-        "high": 11.9
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 6.2,
-        "low": 0.0,
-        "high": 17.9
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 8.1,
-        "low": 0.0,
-        "high": 21.6
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 9.6,
-        "low": 0.0,
-        "high": 23.6
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 9.8,
-        "low": 0.0,
-        "high": 23.9
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 7.8,
-        "low": 0.0,
-        "high": 20.8
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 5.3,
-        "low": 0.0,
-        "high": 17.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 3.4,
-        "low": 0.0,
-        "high": 13.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 2.1,
-        "low": 0.0,
-        "high": 10.2
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 1.3,
-        "low": 0.0,
-        "high": 7.3
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.6,
-        "low": 0.0,
-        "high": 5.2
-      }
-    ],
-    "Tarn Taran": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 108.6,
-        "low": 35.3,
-        "high": 267.7
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 183.6,
-        "low": 44.2,
-        "high": 410.5
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 302.2,
-        "low": 126.0,
-        "high": 572.7
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 271.5,
-        "low": 103.0,
-        "high": 539.6
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 169.4,
-        "low": 27.9,
-        "high": 409.2
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 75.0,
-        "low": 0.0,
-        "high": 267.4
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 28.2,
-        "low": 0.0,
-        "high": 172.1
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 97.9
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 65.8
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.7,
-        "low": 0.9,
-        "high": 44.7
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 19.5
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 17.2
-      }
-    ],
-    "Gurdaspur": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 12.7,
-        "low": 0.0,
-        "high": 47.5
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 32.2,
-        "low": 1.1,
-        "high": 87.1
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 75.4,
-        "low": 32.6,
-        "high": 144.7
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 94.3,
-        "low": 49.3,
-        "high": 165.4
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 45.7,
-        "low": 7.4,
-        "high": 110.8
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 8.2,
-        "low": 0.0,
-        "high": 59.3
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 30.3
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 19.1
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 16.4
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 2.0,
-        "low": 0.9,
-        "high": 12.9
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 10.5
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 10.7
-      }
-    ],
-    "Sas Nagar (Sahibzada Ajit Singh Nagar)": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 2.3,
-        "low": 0.0,
-        "high": 10.8
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 2.8,
-        "low": 0.0,
-        "high": 12.4
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 4.3,
-        "low": 0.6,
-        "high": 14.5
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 3.6,
-        "low": 0.6,
-        "high": 13.1
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 2.2,
-        "low": 0.0,
-        "high": 11.1
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 1.4,
-        "low": 0.0,
-        "high": 9.1
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 1.5,
-        "low": 0.2,
-        "high": 8.4
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.6,
-        "low": 0.0,
-        "high": 6.2
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 3.8
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 2.7
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 2.3
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.4
-      }
-    ],
-    "Karnal": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 3.8,
-        "low": 0.7,
-        "high": 14.7
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 5.5,
-        "low": 1.1,
-        "high": 16.4
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 6.3,
-        "low": 1.7,
-        "high": 18.9
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 5.5,
-        "low": 2.2,
-        "high": 16.9
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 3.3,
-        "low": 0.1,
-        "high": 14.3
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 1.9,
-        "low": 0.0,
-        "high": 11.4
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 1.5,
-        "low": 0.0,
-        "high": 10.3
-      },
-      {
-        "week": "2026-11-30",
         "fire_pixels": 1.1,
         "low": 0.0,
         "high": 9.0
       },
       {
-        "week": "2026-12-07",
-        "fire_pixels": 0.9,
-        "low": 0.3,
-        "high": 8.4
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 6.6
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.3,
-        "low": 0.0,
-        "high": 5.9
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 4.3
-      }
-    ],
-    "Panipat": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 1.4,
-        "low": 0.0,
-        "high": 8.3
-      },
-      {
         "week": "2026-10-19",
-        "fire_pixels": 3.0,
+        "fire_pixels": 2.7,
         "low": 0.0,
-        "high": 13.4
+        "high": 14.3
       },
       {
         "week": "2026-10-26",
-        "fire_pixels": 5.1,
+        "fire_pixels": 4.6,
         "low": 0.0,
-        "high": 17.7
+        "high": 18.8
       },
       {
         "week": "2026-11-02",
-        "fire_pixels": 5.7,
-        "low": 0.0,
-        "high": 20.0
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 5.4,
-        "low": 0.0,
-        "high": 20.3
-      },
-      {
-        "week": "2026-11-16",
         "fire_pixels": 5.0,
         "low": 0.0,
-        "high": 20.3
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 5.2,
-        "low": 0.0,
-        "high": 19.6
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 4.3,
-        "low": 0.0,
-        "high": 17.7
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 2.6,
-        "low": 0.0,
-        "high": 14.0
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 1.0,
-        "low": 0.0,
-        "high": 10.6
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 7.6
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 5.9
-      }
-    ],
-    "Faridkot": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 1.1,
-        "low": 0.0,
-        "high": 55.5
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 34.3,
-        "low": 0.0,
-        "high": 132.0
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 117.4,
-        "low": 10.0,
-        "high": 270.1
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 212.2,
-        "low": 79.1,
-        "high": 396.7
+        "high": 21.2
       },
       {
         "week": "2026-11-09",
-        "fire_pixels": 232.9,
-        "low": 98.2,
-        "high": 429.1
+        "fire_pixels": 4.9,
+        "low": 0.0,
+        "high": 21.6
       },
       {
         "week": "2026-11-16",
-        "fire_pixels": 149.2,
-        "low": 36.4,
-        "high": 326.4
+        "fire_pixels": 4.4,
+        "low": 0.0,
+        "high": 21.3
       },
       {
         "week": "2026-11-23",
-        "fire_pixels": 79.9,
+        "fire_pixels": 4.4,
         "low": 0.0,
-        "high": 227.4
+        "high": 20.1
       },
       {
         "week": "2026-11-30",
-        "fire_pixels": 35.4,
+        "fire_pixels": 3.7,
         "low": 0.0,
-        "high": 145.4
+        "high": 18.0
       },
       {
         "week": "2026-12-07",
-        "fire_pixels": 3.6,
+        "fire_pixels": 2.4,
         "low": 0.0,
-        "high": 80.4
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 37.8
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 27.1
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 13.5
-      }
-    ],
-    "Charkhi Dadri": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      }
-    ],
-    "Bhiwani": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.1
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 2.3
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.4,
-        "low": 0.0,
-        "high": 3.7
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.7,
-        "low": 0.0,
-        "high": 5.1
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.9,
-        "low": 0.0,
-        "high": 6.2
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 1.1,
-        "low": 0.0,
-        "high": 7.0
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 1.4,
-        "low": 0.0,
-        "high": 7.6
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 1.5,
-        "low": 0.0,
-        "high": 7.8
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 1.2,
-        "low": 0.0,
-        "high": 7.2
+        "high": 14.4
       },
       {
         "week": "2026-12-14",
         "fire_pixels": 0.9,
-        "low": 0.0,
-        "high": 6.6
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.7,
-        "low": 0.0,
-        "high": 5.8
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.4,
-        "low": 0.0,
-        "high": 4.9
-      }
-    ],
-    "Kurukshetra": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.6,
-        "low": 0.2,
-        "high": 2.5
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.6,
-        "low": 0.0,
-        "high": 1.6
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.5,
-        "low": 0.0,
-        "high": 1.8
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 1.0,
-        "low": 0.6,
-        "high": 2.0
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.5,
-        "low": 0.0,
-        "high": 2.3
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.3,
-        "low": 0.0,
-        "high": 1.6
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.2,
-        "low": 0.0,
-        "high": 2.0
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.4
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 2.0
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.5
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 1.6
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.2
-      }
-    ],
-    "Sonipat": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 4.2,
-        "low": 0.9,
-        "high": 11.1
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 5.8,
-        "low": 0.0,
-        "high": 16.9
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 8.6,
-        "low": 0.0,
-        "high": 22.8
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 10.1,
-        "low": 0.0,
-        "high": 26.4
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 11.0,
-        "low": 0.0,
-        "high": 28.1
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 10.2,
-        "low": 0.0,
-        "high": 27.2
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 9.0,
-        "low": 0.0,
-        "high": 24.7
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 6.9,
-        "low": 0.0,
-        "high": 21.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 4.3,
-        "low": 0.0,
-        "high": 16.2
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 2.3,
-        "low": 0.0,
-        "high": 11.7
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 1.3,
-        "low": 0.0,
-        "high": 8.2
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.5,
-        "low": 0.0,
-        "high": 5.6
-      }
-    ],
-    "Mansa": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 13.4,
-        "low": 0.0,
-        "high": 120.0
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 108.1,
-        "low": 0.0,
-        "high": 323.6
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 365.8,
-        "low": 135.1,
-        "high": 678.9
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 712.4,
-        "low": 434.6,
-        "high": 1067.2
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 634.6,
-        "low": 381.2,
-        "high": 981.3
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 250.9,
-        "low": 53.5,
-        "high": 538.4
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 94.4,
-        "low": 0.0,
-        "high": 305.4
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 124.2
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 75.8
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.3,
-        "low": 0.0,
-        "high": 43.0
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 5.9,
-        "high": 16.0
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 4.1,
-        "low": 0.0,
-        "high": 22.3
-      }
-    ],
-    "Kaithal": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 16.3,
-        "low": 4.5,
-        "high": 57.9
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 57.9,
-        "low": 26.4,
-        "high": 121.2
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 80.4,
-        "low": 37.0,
-        "high": 160.7
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 85.1,
-        "low": 42.1,
-        "high": 163.8
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 37.4,
-        "low": 0.8,
-        "high": 111.4
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 9.7,
-        "low": 0.0,
-        "high": 70.7
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 44.5
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 29.7
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 23.3
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 16.2
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
         "low": 0.0,
         "high": 10.9
       },
       {
+        "week": "2026-12-21",
+        "fire_pixels": 0.3,
+        "low": 0.0,
+        "high": 8.1
+      },
+      {
         "week": "2026-12-28",
         "fire_pixels": 0.0,
         "low": 0.0,
-        "high": 11.5
+        "high": 6.3
       }
     ],
-    "Shahid Bhagat Singh Nagar": [
+    "Rewari": [
       {
         "week": "2026-10-12",
-        "fire_pixels": 1.8,
-        "low": 0.1,
-        "high": 9.3
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 0.2
       },
       {
         "week": "2026-10-19",
-        "fire_pixels": 6.4,
-        "low": 0.4,
-        "high": 18.1
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.1
       },
       {
         "week": "2026-10-26",
-        "fire_pixels": 13.0,
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.1
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.1
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.1
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.1
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.1
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      }
+    ],
+    "Hisar": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 20.7,
         "low": 4.6,
-        "high": 28.5
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 19.5,
-        "low": 11.0,
-        "high": 35.2
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 13.6,
-        "low": 5.9,
-        "high": 29.0
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 6.5,
-        "low": 0.8,
-        "high": 19.9
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 2.5,
-        "low": 0.0,
-        "high": 13.8
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 8.5
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 6.5
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 4.7
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 3.9
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 1.9
-      }
-    ],
-    "Panchkula": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.3
+        "high": 42.7
       },
       {
         "week": "2026-10-19",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.4
+        "fire_pixels": 36.2,
+        "low": 13.4,
+        "high": 64.6
       },
       {
         "week": "2026-10-26",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.4
+        "fire_pixels": 50.3,
+        "low": 23.0,
+        "high": 82.1
       },
       {
         "week": "2026-11-02",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.4
+        "fire_pixels": 55.3,
+        "low": 27.4,
+        "high": 87.8
       },
       {
         "week": "2026-11-09",
-        "fire_pixels": 0.1,
-        "low": 0.0,
-        "high": 0.4
+        "fire_pixels": 48.6,
+        "low": 22.5,
+        "high": 79.4
       },
       {
         "week": "2026-11-16",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.4
+        "fire_pixels": 29.4,
+        "low": 7.5,
+        "high": 56.8
       },
       {
         "week": "2026-11-23",
-        "fire_pixels": 0.1,
+        "fire_pixels": 13.5,
         "low": 0.0,
-        "high": 0.3
+        "high": 35.6
       },
       {
         "week": "2026-11-30",
-        "fire_pixels": 0.0,
+        "fire_pixels": 6.2,
         "low": 0.0,
-        "high": 0.3
+        "high": 23.6
       },
       {
         "week": "2026-12-07",
-        "fire_pixels": 0.0,
+        "fire_pixels": 3.7,
         "low": 0.0,
-        "high": 0.2
+        "high": 16.6
       },
       {
         "week": "2026-12-14",
-        "fire_pixels": 0.0,
+        "fire_pixels": 2.2,
         "low": 0.0,
-        "high": 0.2
+        "high": 11.2
       },
       {
         "week": "2026-12-21",
-        "fire_pixels": 0.0,
+        "fire_pixels": 0.4,
         "low": 0.0,
-        "high": 0.2
+        "high": 6.3
       },
       {
         "week": "2026-12-28",
-        "fire_pixels": 0.0,
+        "fire_pixels": 0.9,
         "low": 0.0,
-        "high": 0.2
+        "high": 4.6
       }
     ],
     "Mewat": [
@@ -2963,226 +299,1706 @@
         "high": 0.0
       }
     ],
-    "Ambala": [
+    "Sas Nagar (Sahibzada Ajit Singh Nagar)": [
       {
         "week": "2026-10-12",
-        "fire_pixels": 0.7,
-        "low": 0.2,
-        "high": 4.7
+        "fire_pixels": 2.2,
+        "low": 0.0,
+        "high": 9.9
       },
       {
         "week": "2026-10-19",
-        "fire_pixels": 1.0,
+        "fire_pixels": 2.8,
         "low": 0.0,
-        "high": 5.3
+        "high": 11.9
       },
       {
         "week": "2026-10-26",
-        "fire_pixels": 1.0,
-        "low": 0.0,
-        "high": 6.5
+        "fire_pixels": 4.1,
+        "low": 0.5,
+        "high": 13.8
       },
       {
         "week": "2026-11-02",
-        "fire_pixels": 1.3,
-        "low": 0.0,
-        "high": 6.8
+        "fire_pixels": 3.4,
+        "low": 0.5,
+        "high": 12.6
       },
       {
         "week": "2026-11-09",
-        "fire_pixels": 0.8,
+        "fire_pixels": 2.1,
         "low": 0.0,
-        "high": 6.6
+        "high": 10.6
       },
       {
         "week": "2026-11-16",
-        "fire_pixels": 0.5,
+        "fire_pixels": 1.5,
         "low": 0.0,
-        "high": 5.7
+        "high": 9.0
       },
       {
         "week": "2026-11-23",
-        "fire_pixels": 0.4,
+        "fire_pixels": 1.3,
+        "low": 0.0,
+        "high": 7.8
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.7,
+        "low": 0.0,
+        "high": 6.0
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 3.6
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 2.6
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 2.3
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.6
+      }
+    ],
+    "Jind": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 4.7,
+        "low": 0.0,
+        "high": 36.6
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 45.7,
+        "low": 0.7,
+        "high": 101.6
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 118.1,
+        "low": 50.9,
+        "high": 197.4
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 172.9,
+        "low": 94.7,
+        "high": 265.3
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 202.6,
+        "low": 125.5,
+        "high": 297.6
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 127.3,
+        "low": 62.5,
+        "high": 212.7
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 56.2,
+        "low": 11.3,
+        "high": 122.3
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 9.1,
+        "low": 0.0,
+        "high": 54.8
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 5.3,
+        "low": 0.0,
+        "high": 34.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 1.8,
+        "low": 0.0,
+        "high": 18.5
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 1.9,
+        "low": 1.7,
+        "high": 11.3
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 2.3,
+        "low": 0.0,
+        "high": 9.2
+      }
+    ],
+    "Barnala": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 60.4
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 26.6,
+        "low": 0.0,
+        "high": 147.6
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 110.2,
+        "low": 0.0,
+        "high": 303.2
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 317.1,
+        "low": 110.3,
+        "high": 562.9
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 452.0,
+        "low": 229.9,
+        "high": 725.1
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 280.6,
+        "low": 88.9,
+        "high": 527.6
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 141.7,
+        "low": 6.0,
+        "high": 342.1
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 6.9,
+        "low": 0.0,
+        "high": 145.6
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 75.8
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 40.8
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 22.5
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 14.9
+      }
+    ],
+    "Mahendragarh": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      }
+    ],
+    "Kurukshetra": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 1.0,
+        "low": 0.4,
+        "high": 2.9
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.9,
+        "low": 0.0,
+        "high": 2.3
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.9,
+        "low": 0.0,
+        "high": 2.5
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.6,
+        "low": 0.0,
+        "high": 1.7
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.5,
+        "low": 0.0,
+        "high": 2.2
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.3
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.7
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.2
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.6
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.2,
+        "low": 0.0,
+        "high": 1.7
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.2,
+        "low": 0.0,
+        "high": 1.7
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.1
+      }
+    ],
+    "Mansa": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 8.9,
+        "low": 0.0,
+        "high": 103.7
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 99.9,
+        "low": 0.0,
+        "high": 308.0
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 348.3,
+        "low": 125.3,
+        "high": 658.8
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 693.9,
+        "low": 416.3,
+        "high": 1051.9
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 618.7,
+        "low": 365.0,
+        "high": 968.3
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 246.6,
+        "low": 51.8,
+        "high": 536.9
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 90.4,
+        "low": 0.0,
+        "high": 301.5
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 116.1
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 65.1
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 34.2
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 12.2
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 20.0
+      }
+    ],
+    "Gurugram": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      }
+    ],
+    "Hoshiarpur": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 2.1,
+        "low": 0.0,
+        "high": 19.3
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 8.5,
+        "low": 0.0,
+        "high": 36.0
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 29.5,
+        "low": 8.8,
+        "high": 65.2
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 41.8,
+        "low": 19.7,
+        "high": 78.9
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 23.6,
+        "low": 4.4,
+        "high": 58.1
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 5.5,
+        "low": 0.0,
+        "high": 33.9
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 20.4
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 11.3
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 9.6
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 7.8
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
         "low": 0.0,
         "high": 5.5
       },
       {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 4.1
+      }
+    ],
+    "Charkhi Dadri": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
         "week": "2026-11-30",
         "fire_pixels": 0.0,
         "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      }
+    ],
+    "Fazilka": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 8.0,
+        "low": 0.0,
+        "high": 58.0
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 13.9,
+        "low": 0.0,
+        "high": 107.2
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 63.4,
+        "low": 0.0,
+        "high": 225.1
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 132.7,
+        "low": 0.0,
+        "high": 357.4
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 233.9,
+        "low": 0.0,
+        "high": 521.9
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 388.4,
+        "low": 137.4,
+        "high": 701.3
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 518.9,
+        "low": 274.5,
+        "high": 834.3
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 355.2,
+        "low": 146.0,
+        "high": 628.2
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 93.8,
+        "low": 0.0,
+        "high": 312.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 25.2,
+        "low": 0.0,
+        "high": 168.6
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 7.6,
+        "low": 0.0,
+        "high": 97.1
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 2.4,
+        "low": 0.0,
+        "high": 45.6
+      }
+    ],
+    "Palwal": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 9.1,
+        "low": 5.9,
+        "high": 16.2
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 9.8,
+        "low": 6.1,
+        "high": 17.3
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 5.4,
+        "low": 2.2,
+        "high": 12.0
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 2.2,
+        "low": 0.1,
+        "high": 7.7
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.4,
+        "low": 0.0,
+        "high": 4.3
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 3.0
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.5,
+        "low": 0.4,
+        "high": 2.7
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 2.1
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.2,
+        "low": 0.0,
+        "high": 2.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.7,
+        "low": 0.3,
+        "high": 2.2
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.3,
+        "low": 0.0,
+        "high": 1.5
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.0
+      }
+    ],
+    "Rohtak": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.9,
+        "low": 0.0,
+        "high": 7.0
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 3.2,
+        "low": 0.0,
+        "high": 12.7
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 6.7,
+        "low": 0.0,
+        "high": 18.6
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 8.5,
+        "low": 0.0,
+        "high": 22.2
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 10.0,
+        "low": 0.0,
+        "high": 24.3
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 10.2,
+        "low": 0.0,
+        "high": 24.6
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 8.2,
+        "low": 0.0,
+        "high": 21.5
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 5.6,
+        "low": 0.0,
+        "high": 17.6
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 3.5,
+        "low": 0.0,
+        "high": 13.5
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 2.1,
+        "low": 0.0,
+        "high": 10.2
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 1.1,
+        "low": 0.0,
+        "high": 7.0
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.6,
+        "low": 0.0,
+        "high": 5.1
+      }
+    ],
+    "Faridabad": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.0
+      }
+    ],
+    "Ludhiana": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 7.5,
+        "low": 0.0,
+        "high": 60.0
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 39.8,
+        "low": 0.6,
+        "high": 114.6
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 82.5,
+        "low": 27.6,
+        "high": 184.4
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 136.7,
+        "low": 76.7,
+        "high": 248.8
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 126.8,
+        "low": 66.9,
+        "high": 243.1
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 84.3,
+        "low": 36.6,
+        "high": 188.5
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 43.8,
+        "low": 14.0,
+        "high": 135.6
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 13.0,
+        "low": 0.0,
+        "high": 85.3
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.2,
+        "low": 0.0,
+        "high": 57.4
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 32.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 2.8,
+        "high": 30.4
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 11.4
+      }
+    ],
+    "Sangrur": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 58.6,
+        "low": 0.0,
+        "high": 332.5
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 242.1,
+        "low": 0.0,
+        "high": 754.9
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 751.9,
+        "low": 185.9,
+        "high": 1476.1
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 1814.6,
+        "low": 1131.1,
+        "high": 2631.8
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 1946.0,
+        "low": 1304.6,
+        "high": 2759.7
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 751.6,
+        "low": 241.0,
+        "high": 1426.7
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 158.6,
+        "low": 0.0,
+        "high": 643.2
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 173.8
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 146.5
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 53.5
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 4.3,
+        "high": 1.0
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 30.0
+      }
+    ],
+    "Yamunanagar": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.4
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.1
+      }
+    ],
+    "Gurdaspur": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 12.2,
+        "low": 0.0,
+        "high": 46.6
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 33.6,
+        "low": 2.9,
+        "high": 89.2
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 76.7,
+        "low": 33.3,
+        "high": 147.4
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 95.0,
+        "low": 49.9,
+        "high": 168.1
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 47.3,
+        "low": 8.3,
+        "high": 112.9
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 10.4,
+        "low": 0.0,
+        "high": 62.9
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 32.7
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 19.8
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 15.4
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 1.4,
+        "low": 0.2,
+        "high": 13.3
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 7.9
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 7.0
+      }
+    ],
+    "Faridkot": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 52.8
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 29.3,
+        "low": 0.0,
+        "high": 125.5
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 104.4,
+        "low": 0.9,
+        "high": 251.4
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 193.0,
+        "low": 66.9,
+        "high": 370.5
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 209.9,
+        "low": 79.9,
+        "high": 399.7
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 134.2,
+        "low": 23.8,
+        "high": 306.3
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 69.4,
+        "low": 0.0,
+        "high": 213.1
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 30.3,
+        "low": 0.0,
+        "high": 137.4
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 3.9,
+        "low": 0.0,
+        "high": 79.9
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 39.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 28.8
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 20.8
+      }
+    ],
+    "Panchkula": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 0.4
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 0.4
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.4
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.4
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.1,
+        "high": 0.2
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      }
+    ],
+    "Pathankot": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 0.5
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.2,
+        "low": 0.0,
+        "high": 0.6
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.2,
+        "low": 0.0,
+        "high": 0.5
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.2,
+        "low": 0.0,
+        "high": 0.6
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 0.5
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 0.4
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.3
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.2
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 0.1
+      }
+    ],
+    "Tarn Taran": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 105.8,
+        "low": 24.7,
+        "high": 263.3
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 188.5,
+        "low": 44.2,
+        "high": 411.7
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 299.3,
+        "low": 121.3,
+        "high": 561.6
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 267.2,
+        "low": 95.6,
+        "high": 528.9
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 174.6,
+        "low": 28.2,
+        "high": 411.2
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 86.3,
+        "low": 0.0,
+        "high": 281.8
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 37.0,
+        "low": 0.0,
+        "high": 187.7
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 108.9
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 75.8
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 51.6
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 20.5
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 13.7
+      }
+    ],
+    "Fatehabad": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 2.7,
+        "low": 0.0,
+        "high": 50.0
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 40.8,
+        "low": 0.0,
+        "high": 129.9
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 97.3,
+        "low": 0.0,
+        "high": 230.3
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 171.2,
+        "low": 50.7,
+        "high": 334.6
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 192.2,
+        "low": 71.4,
+        "high": 362.4
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 95.1,
+        "low": 0.0,
+        "high": 249.5
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 43.3,
+        "low": 0.0,
+        "high": 170.2
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 11.6,
+        "low": 0.0,
+        "high": 107.4
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 64.6
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 40.1
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 26.1
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 17.5
+      }
+    ],
+    "Rupnagar": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 1.9
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 1.4,
+        "low": 0.2,
+        "high": 3.2
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 2.2,
+        "low": 1.0,
         "high": 4.6
       },
       {
-        "week": "2026-12-07",
-        "fire_pixels": 0.1,
-        "low": 0.0,
+        "week": "2026-11-02",
+        "fire_pixels": 2.4,
+        "low": 1.6,
         "high": 4.4
       },
       {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 3.4
+        "week": "2026-11-09",
+        "fire_pixels": 1.4,
+        "low": 0.8,
+        "high": 3.6
       },
       {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 3.1
+        "week": "2026-11-16",
+        "fire_pixels": 0.8,
+        "low": 0.3,
+        "high": 2.7
       },
       {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
+        "week": "2026-11-23",
+        "fire_pixels": 0.3,
         "low": 0.0,
+        "high": 2.2
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 1.8
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.2,
+        "low": 0.2,
         "high": 2.0
-      }
-    ],
-    "Rewari": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.1
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.1
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.1
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.1
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.1
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.1
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 0.0
       },
       {
         "week": "2026-12-14",
         "fire_pixels": 0.0,
         "low": 0.0,
-        "high": 0.0
+        "high": 1.6
       },
       {
         "week": "2026-12-21",
-        "fire_pixels": 0.0,
+        "fire_pixels": 0.2,
         "low": 0.0,
-        "high": 0.1
+        "high": 1.8
       },
       {
         "week": "2026-12-28",
         "fire_pixels": 0.0,
         "low": 0.0,
-        "high": 0.0
-      }
-    ],
-    "Amritsar": [
-      {
-        "week": "2026-10-12",
-        "fire_pixels": 91.5,
-        "low": 45.1,
-        "high": 168.9
-      },
-      {
-        "week": "2026-10-19",
-        "fire_pixels": 118.9,
-        "low": 56.0,
-        "high": 211.7
-      },
-      {
-        "week": "2026-10-26",
-        "fire_pixels": 139.9,
-        "low": 70.0,
-        "high": 240.4
-      },
-      {
-        "week": "2026-11-02",
-        "fire_pixels": 112.3,
-        "low": 48.0,
-        "high": 207.6
-      },
-      {
-        "week": "2026-11-09",
-        "fire_pixels": 77.7,
-        "low": 22.9,
-        "high": 163.7
-      },
-      {
-        "week": "2026-11-16",
-        "fire_pixels": 33.1,
-        "low": 0.0,
-        "high": 102.8
-      },
-      {
-        "week": "2026-11-23",
-        "fire_pixels": 11.6,
-        "low": 0.0,
-        "high": 65.2
-      },
-      {
-        "week": "2026-11-30",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 36.1
-      },
-      {
-        "week": "2026-12-07",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 29.5
-      },
-      {
-        "week": "2026-12-14",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 18.7
-      },
-      {
-        "week": "2026-12-21",
-        "fire_pixels": 0.0,
-        "low": 0.0,
-        "high": 11.8
-      },
-      {
-        "week": "2026-12-28",
-        "fire_pixels": 0.0,
-        "low": 0.1,
-        "high": 7.2
+        "high": 1.0
       }
     ],
     "Firozpur": [
@@ -3190,74 +2006,1304 @@
         "week": "2026-10-12",
         "fire_pixels": 0.0,
         "low": 0.0,
-        "high": 177.1
+        "high": 156.5
       },
       {
         "week": "2026-10-19",
-        "fire_pixels": 119.4,
+        "fire_pixels": 118.3,
         "low": 0.0,
-        "high": 464.5
+        "high": 436.9
       },
       {
         "week": "2026-10-26",
-        "fire_pixels": 474.0,
-        "low": 97.2,
-        "high": 960.4
+        "fire_pixels": 457.1,
+        "low": 100.5,
+        "high": 910.1
       },
       {
         "week": "2026-11-02",
-        "fire_pixels": 933.3,
-        "low": 472.6,
-        "high": 1492.6
+        "fire_pixels": 898.5,
+        "low": 464.8,
+        "high": 1420.6
       },
       {
         "week": "2026-11-09",
-        "fire_pixels": 1063.1,
-        "low": 611.3,
-        "high": 1638.4
+        "fire_pixels": 1045.3,
+        "low": 616.8,
+        "high": 1588.1
       },
       {
         "week": "2026-11-16",
-        "fire_pixels": 488.4,
-        "low": 108.1,
-        "high": 995.8
+        "fire_pixels": 479.1,
+        "low": 117.9,
+        "high": 958.2
       },
       {
         "week": "2026-11-23",
-        "fire_pixels": 249.9,
+        "fire_pixels": 252.6,
         "low": 0.0,
-        "high": 651.2
+        "high": 635.4
       },
       {
         "week": "2026-11-30",
-        "fire_pixels": 80.8,
+        "fire_pixels": 79.2,
         "low": 0.0,
-        "high": 362.4
+        "high": 348.9
       },
       {
         "week": "2026-12-07",
         "fire_pixels": 0.0,
         "low": 0.0,
-        "high": 150.4
+        "high": 157.7
       },
       {
         "week": "2026-12-14",
-        "fire_pixels": 0.0,
+        "fire_pixels": 0.8,
         "low": 0.0,
-        "high": 88.7
+        "high": 87.1
       },
       {
         "week": "2026-12-21",
         "fire_pixels": 0.0,
         "low": 0.0,
-        "high": 22.0
+        "high": 17.8
       },
       {
         "week": "2026-12-28",
-        "fire_pixels": 4.7,
+        "fire_pixels": 2.4,
         "low": 0.0,
-        "high": 35.4
+        "high": 28.6
+      }
+    ],
+    "Patiala": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 57.9,
+        "low": 0.0,
+        "high": 226.3
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 202.5,
+        "low": 9.1,
+        "high": 519.5
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 414.7,
+        "low": 134.7,
+        "high": 842.6
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 627.0,
+        "low": 329.2,
+        "high": 1064.2
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 363.5,
+        "low": 111.0,
+        "high": 762.1
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 96.1,
+        "low": 0.0,
+        "high": 411.7
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 217.5
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 108.3
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 93.1
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 62.6
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 51.3
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 2.5,
+        "low": 0.0,
+        "high": 41.5
+      }
+    ],
+    "Amritsar": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 97.1,
+        "low": 47.6,
+        "high": 177.6
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 129.2,
+        "low": 64.6,
+        "high": 223.3
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 151.3,
+        "low": 80.2,
+        "high": 252.1
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 122.0,
+        "low": 58.3,
+        "high": 216.2
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 81.1,
+        "low": 28.7,
+        "high": 163.8
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 33.1,
+        "low": 0.0,
+        "high": 98.3
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 11.2,
+        "low": 0.0,
+        "high": 59.7
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 30.7
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 24.5
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 14.7
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 8.7
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 2.1,
+        "high": 5.5
+      }
+    ],
+    "Kapurthala": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 1.3,
+        "low": 0.0,
+        "high": 54.8
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 42.6,
+        "low": 0.0,
+        "high": 139.7
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 160.3,
+        "low": 64.5,
+        "high": 299.8
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 210.0,
+        "low": 97.0,
+        "high": 363.8
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 152.6,
+        "low": 51.9,
+        "high": 301.1
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 34.4,
+        "low": 0.0,
+        "high": 153.9
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 80.6
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 45.5
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 26.8
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 16.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 3.1,
+        "high": 13.1
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 9.7
+      }
+    ],
+    "Sri Muktsar Sahib": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 56.5
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 29.3,
+        "low": 0.0,
+        "high": 148.7
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 122.7,
+        "low": 0.0,
+        "high": 329.5
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 297.1,
+        "low": 74.6,
+        "high": 573.8
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 439.9,
+        "low": 193.1,
+        "high": 765.2
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 324.6,
+        "low": 105.3,
+        "high": 630.3
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 210.8,
+        "low": 42.9,
+        "high": 476.2
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 97.9,
+        "low": 0.0,
+        "high": 301.2
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 33.1,
+        "low": 0.0,
+        "high": 183.2
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 74.6
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 47.2
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 28.5
+      }
+    ],
+    "Sonipat": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 4.3,
+        "low": 1.4,
+        "high": 10.7
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 5.7,
+        "low": 0.0,
+        "high": 16.3
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 8.3,
+        "low": 0.0,
+        "high": 21.8
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 9.8,
+        "low": 0.0,
+        "high": 25.5
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 10.8,
+        "low": 0.0,
+        "high": 27.3
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 9.9,
+        "low": 0.0,
+        "high": 26.6
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 8.8,
+        "low": 0.0,
+        "high": 24.3
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 6.8,
+        "low": 0.0,
+        "high": 20.7
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 4.5,
+        "low": 0.0,
+        "high": 16.3
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 2.6,
+        "low": 0.0,
+        "high": 12.1
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 1.6,
+        "low": 0.0,
+        "high": 8.6
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.8,
+        "low": 0.0,
+        "high": 6.0
+      }
+    ],
+    "Fatehgarh Sahib": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 8.1,
+        "low": 0.6,
+        "high": 38.7
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 31.0,
+        "low": 7.7,
+        "high": 77.4
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 62.7,
+        "low": 29.3,
+        "high": 124.2
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 79.6,
+        "low": 47.2,
+        "high": 141.1
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 41.2,
+        "low": 13.4,
+        "high": 98.8
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 13.4,
+        "low": 0.0,
+        "high": 59.7
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 1.1,
+        "low": 0.0,
+        "high": 36.6
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 23.4
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 19.4
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 12.5
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 11.5
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 4.9
+      }
+    ],
+    "Jhajjar": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.1
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 1.8
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.3,
+        "low": 0.0,
+        "high": 2.6
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.5,
+        "low": 0.0,
+        "high": 3.2
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.5,
+        "low": 0.0,
+        "high": 3.4
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.4,
+        "low": 0.0,
+        "high": 3.4
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.4,
+        "low": 0.0,
+        "high": 3.3
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.2,
+        "low": 0.0,
+        "high": 3.0
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 2.5
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 2.2
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.8
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.5
+      }
+    ],
+    "Sirsa": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 17.4,
+        "low": 9.7,
+        "high": 39.7
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 18.4,
+        "low": 3.3,
+        "high": 47.6
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 22.7,
+        "low": 2.0,
+        "high": 60.0
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 37.0,
+        "low": 12.4,
+        "high": 79.9
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 50.5,
+        "low": 24.0,
+        "high": 97.1
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 39.0,
+        "low": 16.3,
+        "high": 83.4
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 29.3,
+        "low": 11.0,
+        "high": 69.6
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 14.6,
+        "low": 1.3,
+        "high": 48.6
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 4.4,
+        "low": 0.0,
+        "high": 31.4
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 2.0,
+        "low": 0.0,
+        "high": 22.2
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 16.7
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.5,
+        "low": 0.0,
+        "high": 13.5
+      }
+    ],
+    "Shahid Bhagat Singh Nagar": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 1.3,
+        "low": 0.0,
+        "high": 9.7
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 6.7,
+        "low": 0.0,
+        "high": 20.1
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 14.6,
+        "low": 5.3,
+        "high": 32.5
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 22.2,
+        "low": 12.3,
+        "high": 40.8
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 15.4,
+        "low": 6.5,
+        "high": 33.3
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 7.3,
+        "low": 0.8,
+        "high": 22.7
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 2.4,
+        "low": 0.0,
+        "high": 15.1
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 10.0
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 7.4
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 4.9
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 3.8
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.5
+      }
+    ],
+    "Karnal": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 3.7,
+        "low": 0.9,
+        "high": 15.3
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 4.7,
+        "low": 0.2,
+        "high": 16.6
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 5.1,
+        "low": 0.4,
+        "high": 18.6
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 4.7,
+        "low": 1.4,
+        "high": 17.5
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 3.1,
+        "low": 0.0,
+        "high": 15.5
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 1.4,
+        "low": 0.0,
+        "high": 12.3
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 1.4,
+        "low": 0.0,
+        "high": 11.5
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.6,
+        "low": 0.0,
+        "high": 9.6
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.4,
+        "low": 0.0,
+        "high": 8.7
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 7.1
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.6,
+        "low": 0.0,
+        "high": 6.8
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 4.0
+      }
+    ],
+    "Jalandhar": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 1.3,
+        "low": 0.0,
+        "high": 23.2
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 21.3,
+        "low": 1.4,
+        "high": 60.4
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 51.4,
+        "low": 19.7,
+        "high": 110.3
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 79.2,
+        "low": 43.8,
+        "high": 144.5
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 60.2,
+        "low": 26.6,
+        "high": 126.5
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 33.9,
+        "low": 7.2,
+        "high": 91.6
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 11.7,
+        "low": 0.0,
+        "high": 59.9
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.3,
+        "low": 0.0,
+        "high": 40.6
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 29.6
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 20.4
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 1.0,
+        "high": 15.7
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 8.5
+      }
+    ],
+    "Moga": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 100.6
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 26.4,
+        "low": 0.0,
+        "high": 250.5
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 161.4,
+        "low": 0.0,
+        "high": 494.6
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 454.0,
+        "low": 104.8,
+        "high": 871.1
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 720.6,
+        "low": 343.9,
+        "high": 1185.1
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 460.3,
+        "low": 122.9,
+        "high": 893.1
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 266.0,
+        "low": 9.7,
+        "high": 625.3
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 71.1,
+        "low": 0.0,
+        "high": 335.6
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 153.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 91.0
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 57.3
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 31.6
+      }
+    ],
+    "Ambala": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.6,
+        "low": 0.0,
+        "high": 5.5
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 1.3,
+        "low": 0.0,
+        "high": 6.8
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 1.4,
+        "low": 0.0,
+        "high": 8.7
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 1.7,
+        "low": 0.0,
+        "high": 9.2
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.9,
+        "low": 0.0,
+        "high": 8.7
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 0.5,
+        "low": 0.0,
+        "high": 7.6
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 0.4,
+        "low": 0.0,
+        "high": 6.9
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 5.5
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.1,
+        "low": 0.2,
+        "high": 5.1
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 4.2
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 3.7
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 2.6
+      }
+    ],
+    "Bhiwani": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 1.2
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 0.1,
+        "low": 0.0,
+        "high": 2.3
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 0.3,
+        "low": 0.0,
+        "high": 3.7
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 0.7,
+        "low": 0.0,
+        "high": 5.1
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 0.9,
+        "low": 0.0,
+        "high": 6.2
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 1.0,
+        "low": 0.0,
+        "high": 7.0
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 1.3,
+        "low": 0.0,
+        "high": 7.5
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 1.3,
+        "low": 0.0,
+        "high": 7.5
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 1.0,
+        "low": 0.0,
+        "high": 7.0
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.7,
+        "low": 0.0,
+        "high": 6.3
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.6,
+        "low": 0.0,
+        "high": 5.5
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.3,
+        "low": 0.0,
+        "high": 4.7
+      }
+    ],
+    "Bathinda": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 10.8,
+        "low": 0.0,
+        "high": 129.9
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 66.3,
+        "low": 0.0,
+        "high": 267.5
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 189.9,
+        "low": 9.2,
+        "high": 481.5
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 333.9,
+        "low": 111.9,
+        "high": 674.0
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 397.7,
+        "low": 178.9,
+        "high": 742.9
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 214.2,
+        "low": 39.7,
+        "high": 514.6
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 101.1,
+        "low": 0.0,
+        "high": 334.5
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 16.2,
+        "low": 0.0,
+        "high": 181.7
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 110.8
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 69.6
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 53.6
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 1.9,
+        "low": 0.0,
+        "high": 38.5
+      }
+    ],
+    "Kaithal": [
+      {
+        "week": "2026-10-12",
+        "fire_pixels": 14.8,
+        "low": 5.3,
+        "high": 58.9
+      },
+      {
+        "week": "2026-10-19",
+        "fire_pixels": 52.0,
+        "low": 21.8,
+        "high": 119.6
+      },
+      {
+        "week": "2026-10-26",
+        "fire_pixels": 73.3,
+        "low": 31.4,
+        "high": 157.2
+      },
+      {
+        "week": "2026-11-02",
+        "fire_pixels": 76.8,
+        "low": 35.0,
+        "high": 159.8
+      },
+      {
+        "week": "2026-11-09",
+        "fire_pixels": 32.5,
+        "low": 0.0,
+        "high": 109.7
+      },
+      {
+        "week": "2026-11-16",
+        "fire_pixels": 9.5,
+        "low": 0.0,
+        "high": 73.8
+      },
+      {
+        "week": "2026-11-23",
+        "fire_pixels": 1.1,
+        "low": 0.0,
+        "high": 48.0
+      },
+      {
+        "week": "2026-11-30",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 32.3
+      },
+      {
+        "week": "2026-12-07",
+        "fire_pixels": 1.2,
+        "low": 0.0,
+        "high": 26.5
+      },
+      {
+        "week": "2026-12-14",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 19.3
+      },
+      {
+        "week": "2026-12-21",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 13.8
+      },
+      {
+        "week": "2026-12-28",
+        "fire_pixels": 0.0,
+        "low": 0.0,
+        "high": 14.0
       }
     ]
+  },
+  "observed_to_date": {
+    "Fatehabad": 0.0,
+    "Yamunanagar": 0.0,
+    "Fatehgarh Sahib": 0.0,
+    "Karnal": 6.0,
+    "Tarn Taran": 54.0,
+    "Amritsar": 141.0,
+    "Kaithal": 0.0,
+    "Patiala": 0.0,
+    "Mahendragarh": 0.0,
+    "Gurdaspur": 0.0,
+    "Sas Nagar (Sahibzada Ajit Singh Nagar)": 24.0,
+    "Moga": 0.0,
+    "Ludhiana": 0.0,
+    "Hisar": 12.0,
+    "Sangrur": 0.0,
+    "Faridabad": 0.0,
+    "Rewari": 9.0,
+    "Rohtak": 0.0,
+    "Ambala": 0.0,
+    "Pathankot": 0.0,
+    "Mansa": 0.0,
+    "Charkhi Dadri": 0.0,
+    "Gurugram": 0.0,
+    "Jhajjar": 0.0,
+    "Panipat": 4.0,
+    "Sirsa": 38.0,
+    "Kapurthala": 2.0,
+    "Palwal": 10.0,
+    "Hoshiarpur": 0.0,
+    "Jalandhar": 0.0,
+    "Bhiwani": 0.0,
+    "Panchkula": 0.0,
+    "Sonipat": 4.0,
+    "Kurukshetra": 0.0,
+    "Barnala": 0.0,
+    "Firozpur": 9.0,
+    "Faridkot": 4.0,
+    "Sri Muktsar Sahib": 0.0,
+    "Bathinda": 8.0,
+    "Rupnagar": 0.0,
+    "Shahid Bhagat Singh Nagar": 0.0,
+    "Jind": 0.0,
+    "Fazilka": 21.0,
+    "Mewat": 0.0
   }
 }
