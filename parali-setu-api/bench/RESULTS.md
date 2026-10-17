@@ -12,7 +12,7 @@ Every number below comes from a script in `bench/` run against the real system; 
 | Listing fields read right (acres, district, sowing date, phone, name) | **100%** each |
 | Replies in the farmer's language | 100% of chats |
 | Gemini drafts with a number no tool returned | 21 of 181 turns, all caught |
-| Replies that reached a farmer with an unverified number | **0** (independent re-check) |
+| Replies that reached a farmer with an unverified number | **0** (re-checked over the whole conversation with the guard's rules) |
 | Trick conversations handled | **10/10** |
 | Agent turn time, median / 95th percentile | 2.5 s / 10.9 s |
 | Gemini call, median | 1.1 s; 2.04 calls a turn |

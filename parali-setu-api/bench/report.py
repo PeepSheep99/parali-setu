@@ -37,7 +37,7 @@ def main():
                 f"| Listing fields read right (acres, district, sowing date, phone, name) | **{min(s['field_accuracy_pct'].values()):.0f}%** each |",
                 f"| Replies in the farmer's language | {s['reply_language_ok_pct']:.0f}% of chats |",
                 f"| Gemini drafts with a number no tool returned | {s['drafts_with_ungrounded_numbers']} of {s['turns']} turns, all caught |",
-                f"| Replies that reached a farmer with an unverified number | **{s['replies_leaking_a_number']}** (independent re-check) |",
+                f"| Replies that reached a farmer with an unverified number | **{s['replies_leaking_a_number']}** (re-checked over the whole conversation with the guard's rules) |",
                 f"| Trick conversations handled | **{s['adversarial_passed']}** |",
                 f"| Agent turn time, median / 95th percentile | {s['turn_ms']['p50'] / 1000:.1f} s / {s['turn_ms']['p95'] / 1000:.1f} s |",
                 f"| Gemini call, median | {s['model_call_ms']['p50'] / 1000:.1f} s; {s['model_calls_per_turn']} calls a turn |",
