@@ -1,25 +1,34 @@
 # Parali Setu
 
-**A guaranteed stubble pickup before sowing, so the farmer gets paid instead of burning.**
+**Every October, Punjab's paddy fields burn. Parali Setu buys the straw instead.**
+
+A farmer books a pickup by talking in Punjabi, Hindi or English. We clear the field before
+wheat sowing and pay the same day. We store the straw at our depots and supply industry all
+year. No vendors to chase, no machines to rent.
 
 Google Cloud AI Builder Cup 2026 · Sustainability & Social Impact · Team Ctrl Alt Conquer (Navneet Kumar, Sainath)
 
 | | |
 |---|---|
 | Live site | https://parali-setu.web.app |
-| Farmer app (mobile) | https://parali-setu.web.app/kisan/ |
-| Buyer console (desktop) | https://parali-setu.web.app/buyer/ |
-| API health | https://parali-setu-api-866617346749.asia-southeast1.run.app/health |
+| Farmer app | https://parali-setu.web.app/kisan/ (`?view=phone` talks, `?view=laptop` step by step) |
+| Operations console | https://parali-setu.web.app/ops/ |
+| Customer portal | https://parali-setu.web.app/company/ |
 | Architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
-*Parali* is Punjabi for paddy stubble; *setu* means bridge.
+*Parali* is Punjabi for paddy straw; *setu* means bridge.
 
 ## The problem
 
-Punjab's farm-fire **count** fell from 36,663 in 2023 to about 5,085 in 2025. The burnt
-**area** did not: 19.14 lakh hectares in 2023 against 19.17 lakh hectares in 2024. That
-points to burning timed to avoid satellite passes, rather than less burning. Meanwhile industry's use of paddy straw grew
-from 0.92 Mt to about 7.06 Mt. The buyers exist.
+**The toll:**
+- Living in a district with intense crop burning triples the risk of acute respiratory infection, and children under five are most affected ([IFPRI](https://www.ifpri.org/news-release/new-study-air-pollution-indias-stubble-burning-leads-usd-15-billion-economic-losses)).
+- Each tonne burned releases about 0.18 t CO₂e of methane and nitrous oxide and about 8 kg of PM2.5.
+
+**Fewer fires counted, the same area burned:**
+- Punjab's counted farm fires fell from 36,663 in 2023 to about 5,085 in 2025.
+- The area burned was unchanged: 19.17 lakh ha in 2024 against 19.14 lakh ha in 2023.
+
+**Industry already wants the straw:** ex-situ use reached 5.96 Mt in 2024, against a target of about 7 Mt in 2025.
 
 So why does a farmer still burn? Per acre of paddy:
 
@@ -31,144 +40,153 @@ So why does a farmer still burn? Per acre of paddy:
 | Burning | about ₹500 and one day |
 | Time before wheat must be sown | 10–15 days |
 
-Selling the straw nets the farmer roughly nothing, and a baler that arrives after the
-sowing date is worthless to them. **The bottleneck is a guaranteed, free pickup inside
-that window, coordinated across a scarce fleet of balers.** That is what Parali Setu
-optimizes.
+Selling the straw nets the farmer roughly nothing, and a baler that arrives after sowing is
+worthless. **Parali Setu takes the whole job off the farmer and makes money on the other
+side:** collecting efficiently, storing, and selling year-round to plants that today buy in a
+six-week rush.
 
-## What it does
+## How it works
 
-1. **Speak once.** The farmer holds one button in the Kisan app and says, in Punjabi or
-   Hindi, how many acres they have, which crop, the village and when the field must be clear.
-2. **Confirm once.** The app reads the details back. If something is missing, it asks
-   **one** question. An optional photo lets Gemini grade the stubble.
-3. **Matched and scheduled.** A linear program picks the buyer whose crews can reach the
-   farm. A routing model books a 3-hour pickup window before the sowing deadline, around
-   slots already promised to other farmers. If no slot fits, the farmer is told why and
-   waitlisted, not given a false promise.
-4. **Collected and paid.** The buyer's crew marks the stop collected. The farmer's payout
-   (kg × agreed price) is recorded, and the avoided emissions are counted.
+1. **Talk once.** The farmer speaks freely. A Gemini agent understands Punjabi, Hindi or English audio directly, asks only for what's missing, and cross-checks what doesn't fit, such as 10 acres with 3,000 kg of straw, or a harvest after the sowing date. It reads the details back.
+2. **One fair price.** Each district gets one posted farm-gate price per day (₹0.5–1.5/kg), set by our procurement optimizer. There is no bargaining.
+3. **A slot before sowing.** A routing model books the farm onto one of our crews. If our crews can't reach the farm before sowing, a hired partner crew does, at our cost. The farmer accepts with a yes or one tap, and the slot is locked.
+4. **Paid the same day.** When the crew collects, the payout is recorded (simulated UPI) and the straw goes into depot stock.
+5. **Supplied all year.** Companies sign forward orders. A delivery optimizer ships from depot stock month by month and reports any shortfall.
 
-The buyer console has four tabs:
-- **Pickup Ops:** per-crew daily routes on Google Maps, a Re-plan button, and the waitlist with reasons.
-- **Supply:** matched listings.
-- **Demand:** standing demand with price and ceiling.
-- **Impact:** tonnes collected, CO₂e avoided, farmer payouts.
-
-## How Google Cloud is used
+## Google Cloud, and what each part does
 
 | Service | Role |
 |---|---|
-| **Gemini on Vertex AI** | Extracts acres, crop, district and sowing date from Punjabi/Hindi speech or text. Writes the single follow-up question. Grades stubble photos and no-burn proof photos. Narrates offers and the negotiation, each side stating its own number. It **never** produces a price, quantity, date or slot. |
-| **Cloud Speech-to-Text / Text-to-Speech** | Voice in (pa-IN, hi-IN) and spoken replies (Chirp3-HD voices) |
-| **Cloud Run** (`parali-setu-api`) | FastAPI service running both OR-Tools models, capped at 3 instances |
-| **OR-Tools** | Market: a transportation LP (GLOP) for buyer, kg and price. Logistics: a capacitated vehicle routing model with time windows for crew, day and slot. |
-| **Firestore** | Live state: listings, drafts, demand, matches, crews, pickup slots, payouts, negotiation sessions. Transactional quantity updates. |
-| **BigQuery ML** (ARIMA_PLUS) | Seasonal demand forecast shown to buyers as background. Trained on a synthetic corpus and labelled as such. |
-| **Earth Engine** (NASA FIRMS) | Fire detections for the landing-page map. Also cross-checks farmers' no-burn proofs, which feed a trust weight in matching. Batch refresh, not live. |
-| **Firebase Hosting** | One site with three routes: `/`, `/kisan/`, `/buyer/` |
-| **Maps JavaScript API** | Fire map and crew route maps, with a referrer-restricted key |
-| **Cloud Billing budgets + Pub/Sub + a Cloud Run function** | Cost guard: emails both teammates; if real money is ever charged, the API's ingress is closed and the AI APIs are disabled (reversible) |
+| **Vertex AI · Gemini** | The farmer's talking agent, using function calling. Hears audio directly, giving the farmer's words plus an English record. Grades stubble photos and no-burn proof photos. Explains prices in plain words. **Never produces a number.** |
+| **Speech-to-Text / Text-to-Speech** | Speech-to-Text is the fallback when Gemini can't hear the audio. Spoken replies use Chirp 3 HD voices in pa-IN, hi-IN and en-IN. |
+| **BigQuery** | Weekly series of 25 paddy seasons of fire detections per district. **TimesFM (`AI.FORECAST`)** forecasts this season's harvest timing; **ARIMA_PLUS** and a same-as-last-year baseline are backtested against it. |
+| **Earth Engine** | NASA FIRMS fire detections, 2001–2026, counted per day within FAO GAUL 2025 district boundaries for Punjab and Haryana. |
+| **Cloud Run** | The API, with three OR-Tools planners: the procurement LP, the routing model and the delivery LP. Also the daily fire-refresh job, triggered by **Cloud Scheduler**. |
+| **Firestore** | Bookings, depots, crews, slots, posted prices, purchases, stock moves, customers, orders, deliveries, plans, forecasts, conversations. |
+| **Firebase Hosting** | The landing page, farmer app, ops console and customer portal. |
+| **Maps JavaScript API** | Crew routes in the ops console. |
+| **Billing budgets + Pub/Sub + Cloud Run function** | Cost guard. Emails both teammates, and closes the API and turns off the AI APIs if real money is ever charged. |
 
-The design rule is **language from Gemini, numbers from optimizers**. See
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the deployment diagram, sequence
-diagrams, match lifecycle, data model and the two optimization models.
+The design rule: **language from Gemini, numbers from optimizers, timing from satellites.**
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for diagrams, the agent's guardrails, the
+three models and the data model.
 
-## Impact methodology
+## Forecasting, honestly
 
-Per tonne of straw collected instead of burned (`parali-setu-api/impact.py`):
+- **Supply timing.** The weekly fire detections per district (2002–2026) are real data. Both models saw data up to 30 June of a season and forecast September to December. Scores on two held-out seasons (lower is better):
 
-- **≈ 0.184 t CO₂e avoided:** methane (5.82 kg × GWP 27) plus nitrous oxide (0.1 kg × GWP 273). Factors from Gadde et al. 2009; GWPs from IPCC AR6.
-- **CO₂ from burning straw is biogenic and is not counted.**
-- **Other figures:**
-  - 8.3 kg of PM2.5 (range 4.7–20)
-  - 102 kg of CO
-  - ₹2,500–4,000 per acre of clearing cost avoided
-- **Coal displacement** (about 1.33 t CO₂ per tonne, only when the buyer co-fires instead of coal) is shown separately and never added to the headline.
+| Season | Model | Season-shape error | Peak off by | Volume error |
+|---|---|---|---|---|
+| 2024 | **TimesFM** | **0.51** | **0.7 wk** | 1.78 |
+| 2024 | ARIMA_PLUS | 1.13 | 5.2 wk | 0.99 |
+| 2024 | Same as last year | 0.63 | 0.9 wk | 1.40 |
+| 2025 | **TimesFM** | **0.66** | **0.8 wk** | 1.58 |
+| 2025 | ARIMA_PLUS | 1.15 | 4.1 wk | 0.99 |
+| 2025 | Same as last year | 0.70 | 1.0 wk | 0.83 |
 
-At 10% of Punjab's ~19.7 Mt of paddy straw, that is about 1.97 Mt collected and about
-363 kt CO₂e avoided. The landing page has a slider for other shares.
+  TimesFM gets the **timing** right. No model gets the **volume** right, because enforcement cut fire counts while the burned area held. So we use fires only for timing.
+- **Supply volume** comes from the Ministry of Agriculture's APY crop statistics (via Kaggle): district rice production × a straw-to-grain ratio of 1.5. For Punjab in 2019 that is 12.68 Mt × 1.5 = 19.0 Mt, against the state's estimate of about 19.7 Mt.
+- **Demand** is derived from published consumption by segment (biomass power, CBG, boilers, pellets), not trained: no public time series exists. It is labelled that way everywhere.
 
-## Honest limitations
+## The money, honestly
 
-- Buyers, crews and listings are **demo data** (marked "(demo)"). Payments are **simulated**.
-- The baling rate (2 acres per crew-hour) and crew capacity (20 acres per day) are working assumptions, still to be checked against field data.
-- Travel time is straight-line distance × 1.3 at 30 km/h, not a road-network matrix.
-- The demand forecast is trained on synthetic data. Fire detections refresh in batch.
-- There are no user accounts yet. A farmer is an anonymous id stored on the phone.
-- Prices are farm-gate estimates of ₹0.5–1.5/kg. They sit below the delivered price (~₹169/quintal) because the buyer's crew does the baling and transport.
+- **Pricing.** Farmers get today's posted price: a base of ₹0.60/kg, plus a bounded share of the procurement LP's shadow price where we need more straw than we expect to be booked.
+- **Quotes.** A customer's quote is built from costs: farm-gate + collection + storage + haulage + 10% margin, shown against the ₹1,690/t that plants pay at harvest.
+- **Assumptions.** The collection, storage and freight costs are our working assumptions, labelled as such on the ops console (`GET /costs`).
+- **The catch.** At today's prices the margin is thin. The business depends on collecting more cheaply than hired balers (₹1,430–2,290/t), which is the routing model's job, and on industry valuing year-round supply.
+
+## What's real and what's simulated
+
+**Real:**
+- satellite fire history, the TimesFM forecast and its backtests
+- crop statistics and published demand figures
+- the Gemini agent and voice
+- all three optimizers
+
+**Simulated:**
+- farms, customers, crews and partner crews (all demo data)
+- payments
+- the cost figures marked "assumption"
 
 ## Repository layout
 
 ```
-parali-setu-api/        FastAPI backend on Cloud Run (README inside)
-parali-setu-frontend/   Static site on Firebase Hosting: landing, kisan/, buyer/
-ops/cost-guard/         Budget-triggered kill switch (Cloud Run function) + restore script
-docs/ARCHITECTURE.md    Diagrams and design notes
-docs/PARALI_SETU_PRD.md The original product spec (historical; see its status note)
+parali-setu-api/        FastAPI on Cloud Run (README inside)
+  agent.py              farmer talking agent: Gemini function calling + guardrails
+  procurement.py        LP: what to buy where; posted prices from shadow prices
+  scheduler.py          routing: crew slots before sowing, partner crews
+  deliveries.py         LP: depot -> customer orders, month by month
+  costs.py              cost model and quotes
+  operations.py         runs the planners on live data
+  pickups.py            bookings, slots, same-day payouts, stock
+  forecast/             FIRMS history, crop statistics, BigQuery TimesFM/ARIMA pipeline
+parali-setu-frontend/   Firebase Hosting: / (landing), kisan/, ops/, company/
+ops/cost-guard/         budget-triggered kill switch + restore script
+docs/                   ARCHITECTURE.md; the original PRD (historical)
 ```
 
 ## Run it locally
 
-Requires Python 3.12 and Application Default Credentials
-(`gcloud auth application-default login`) for a GCP project with Firestore, Vertex AI,
-Speech-to-Text and Text-to-Speech enabled.
+Requires Python 3.12 and Application Default Credentials (`gcloud auth application-default login`).
 
 ```bash
-python -m venv .venv && .venv/Scripts/pip install -r parali-setu-api/requirements.txt   # bin/ on macOS/Linux
-cd parali-setu-api
-GCP_PROJECT_ID=<your-project> uvicorn main:app --port 8080
-# in another shell: serve the frontend, then set API_BASE in config.js to http://127.0.0.1:8080
+python -m venv .venv && .venv/Scripts/pip install -r parali-setu-api/requirements.txt
+cd parali-setu-api && python dev_server.py      # real Gemini and voice, in-memory demo data, :8080
 cd parali-setu-frontend && python -m http.server 8000
+# set API_BASE in parali-setu-frontend/config.js to http://127.0.0.1:8080
 ```
-
-### Tests
 
 ```bash
-.venv/Scripts/python -m pytest parali-setu-api ops/cost-guard   # 118 tests, all mocked, no credentials
-python parali-setu-api/tests/live_smoke.py                      # against real GCP APIs; needs ADC
+.venv/Scripts/python -m pytest parali-setu-api ops/cost-guard   # 132 tests, no credentials needed
+python parali-setu-api/tests/live_smoke.py                      # real services; run reset_demo first
 ```
 
-### Demo data
+**Forecast pipeline:**
 
 ```bash
-python parali-setu-api/reset_demo.py --yes                # wipe Parali Setu's collections, seed 5 buyers, 8 crews, 25 listings, then match and plan
-python parali-setu-api/reset_demo.py --yes --no-listings  # buyers, crews and demand only
+cd parali-setu-api
+python -m forecast.firms_history --from 2001 --to 2026 --out forecast/data/fires_daily.csv
+python -m forecast.crop_production --raw "forecast/data/raw/pyatakov/India Agriculture Crop Production.csv"
+python -m forecast.pipeline backtest --season 2024      # and 2025
+python -m forecast.pipeline live                        # this season's timing forecast
 ```
 
-The seed overloads the Patiala buyer on purpose, so the waitlist is visible. The script
-never touches `forecasts` or `fire_detections`.
+**Demo data:**
+
+```bash
+python parali-setu-api/reset_demo.py --yes
+```
+
+This wipes Parali Setu's own collections and seeds:
+- 5 depots with their crews and a partner pool
+- 5 demo customers with orders
+- 25 farm bookings
+- a small collected-and-paid run
 
 ## Deploy
 
 ```bash
-gcloud run deploy parali-setu-api --source parali-setu-api \
-  --project <project> --region asia-southeast1 --allow-unauthenticated \
-  --set-env-vars GCP_PROJECT_ID=<project>,GEMINI_MODEL=gemini-3.8-flash,AGENT_PLATFORM_LOCATION=global \
-  --memory 1Gi --timeout 120 --max-instances 3
-
+gcloud run deploy parali-setu-api --source parali-setu-api --project <project> --region asia-southeast1 \
+  --allow-unauthenticated --memory 1Gi --timeout 120 --max-instances 3 \
+  --set-env-vars GCP_PROJECT_ID=<project>,GEMINI_MODEL=gemini-3.8-flash,AGENT_PLATFORM_LOCATION=global
 firebase deploy --only hosting:parali-setu --project <project>
 ```
 
-Batch jobs: the FIRMS refresh runs daily at 06:30 IST as the Cloud Run job
-`parali-setu-firms` (the API image with `python fetch_fire_data.py`), triggered by the
-Cloud Scheduler job `parali-setu-firms-daily`. The forecast is refreshed by hand with
-`python parali-setu-api/forecast_pipeline.py` (BigQuery ML). The API keeps one warm
-instance (`--min-instances 1`) during judging. The cost guard's setup is
-in [ops/cost-guard/README.md](ops/cost-guard/README.md).
+The daily fire refresh is the Cloud Run job `parali-setu-firms`, triggered by the Cloud Scheduler job `parali-setu-firms-daily` at 06:30 IST.
 
 ## Roadmap
 
-- **A WhatsApp-style conversational channel.** A Gemini function-calling agent behind a channel-agnostic `/chat`, with tools wrapping the same listing, slot, negotiation, proof and payout endpoints, and a guardrail that every number comes from a tool. Adapters: WhatsApp Business, then IVR/missed-call for feature phones. The Kisan app is the first front end for the same "speak once, confirm once" idea.
-- **Better models:** a joint matching and routing model, and Routes API travel times.
-- **Real operations:** Firebase Auth (phone OTP for farmers), a UPI payout rail, onboarding of real balers, aggregators and CHCs.
+- **Live voice.** A streaming conversation with Gemini Live. A test in us-central1 understood and answered spoken Punjabi, but was not yet reliable. A design that keeps the numbers guardrail streams transcription live and lets the guarded agent answer.
+- **WhatsApp and missed-call channels** in front of the same agent.
+- **One joint model** for buying, routing and delivery. **Routes API** travel times.
+- **Real operations:** onboarding real balers, CHCs and aggregators; UPI payouts; farmer phone sign-in.
 
 ## Credits
 
-The original Parali Setu prototype (the PRD, the matching LP, Gemini extraction, voice
-I/O and the forecast pipeline) was built by Sainath. Those commits are preserved in this
-repository's history. The revamp adds:
-- the pickup scheduler
-- the Kisan app and buyer console
-- the impact model
-- the cost guard
+The original Parali Setu prototype (the PRD, a matching LP, Gemini extraction, voice I/O) was
+built by Sainath. Those commits are preserved in this repository's history. Version 2.0
+turns it into a buyer-of-record service:
+- the agent
+- the forecasting
+- the three planners
+- the ops console and customer portal

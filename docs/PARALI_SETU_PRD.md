@@ -4,9 +4,9 @@
 > was built against. It is kept for the record and no longer describes the system. The
 > current system is described in [README.md](../README.md) and
 > [ARCHITECTURE.md](ARCHITECTURE.md). The main differences:
-> - The product's promise is now a **guaranteed pickup slot before sowing, plus payment**, produced by an OR-Tools routing scheduler. Matching alone is no longer the promise.
-> - Prices are farm-gate (₹0.5–1.5/kg), with a buyer ceiling, and matching is limited by each buyer's service radius.
-> - The farmer flow now has the confirm/edit step and a single follow-up question.
+> - Parali Setu is now the **buyer of record**: it buys straw at a posted farm-gate price per district (₹0.5–1.5/kg, set by a procurement LP), collects with its own and partner crews before sowing, pays the same day, stores at depots and supplies companies under forward orders. There is no marketplace matching and no negotiation.
+> - The farmer talks to a Gemini function-calling agent with guardrails enforced in code; a laptop view offers the same booking step by step.
+> - Forecasting uses real data: NASA FIRMS history via Earth Engine and TimesFM in BigQuery for timing, APY crop statistics for volume, published figures for demand.
 > - Impact figures come from `impact.py` (methane and N₂O only; biogenic CO₂ is excluded).
 > - Statements below about the scale of the problem, competitors, or what is "built" reflect Oct 13 and are superseded by the README.
 

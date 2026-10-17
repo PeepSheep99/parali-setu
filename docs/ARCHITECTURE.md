@@ -1,224 +1,174 @@
-# Parali Setu architecture
+# Parali Setu architecture (2.0)
 
-This document describes the system as it is built and deployed today. The diagrams
-render on GitHub. The overview image is exported from the team's Lucid diagrams.
+Parali Setu buys paddy straw from farmers, collects it before wheat sowing, pays the same
+day, stores it at depots and supplies companies all year. This document describes the
+system as built. The diagrams render on GitHub.
 
-![Architecture overview](../parali-setu-frontend/img/architecture.png)
-
-## The rule the design is built on
-
-Parali Setu has three layers, and each one owns a different kind of output:
+## Who owns which output
 
 | Layer | Code | Owns | Never does |
 |---|---|---|---|
-| Language | `extraction.py`, `gemini_client.py`, `speech.py`, `phrases.py` | Understanding speech, text and photos; asking the one follow-up question; explaining results in Punjabi, Hindi or English | Produce a price, a quantity, a date or a slot |
-| Market | `solver.py`, `negotiation.py` | Which buyer takes which listing, how much, at what price | Talk to the user |
-| Logistics | `scheduler.py`, `pickups.py` | Which crew collects which farm, on which day, in which 3-hour window | Change a price or a match |
-
-Every number a farmer or buyer sees comes from the market or logistics layer, or from
-`impact.py`. Gemini receives those numbers and puts them into words. When Gemini is
-unavailable, deterministic templates (`phrases.py`) read the details back instead. A
-quota error triggers a 60-second cooldown, so one rate limit doesn't take the
-language layer down for the rest of the session.
+| Language | `agent.py`, `extraction.py`, `speech.py`, `phrases.py` | Understanding the farmer (audio, text, photos), asking and cross-checking, explaining | Produce a price, weight, payout, date or slot |
+| Forecast | `forecast/` (Earth Engine, BigQuery) | When straw comes off the fields (TimesFM), how much (crop statistics), who buys it (published figures) | Run at request time |
+| Planning | `procurement.py`, `scheduler.py`, `deliveries.py`, `costs.py` | Posted prices, what to buy where, crew slots, monthly deliveries, quotes | Talk to anyone |
+| Operations | `operations.py`, `pickups.py`, `firestore_store.py` | Bookings, offer expiry, same-day payouts, depot stock | Decide a number itself |
 
 ## Deployment
 
 ```mermaid
 flowchart LR
-  subgraph Users
-    F[Farmer<br/>phone, pa/hi/en]
-    B[Buyer ops<br/>desktop]
-    J[Public / judges]
+  subgraph Apps[Firebase Hosting: parali-setu.web.app]
+    L["/ landing"]
+    K["/kisan phone: talk · laptop: step by step"]
+    O["/ops operations console"]
+    C["/company customer portal"]
   end
-  subgraph FH[Firebase Hosting: parali-setu.web.app]
-    K["/kisan<br/>voice listing PWA"]
-    BC["/buyer<br/>ops console"]
-    L["/<br/>landing + impact"]
+  subgraph Run[Cloud Run: parali-setu-api]
+    A[agent.py<br/>Gemini function calling + guardrails]
+    P[procurement.py<br/>GLOP LP + shadow prices]
+    S[scheduler.py<br/>routing, partner crews]
+    D[deliveries.py<br/>GLOP LP, stock carryover]
+    I[impact.py · costs.py]
   end
-  subgraph CR[Cloud Run: parali-setu-api, asia-southeast1]
-    API[FastAPI main.py]
-    LP[solver.py<br/>OR-Tools GLOP LP]
-    RT[scheduler.py<br/>OR-Tools routing CVRPTW]
-    IM[impact.py]
-  end
-  G[Vertex AI<br/>Gemini]
-  STT[Cloud Speech-to-Text<br/>pa-IN, hi-IN]
-  TTS[Cloud Text-to-Speech<br/>Chirp3-HD]
-  FS[(Firestore)]
-  BQ[(BigQuery ML<br/>ARIMA_PLUS)]
-  EE[Earth Engine<br/>NASA FIRMS]
-  MJ[Maps JavaScript API]
-
-  F --> K --> API
-  B --> BC --> API
-  J --> L --> API
-  BC -.-> MJ
-  L -.-> MJ
-  API --> G & STT & TTS & FS
-  API --> LP & RT & IM
-  BQ -. batch: forecast_pipeline.py .-> FS
-  EE -. "daily 06:30 IST: Cloud Scheduler → Cloud Run job" .-> FS
+  G[Vertex AI Gemini]
+  V[Speech-to-Text / Text-to-Speech]
+  F[(Firestore)]
+  BQ[(BigQuery<br/>TimesFM AI.FORECAST · ARIMA_PLUS)]
+  EE[Earth Engine<br/>NASA FIRMS · FAO GAUL]
+  J[Cloud Run job + Cloud Scheduler<br/>daily fire refresh]
+  M[Maps JavaScript API]
+  K --> A
+  K & O & C & L --> Run
+  A --> G & V
+  Run --> F
+  EE --> BQ --> F
+  J --> EE
+  O -.-> M
 ```
 
-Cost protection (`ops/cost-guard/`):
+Cost protection (`ops/cost-guard/`) is unchanged:
+- **Budgets:** a gross-usage budget, and a ₹100 real-money budget that publishes to Pub/Sub.
+- **The guard:** a Cloud Run function closes the API's ingress and turns off the AI APIs if real money is ever charged.
+- **Limits:** `--max-instances 3` on the API.
+
+## The farmer agent
+
+```mermaid
+sequenceDiagram
+  actor F as Farmer (phone)
+  participant API as /agent/turn
+  participant G as Gemini (Vertex AI)
+  participant T as Tools (planners, Firestore)
+  participant TTS as Text-to-Speech
+  F->>API: audio (16 kHz WAV) or text
+  API->>G: listen: transcript + English record
+  loop at most 5 tool calls
+    API->>G: history + facts + tools
+    G-->>API: function call, e.g. update_listing / find_pickup_slot
+    API->>T: run the tool (cross-checks, posted price, routing)
+    T-->>API: result
+  end
+  G-->>API: reply text
+  API->>API: guardrail: every number must come from a tool or the farmer
+  API->>TTS: speak the reply
+  API-->>F: spoken reply + cards (price, offer, booked)
+```
+
+**Tools:**
+- `get_todays_price`
+- `update_listing` (with `clear_fields`)
+- `find_pickup_slot`
+- `confirm_booking`
+- `my_bookings`
+- `cancel_booking`
+
+**Guardrails enforced in code:**
+- **Numbers.** Every number in a reply must appear among the tools' returned values or in the farmer's own words. Identifiers are excluded, so a random id can't license digits. A violation triggers one rewrite. If that fails, a deterministic template built from tool results is used.
+- **An explicit yes.** `confirm_booking` needs an offer shown in an earlier turn, and the farmer's latest words must say yes. That is checked in their language and in English; a question or a "no" never counts.
+- **Cross-checks.** An acres-versus-weight mismatch, a sowing date already past, or a harvest after sowing blocks booking until it is resolved.
+- **Scope and size.** One reply language, off-topic requests declined, bounded input, at most 5 tool calls per turn and 40 turns per conversation.
+- **Records.** Every turn stores the farmer's words, an English rendering and a guardrail report, so ops can audit it (`GET /agent/conversations/{id}`).
+
+## Forecasting
 
 ```mermaid
 flowchart LR
-  BA["Budget A: gross usage, credits excluded<br/>email at 25/50/75/90/100%"] --> E[Email: both team members]
-  BB["Budget B: net spend (real money)<br/>₹100"] --> E
-  BB --> PS[Pub/Sub topic billing-alerts]
-  PS --> CG["Cloud Run function cost-guard<br/>acts only when cost ≥ budget"]
-  CG --> I1[parali-setu-api ingress → internal]
-  CG --> I2[disable Vertex AI, Speech, TTS APIs]
+  EE[Earth Engine FIRMS<br/>daily fire pixels per district<br/>2001-2026] --> BQ1[(fires_daily)]
+  BQ1 --> W[(fires_weekly, zero-filled)]
+  W --> TF[TimesFM AI.FORECAST<br/>per district]
+  W --> AR[ARIMA_PLUS<br/>per district]
+  TF --> BT{backtest 2024, 2025<br/>shape, peak week, volume}
+  AR --> BT
+  TF --> LIVE[this season's timing<br/>per district]
+  APY[APY crop statistics via Kaggle] --> ST[district straw = rice x 1.5]
+  PUB[published segment demand] --> DM[demand, derived]
+  LIVE & ST --> PROC[procurement LP]
+  DM --> PROC
 ```
 
-`--max-instances=3` on the API caps a runaway before any bill appears. `ops/cost-guard/restore.sh` reverses the throttle.
+Fires are used for **timing only**. Enforcement cut fire counts from 2022 while the burned
+area held steady, so volume comes from crop statistics. In the backtests, TimesFM placed the
+season peak within 0.7–0.8 weeks and had the lowest shape error in both years.
 
-## Farmer flow: speak once, confirm once
+## The three planners
 
-```mermaid
-sequenceDiagram
-  actor F as Farmer (/kisan)
-  participant API as Cloud Run API
-  participant STT as Speech-to-Text
-  participant G as Gemini (Vertex AI)
-  participant LP as solver.py (LP)
-  participant RT as scheduler.py (routing)
-  participant FS as Firestore
-  participant TTS as Text-to-Speech
+**Procurement: `procurement.py`, a GLOP linear program, run daily.**
+- **Variables:** tonnes bought per district, per depot and per week; own and partner intake per depot and week; sales against signed orders and against forecast demand.
+- **Constraints:**
+  - bookable straw per district and week (straw × TimesFM timing share × expected booking share)
+  - depot capacity and radius
+  - crew capacity (own and partner)
+  - signed orders met before spot sales, with any shortfall penalised and reported
+- **Objective:** margin, which is sales − farm-gate − haul to depot − collection − storage.
+- **Posted price** = ₹0.60/kg + half the shadow price of that district's supply constraint this week, kept within ₹0.5–1.5/kg. When the plan wants more straw from a district than farmers are expected to book, the price rises, and the reason is stated.
 
-  F->>API: POST /listings/draft (voice, optional photo and GPS)
-  API->>STT: transcribe (pa-IN / hi-IN)
-  API->>G: extract acres, crop, district, sowing date
-  API->>G: grade stubble photo (optional)
-  Note over API: kg = acres × 1.75 t, computed in code
-  alt a field is missing
-    API->>G: phrase ONE question covering every missing field
-    API-->>F: question (text + TTS); the answer merges into the same draft
-  end
-  API-->>F: confirm card (deterministic read-back)
-  F->>API: POST /listings/{draft_id}/confirm
-  API->>FS: save listing
-  API->>LP: global solve (crop, quality, service radius, ceiling)
-  API->>RT: plan the buyer's crews around locked slots
-  API->>FS: matches, pickup_slots (or waitlist + reason)
-  API->>G: narrate the offer
-  API->>TTS: speak it
-  API-->>F: offer: buyer, slot, ₹ payout, CO₂e avoided
-  F->>API: POST /matches/{id}/accept-slot
-  API->>FS: lock slot (later re-plans must keep it)
-```
+**Pickups: `scheduler.py`, an OR-Tools routing model.**
+- **Vehicles:** each crew on each day of a 10-day horizon is one vehicle, starting and ending at its depot within a 07:00–18:00 shift.
+- **Farm visits:** service time is acres ÷ 2 acres/hour. A visit's window runs from the ready date to the day before sowing.
+- **Splitting:** visits are capped by daily capacity and by what fits in a shift after the round trip.
+- **Two passes:** our own crews first, then partner crews only for farms ours can't fit. That is how every booking gets a slot, and the extra cost stays visible.
+- **Locks and capacity:** accepted slots are locked. Work already collected today reduces that crew-day's capacity.
+- **Unschedulable farms** get a reason code: `booked`, `no_capacity`, `deadline_passed`, `too_far`, `beyond_horizon` or `lock_lost`.
 
-## Buyer flow: demand, re-plan, collect, pay
+**Deliveries: `deliveries.py`, a GLOP linear program, run monthly.**
+- Ships from depot stock to each order month, with stock carried from month to month.
+- Minimises haulage + storage + a shortfall penalty, and reports any shortfall.
 
-```mermaid
-sequenceDiagram
-  actor B as Buyer ops (/buyer)
-  participant API as Cloud Run API
-  participant LP as solver.py
-  participant RT as scheduler.py
-  participant FS as Firestore
-
-  B->>API: POST /companies/{id}/demand
-  API->>LP: global solve, persist every new match
-  B->>API: POST /schedule/solve (Re-plan)
-  API->>RT: crew-days × farms, locked slots pinned
-  RT-->>API: route sheets + unschedulable farms with reasons
-  API->>FS: pickup_slots; waitlist or promote matches
-  B->>API: GET /buyers/{id}/schedule
-  API-->>B: per-crew daily route (Google Maps) + waitlist
-  B->>API: POST /stops/{match_id}/collected
-  API->>FS: match → collected, payout record (simulated), match → paid
-  B->>API: GET /buyers/{id}/impact
-```
-
-## Match lifecycle
+## Booking lifecycle
 
 ```mermaid
 stateDiagram-v2
-  [*] --> proposed: LP match
-  proposed --> scheduled: slot found
-  proposed --> waitlisted: no crew capacity before sowing
-  waitlisted --> scheduled: capacity frees up on re-plan
-  proposed --> rejected
-  waitlisted --> rejected
-  scheduled --> collected: crew marks collected
-  collected --> paid: payout recorded (simulated)
-  rejected --> [*]: listing and demand quantities restored
+  [*] --> offered: posted price + planned slot
+  offered --> booked: farmer says yes (or taps Book)
+  offered --> expired: not accepted within 4 hours
+  offered --> unschedulable: no crew-day fits
+  unschedulable --> offered: capacity frees up on re-plan
+  offered --> cancelled
+  booked --> cancelled
+  booked --> collected: crew marks collected
+  collected --> paid: same-day payout recorded (simulated UPI) + depot stock
   paid --> [*]
 ```
 
-Transitions are enforced by `firestore_store.update_match_status` inside a Firestore
-transaction. Listing and demand remaining quantities are adjusted in the same
-transaction, so two buyers can't take the same kilogram.
-
-## The two optimizers
-
-**Market: `solver.py`**, a transportation linear program solved with OR-Tools GLOP.
-- **Variables:** kg moved from each listing to each eligible demand.
-- **Objective:** buyer price × urgency weight (up to 2× as the stubble's ready date nears) × trust weight (0.85–1.15×, from no-burn proofs cross-checked with FIRMS). Urgency and trust change who is served first, not the price paid.
-- **Eligibility:**
-  - crop and quality match
-  - the farm is inside the buyer's service radius (haversine from depot; default 75 km)
-  - the price is within the buyer's ceiling (offer × 1.2 unless stated)
-- **Negotiation:** `negotiation_rounds` runs alternating concessions between the farmer's floor and the buyer's ceiling. The agreed price is validated by `apply_negotiation` before anything is saved. Gemini only narrates each side's number.
-
-**Logistics: `scheduler.py`**, a capacitated vehicle routing problem with time windows (OR-Tools routing).
-- **Vehicles:** each crew on each day of a 10-day horizon is one vehicle. It leaves the buyer's depot inside a 07:00–18:00 shift and has an acre capacity (20 acres/day by default).
-- **Farm nodes:**
-  - service time = acres ÷ 2 acres/hour
-  - a time window from ready date to the day before sowing
-  - only the matched buyer's crews are allowed
-  - farms bigger than one crew-day are split into visits
-- **Locked slots** (the farmer accepted) are pinned to their crew-day and start time. Dropping one costs 100× more than dropping a new farm.
-- **Unschedulable farms** are dropped through disjunctions and reported with a reason ("no crew capacity before sowing", "fully booked", "deadline passed"), never silently. They become `waitlisted`.
-- **Travel:** straight-line km × 1.3 road factor at 30 km/h. Planning runs in IST, and same-day slots need 60 minutes of lead time.
-- **Search:** cheapest-arc first solution, then guided local search with a 3-second limit. Tests use the deterministic first-solution mode.
-
-**Why two stages:** matching first and then routing is a deliberate decomposition. It keeps both models small enough to solve in seconds on Cloud Run. Farms routing can't serve are fed back as waitlisted matches. A joint model is on the roadmap.
-
 ## Data model (Firestore)
 
-| Collection | Written by | Holds |
-|---|---|---|
-| `listing_drafts` | `/listings/draft` | Extracted fields, missing fields, transcript, until confirmed |
-| `listings` | confirm | acres, kg, remaining kg, crop, quality, district, lat/lon, sowing deadline |
-| `companies` | `reset_demo.py` | Buyer name, depot, service radius |
-| `demand` | buyer console | kg needed and remaining, offer price, ceiling |
-| `matches` | LP | listing ↔ demand, kg, agreed price, lifecycle status |
-| `crews` | `reset_demo.py` | Crew per buyer, acres per day, shift |
-| `pickup_slots` | scheduler | Crew, day, arrival window, locked flag, status |
-| `payouts` | collected | kg × agreed price (simulated payment) |
-| `negotiation_sessions` | `/negotiate/agents` | Turns and converged price; confirming is allowed once |
-| `no_burn_proofs`, `farmers` | Kisan | Proof photos and verdicts, trust score |
-| `forecasts` | `forecast_pipeline.py` | BigQuery ML demand forecast (synthetic corpus) |
-| `fire_detections` | `fetch_fire_data.py` | NASA FIRMS points from Earth Engine |
-
-## Impact model (`impact.py`)
-
-Per tonne of straw collected instead of burned:
-
-| Quantity | Factor | Source |
-|---|---|---|
-| Methane | 5.82 kg × GWP 27 | Gadde et al. 2009; IPCC AR6 |
-| Nitrous oxide | 0.1 kg × GWP 273 | Gadde et al. 2009; IPCC AR6 |
-| **GHG avoided** | **≈ 0.184 t CO₂e** | sum of the two |
-| PM2.5 | 8.3 kg (range 4.7–20) | field-burning studies |
-| CO | 102 kg | Gadde et al. 2009 |
-| Coal displaced (only if the buyer co-fires) | 1.33 t CO₂ | energy-content estimate; shown separately, never in the headline |
-| Clearing cost avoided | ₹2,500–4,000 per acre at 1.75 t/acre | Tribune; Hindustan Times |
-
-CO₂ from burning straw is biogenic and is **not** counted. The landing page's scenario
-slider applies the same factors to a share of Punjab's ~19.7 Mt of paddy straw.
+| Collection | Holds |
+|---|---|
+| `listings`, `listing_drafts` | The farmer's field: acres, kg, crop, district, location, sowing date, optional phone |
+| `bookings` | Listing → depot at the posted price; lifecycle status, reason code, payout |
+| `depots`, `crews`, `pickup_slots` | Storage sites and radius; own and partner crews; planned visits (arrival window, planned start and end, locked flag) |
+| `posted_prices` | Price per district per day, shadow price, reason |
+| `purchases`, `inventory_moves` | Same-day payouts; straw in and out of each depot |
+| `customers`, `orders`, `deliveries` | Companies, forward orders with quote, planned monthly shipments |
+| `plans` | Latest procurement and delivery plans with their assumptions |
+| `forecasts` | TimesFM live forecast and backtest results |
+| `conversations` | Agent turns, English records, tool facts, guardrail reports |
+| `farmers`, `no_burn_proofs`, `fire_detections` | Trust score, photo proofs, the latest FIRMS batch |
 
 ## Known limitations
 
-- **Demo data:**
-  - buyers, crews and listings are demo data
-  - payments are simulated
-  - the BigQuery ML forecast is trained on a synthetic corpus
-- **Not live:** fire detections are refreshed daily (Cloud Scheduler → Cloud Run job), not streamed.
-- **Assumptions:**
-  - the baling rate (2 acres/hour) and crew capacity (20 acres/day) still need a field source
-  - travel times are estimates, not Routes API results
-- **Not built yet:** authentication; per-user rate limiting (requests are bounded by pydantic and CORS, and the instance count is capped).
+- **Demo and simulated data:** farms, customers and crews are demo data, and partner capacity is a simulated pool. Payments are simulated.
+- **Cost assumptions:** collection, freight and storage costs are working assumptions, labelled as such on the ops console.
+- **Travel times** are straight-line × 1.3 at 30 km/h, not road routes.
+- **Forecast inputs:** the forecast predicts timing, not volume. Demand is derived from published figures.
+- **Gemini Live** is not in the product yet (see the README roadmap).

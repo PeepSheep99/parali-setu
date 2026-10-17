@@ -1,31 +1,29 @@
 # Parali Setu: frontend
 
-Plain HTML, CSS and JavaScript with no build step, served by Firebase Hosting as one
-site with three routes:
+Plain HTML, CSS and JavaScript with no build step, served by Firebase Hosting as one site:
 
-| Route | Files | For |
-|---|---|---|
-| `/` | `index.html`, `landing.css`, `landing.js` | Landing page: the problem, live impact from `GET /impact`, the Punjab scenario slider (`GET /impact/scenario`), the FIRMS fire map, architecture |
-| `/kisan/` | `kisan/` (PWA with `manifest.json`) | Farmer app, mobile-first, in Punjabi, Hindi and English, each label with an English subtitle. Steps: hold to speak, confirm card with editable chips, offer card (buyer, slot, payout, "Why this price?", negotiate), my pickups, no-burn proof |
-| `/buyer/` | `buyer/` | Buyer console, desktop. Tabs: Pickup Ops (crew routes on Google Maps, Re-plan, waitlist), Supply, Demand, Impact |
+| Route | For |
+|---|---|
+| `/` | Landing page: the toll, the promise, how it works, the 25-season satellite record, who buys straw, the four apps, the Google Cloud build, the impact scenario |
+| `/kisan/` | Farmer app in Punjabi, Hindi and English. **Phone view:** talk to the Gemini agent (tap to speak, recorded as 16 kHz WAV), with cards for price, offer and booking. **Laptop view:** the same booking step by step, plus today's prices, my pickups and the no-burn proof. A header toggle switches views; `?view=phone\|laptop` and `?lang=pa\|hi\|en` help demos. |
+| `/ops/` | Operations console: Today, Pickups (crew routes on Google Maps, partner crews dashed, mark collected), Depots & stock, Forecast (TimesFM chart and backtests), Prices & plan, Orders, Impact |
+| `/company/` | Customer portal: quote built from costs, forward orders, monthly delivery plan |
 
-`config.js` holds what changes per environment:
-- `API_BASE`, the backend URL
-- `MAPS_API_KEY`, a browser key restricted to the Maps JavaScript API and to this site's referrers (plus `localhost:8000`)
+`/buyer/`, `/farmer.html` and `/company.html` redirect to the new routes (`firebase.json`).
 
-The old `farmer.html` and `company.html` 301-redirect to `/kisan/` and `/buyer/` (`firebase.json`).
+`config.js` holds two values:
+- `API_BASE`
+- `MAPS_API_KEY`, a browser key restricted to the Maps JavaScript API and this site's referrers plus `localhost:8000`
 
-All text from the API is inserted with `textContent` or escaped. Dates are formatted
-with explicit month and weekday names, because some browsers have no Punjabi locale data.
+Every number shown comes from the API. Text from the API is inserted with `textContent`.
 
 ## Run locally
 
 ```bash
-python -m http.server 8000      # from this folder
+python -m http.server 8000      # from this folder; open http://localhost:8000 (the Maps key allows localhost)
 ```
 
-To use a local API, set `API_BASE` in `config.js` to `http://127.0.0.1:8080`. The API's
-CORS settings allow `localhost:8000`.
+Point `API_BASE` at `http://127.0.0.1:8080` and run `python dev_server.py` in `parali-setu-api`.
 
 ## Deploy
 
@@ -33,13 +31,11 @@ CORS settings allow `localhost:8000`.
 firebase deploy --only hosting:parali-setu --project ai-builder-cup-aidatlas
 ```
 
-JavaScript and CSS are served with `Cache-Control: no-cache`, so a deploy takes effect
-on the next page load.
-
 ## Testing
 
-There is no unit-test suite for the frontend. Each page was checked end to end with
-Playwright (Chromium; 390×844 phone and 1366×900 desktop) against the API, as follows:
-- **Kisan:** speak → confirm → offer → accept, with the booking shown
-- **Buyer:** collected → payout → impact updated, plus the waitlist
-- **Landing:** counters, slider and fire map, with no console errors
+Each app is checked end to end with Playwright (Chromium) against the dev server, at 390×844 and 1366×900:
+- **Kisan, phone view:** a Punjabi conversation that ends in a booked pickup.
+- **Kisan, laptop view:** a Hindi listing that ends in a booked pickup.
+- **Ops:** accept on the farmer's behalf, mark collected, add a crew, re-plan, every tab.
+- **Company:** quote, then order.
+- **Landing:** the counters, chart and slider.

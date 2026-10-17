@@ -1,29 +1,33 @@
-# Parali Setu: backend
+# Parali Setu: API
 
-A FastAPI service on Cloud Run. The design and diagrams are in
-[../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
+A FastAPI service on Cloud Run. The design is in [../docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
-| Module | Layer | Does |
-|---|---|---|
-| `extraction.py`, `gemini_client.py` | Language | Gemini on Vertex AI: listing extraction, the single follow-up question, photo grading, narration. Quota errors start a 60-second cooldown. |
-| `speech.py` | Language | Cloud Speech-to-Text (pa-IN, hi-IN) and Text-to-Speech |
-| `phrases.py` | Language | Deterministic read-back of the listing in pa/hi/en |
-| `solver.py`, `negotiation.py` | Market | OR-Tools transportation LP: buyer, kg and price, within the buyer's service radius and price ceiling; two-sided negotiation rounds |
-| `scheduler.py`, `pickups.py` | Logistics | OR-Tools routing over crew-days: pickup slots before the sowing deadline, locked slots, waitlist with reasons; IST planning |
-| `impact.py` | Impact | Sourced emission and cost factors; Punjab scenario |
-| `geo.py` | | District coordinates and aliases (English, Devanagari, Gurmukhi), haversine |
-| `firestore_store.py` | State | Firestore access; transactional quantity updates and match-status transitions |
-| `main.py` | API | Endpoints, CORS (`ALLOWED_ORIGINS`), request bounds |
+| Module | Does |
+|---|---|
+| `agent.py` | The farmer's talking agent: Gemini function calling, tools, guardrails enforced in code |
+| `extraction.py`, `gemini_client.py` | Gemini calls: listing extraction, the single follow-up question, audio understanding, photo grading, explanations. A quota error triggers a 60-second cooldown. |
+| `speech.py`, `phrases.py` | Speech-to-Text and Text-to-Speech (pa/hi/en); deterministic read-backs, fallbacks and spoken pickup windows |
+| `procurement.py` | LP: tonnes per district, depot and week; posted prices from shadow prices |
+| `scheduler.py` | Routing over crew-days; partner crews in a second pass; reason codes |
+| `deliveries.py` | LP: depot → customer orders by month, with stock carried over |
+| `costs.py` | Cost constants (sourced or assumption) and customer quotes |
+| `operations.py` | Runs the planners on Firestore data and the forecasts; `book_listing` |
+| `pickups.py` | Locations, windows, offer expiry, depot planning, accept, `complete_pickup` |
+| `impact.py`, `trust.py`, `geo.py` | Impact factors; no-burn trust score; districts |
+| `firestore_store.py` | Firestore access; the booking lifecycle in a transaction |
+| `forecast/` | FIRMS history (Earth Engine), crop statistics (Kaggle APY), BigQuery TimesFM/ARIMA pipeline, demand segments |
 
-## Main endpoints
+## Endpoints
 
 | Who | Endpoint |
 |---|---|
-| Farmer | `POST /listings/draft`, `POST /listings/{draft_id}/confirm`, `POST /matches/{id}/accept-slot`, `GET /farmers/{id}/pickups`, `POST /farmers/{id}/no-burn-proof`, `GET /matches/{id}/pricing-explanation`, `POST /negotiate/agents`, `POST /matches/{id}/confirm-price` |
-| Buyer | `GET /companies`, `GET/POST /companies/{id}/demand`, `GET /companies/{id}/dashboard`, `GET /buyers/{id}/fleet`, `GET /buyers/{id}/schedule`, `POST /schedule/solve`, `POST /matches/{id}/status`, `POST /stops/{match_id}/collected`, `GET /buyers/{id}/impact` |
-| Public | `GET /impact`, `GET /impact/scenario?share_pct=`, `GET /fire-detections`, `GET /health` |
-
-The original one-shot `POST /listings` and `POST /listings/voice` still work.
+| Farmer, talking | `POST /agent/turn` (voice or text, optional photo) |
+| Farmer, step by step | `POST /listings/draft`, `POST /listings/{draft_id}/confirm` |
+| Farmer, either way | `POST /bookings/{id}/accept`, `POST /bookings/{id}/cancel`, `GET /farmers/{id}/bookings`, `GET /bookings/{id}/price-explanation`, `POST /farmers/{id}/no-burn-proof` |
+| Ops | `GET /ops/summary`, `GET /depots`, `GET /depots/{id}/schedule`, `POST /depots/{id}/replan`, `POST /depots/{id}/crews`, `POST /ops/bookings/{id}/accept` (demo), `POST /stops/{id}/collected` |
+| Ops | `GET /inventory`, `GET /purchases`, `GET\|POST /plan/procurement`, `GET /plan/deliveries`, `GET /forecast`, `GET /costs`, `GET /agent/conversations/{id}` |
+| Customers | `GET /customers`, `POST /customers/{id}/quote`, `POST /customers/{id}/orders`, `GET /customers/{id}/orders` |
+| Public | `GET /prices/today`, `GET /impact`, `GET /impact/scenario`, `GET /fires/history`, `GET /fire-detections`, `GET /health` |
 
 ## Configuration
 
@@ -34,37 +38,25 @@ The original one-shot `POST /listings` and `POST /listings/voice` still work.
 | `AGENT_PLATFORM_LOCATION` | `global` |
 | `ALLOWED_ORIGINS` | the `parali-setu` Firebase Hosting origins and `localhost:8000` |
 
-Authentication uses Application Default Credentials, with no API keys. Locally, run
-`gcloud auth application-default login`. On Cloud Run, the service account is used.
+Authentication is via Application Default Credentials; there are no API keys.
 
-## Run, test, seed, deploy
-
-```bash
-uvicorn main:app --port 8080
-pytest                          # mocked; no credentials needed
-python tests/live_smoke.py      # real Gemini / Firestore / Speech / TTS; needs ADC
-python reset_demo.py --yes      # wipe Parali Setu's collections and seed the demo scenario
-python fetch_fire_data.py       # Earth Engine FIRMS batch -> fire_detections
-python forecast_pipeline.py     # BigQuery ML forecast -> forecasts
-```
-
-`live_smoke.py` is not named `test_*.py` on purpose, so `pytest` never runs it without
-credentials. It creates its own smoke-test buyers and cleans them up afterwards.
-
-To retrain the forecast after regenerating the synthetic corpus (`seed_data.py`), run
-`bq query --use_legacy_sql=false < bigquery/forecast_model.sql` first.
-
-Deploy:
+## Run, test, seed
 
 ```bash
-gcloud run deploy parali-setu-api --source . \
-  --project ai-builder-cup-aidatlas --region asia-southeast1 --allow-unauthenticated \
-  --set-env-vars GCP_PROJECT_ID=ai-builder-cup-aidatlas,GEMINI_MODEL=gemini-3.8-flash,AGENT_PLATFORM_LOCATION=global \
-  --memory 1Gi --timeout 120 --max-instances 3
+python dev_server.py            # real Gemini/voice over an in-memory demo world, :8080
+uvicorn main:app --port 8080    # against the shared Firestore
+pytest                          # 132 tests, in-memory Firestore fake, no credentials
+python tests/live_smoke.py      # real services end to end; run reset_demo.py first
+python reset_demo.py --yes      # wipe Parali Setu's collections and seed the demo season
 ```
 
-## Known limitations
+`tests/fakes.py` is an in-memory stand-in for the slice of Firestore the store uses. With it,
+whole flows run in tests: book → plan → accept → collect → pay → deliver.
 
-- `read_stubble_quality()` is noisy on ambiguous photos (see `seed/reference_photos/ATTRIBUTION.md`). It is only a soft matching signal and never sets a price.
-- The baling rate and crew capacity in `scheduler.py` are working assumptions.
-- Travel times are estimated from straight-line distance.
+## Deploy
+
+```bash
+gcloud run deploy parali-setu-api --source . --project ai-builder-cup-aidatlas --region asia-southeast1 \
+  --allow-unauthenticated --memory 1Gi --timeout 120 --max-instances 3 \
+  --set-env-vars GCP_PROJECT_ID=ai-builder-cup-aidatlas,GEMINI_MODEL=gemini-3.8-flash,AGENT_PLATFORM_LOCATION=global
+```
