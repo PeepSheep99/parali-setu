@@ -150,8 +150,11 @@ gcloud run deploy parali-setu-api --source parali-setu-api \
 firebase deploy --only hosting:parali-setu --project <project>
 ```
 
-Batch jobs: `python parali-setu-api/fetch_fire_data.py` (Earth Engine FIRMS) and
-`python parali-setu-api/forecast_pipeline.py` (BigQuery ML). The cost guard's setup is
+Batch jobs: the FIRMS refresh runs daily at 06:30 IST as the Cloud Run job
+`parali-setu-firms` (the API image with `python fetch_fire_data.py`), triggered by the
+Cloud Scheduler job `parali-setu-firms-daily`. The forecast is refreshed by hand with
+`python parali-setu-api/forecast_pipeline.py` (BigQuery ML). The API keeps one warm
+instance (`--min-instances 1`) during judging. The cost guard's setup is
 in [ops/cost-guard/README.md](ops/cost-guard/README.md).
 
 ## Roadmap

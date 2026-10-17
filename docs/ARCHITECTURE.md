@@ -57,7 +57,7 @@ flowchart LR
   API --> G & STT & TTS & FS
   API --> LP & RT & IM
   BQ -. batch: forecast_pipeline.py .-> FS
-  EE -. batch: fetch_fire_data.py .-> FS
+  EE -. "daily 06:30 IST: Cloud Scheduler → Cloud Run job" .-> FS
 ```
 
 Cost protection (`ops/cost-guard/`):
@@ -217,7 +217,7 @@ slider applies the same factors to a share of Punjab's ~19.7 Mt of paddy straw.
   - buyers, crews and listings are demo data
   - payments are simulated
   - the BigQuery ML forecast is trained on a synthetic corpus
-- **Not live:** fire detections are a batch refresh.
+- **Not live:** fire detections are refreshed daily (Cloud Scheduler → Cloud Run job), not streamed.
 - **Assumptions:**
   - the baling rate (2 acres/hour) and crew capacity (20 acres/day) still need a field source
   - travel times are estimates, not Routes API results
