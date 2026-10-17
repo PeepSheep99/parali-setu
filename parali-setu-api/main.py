@@ -17,6 +17,8 @@ from __future__ import annotations
 import base64
 import os
 from datetime import date
+from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
@@ -675,6 +677,31 @@ def get_delivery_plan():
     db = store.get_firestore_client()
     return {"plan": store.get_plan(db, "deliveries_current") or operations.run_deliveries(db),
             "deliveries": store.get_deliveries(db)}
+
+
+@lru_cache(maxsize=1)
+def _fire_seasons() -> list[dict]:
+    """Paddy-season (Sep-Dec) satellite fire detections per year for Punjab
+    and Haryana, from the NASA FIRMS history in forecast/data."""
+    import csv
+    path = Path(__file__).resolve().parent / "forecast" / "data" / "fires_daily.csv"
+    seasons: dict[int, dict] = {}
+    with path.open(encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            year = int(row["date"][:4])
+            season = seasons.setdefault(year, {"year": year, "Punjab": 0, "Haryana": 0, "last_date": row["date"]})
+            season[row["state"]] = season.get(row["state"], 0) + int(row["fire_pixels"])
+            season["last_date"] = max(season["last_date"], row["date"])
+    return [{**s, "total": s["Punjab"] + s["Haryana"], "partial": s["last_date"] < f"{s['year']}-12-01"}
+            for s in sorted(seasons.values(), key=lambda s: s["year"]) if s["year"] >= 2002]
+
+
+@app.get("/fires/history")
+def fire_history():
+    """25 paddy seasons of satellite fire detections (NASA FIRMS via Earth
+    Engine), counted per day within official district boundaries."""
+    return {"source": "NASA FIRMS via Google Earth Engine; FAO GAUL 2025 district boundaries; Sep-Dec each year",
+            "seasons": _fire_seasons()}
 
 
 @app.get("/costs")

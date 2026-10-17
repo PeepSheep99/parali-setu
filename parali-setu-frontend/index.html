@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Parali Setu · Guaranteed stubble pickup before sowing</title>
-<meta name="description" content="Farmers list paddy stubble by voice in Punjabi or Hindi; an optimizer books a crew pickup before the wheat-sowing deadline, and the farmer gets paid instead of burning.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parali Setu · We buy the straw so it isn't burned</title>
+<meta name="description" content="Farmers in Punjab and Haryana book a free stubble pickup by voice, get paid the same day, and Parali Setu stores the straw and supplies industry all year. Built on Google Cloud: Gemini, BigQuery TimesFM, Earth Engine, OR-Tools on Cloud Run.">
 <link rel="icon" href="kisan/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="landing.css">
@@ -15,10 +15,10 @@
     <a class="brand" href="./"><img src="kisan/icon.svg" alt="" width="30" height="30"> Parali Setu</a>
     <nav aria-label="Sections">
       <a href="#how">How it works</a>
-      <a href="#impact">Impact</a>
-      <a href="#architecture">Architecture</a>
-      <a href="kisan/" class="pill-link">Farmer app</a>
-      <a href="buyer/" class="pill-link dark">Buyer console</a>
+      <a href="#record">The record</a>
+      <a href="#industry">Industry</a>
+      <a href="#cloud">Built on Google Cloud</a>
+      <a href="kisan/" class="pill-link dark">Book a pickup</a>
     </nav>
   </div>
 </header>
@@ -26,111 +26,198 @@
 <main>
   <section class="hero">
     <div class="hero-text">
-      <p class="eyebrow">Punjab &amp; Haryana · paddy harvest season</p>
-      <h1>A guaranteed pickup before sowing, so the stubble never gets burned.</h1>
-      <p class="lede">Farmers list their stubble by voice in Punjabi or Hindi. An optimizer matches it to a buyer whose crews can reach the field and books a pickup slot before the wheat-sowing deadline. The field gets cleared for free and the farmer gets paid.</p>
+      <p class="eyebrow">Punjab &amp; Haryana · every October and November</p>
+      <h1>The smoke over North India starts in a paddy field. We buy the straw instead.</h1>
+      <p class="lede">Farmers have about two weeks between the paddy harvest and sowing wheat. Burning the straw is fast and nearly free. <strong>Parali Setu makes not burning faster:</strong> book a pickup by talking in Punjabi or Hindi, we clear the field before you sow, and you are paid the same day. No vendors to chase, no machines to rent.</p>
       <div class="ctas">
-        <a class="btn primary" href="kisan/">List stubble (farmer)</a>
-        <a class="btn" href="buyer/">Plan pickups (buyer)</a>
+        <a class="btn primary" href="kisan/">Book a pickup <span>Farmers</span></a>
+        <a class="btn" href="company/">Buy straw all year <span>Industry</span></a>
+        <a class="btn" href="ops/">See operations <span>Our team</span></a>
       </div>
-      <p class="small muted">Parali (ਪਰਾਲੀ) is stubble; setu (ਸੇਤੂ) is a bridge. Prototype with demo buyers and listings.</p>
+      <p class="small muted">Parali (ਪਰਾਲੀ) is paddy straw; setu (ਸੇਤੂ) is a bridge. A working prototype with demo farms, buyers and simulated payments.</p>
     </div>
-    <aside class="live card" aria-live="polite">
-      <p class="eyebrow">Live on this prototype</p>
-      <div class="live-grid" id="live">
-        <div><span class="v" id="live-tonnes">–</span><span class="k">straw collected, not burned</span></div>
-        <div><span class="v" id="live-ghg">–</span><span class="k">CO₂e avoided</span></div>
-        <div><span class="v" id="live-booked">–</span><span class="k">more booked for pickup</span></div>
+    <aside class="toll" aria-label="Why it matters">
+      <div class="toll-item burn"><span class="v">3×</span><span class="k">higher risk of acute respiratory infection for people in districts with intense crop burning; children under five are most affected. <a href="https://www.ifpri.org/news-release/new-study-air-pollution-indias-stubble-burning-leads-usd-15-billion-economic-losses">IFPRI</a></span></div>
+      <div class="toll-item flat"><span class="v">19.17 lakh ha</span><span class="k">burned in Punjab in 2024, the same as 2023, even as fire counts fell. <a href="https://vajiramandravi.com/current-affairs/stubble-burning-in-punjab/">Vajiram &amp; Ravi</a></span></div>
+      <div class="toll-item good"><span class="v">0.18 t CO₂e</span><span class="k">of methane and nitrous oxide kept out of the air for every tonne of straw collected instead of burned, plus about 8 kg of fine smoke particles.</span></div>
+      <div class="live" id="live" aria-live="polite">
+        <p class="eyebrow">Demo run on this prototype</p>
+        <div class="live-grid">
+          <div><span class="v" id="live-tonnes">–</span><span class="k">straw collected, not burned</span></div>
+          <div><span class="v" id="live-paid">–</span><span class="k">paid to farmers the same day (simulated)</span></div>
+          <div><span class="v" id="live-ghg">–</span><span class="k">CO₂e avoided</span></div>
+        </div>
       </div>
-      <p class="small muted">From collected pickups in the demo data, computed by the backend's impact model.</p>
     </aside>
   </section>
 
+  <section class="band" id="how">
+    <div class="inner">
+      <p class="eyebrow">How it works</p>
+      <h2>One booking for the farmer. One supplier for industry.</h2>
+      <div class="lanes">
+        <article class="lane">
+          <h3>Farmer</h3>
+          <ol>
+            <li><strong>Talk once.</strong> “Das kille jhona, Sangrur, 25 tak kanak bijni hai.” Our Gemini agent asks only what's missing and reads it back.</li>
+            <li><strong>One fair price.</strong> Today's posted price for your district, set by our planner. No bargaining.</li>
+            <li><strong>A slot before sowing.</strong> Our crew, or a hired partner crew, clears the field for free.</li>
+            <li><strong>Paid the same day</strong> the straw is collected.</li>
+          </ol>
+        </article>
+        <article class="lane">
+          <h3>Parali Setu</h3>
+          <ol>
+            <li><strong>Forecast the harvest.</strong> 25 seasons of satellite fire data, forecast with TimesFM in BigQuery, show when each district's straw comes.</li>
+            <li><strong>Plan what to buy.</strong> A linear program weighs expected straw, depot space, crews and customer orders, and sets each district's price.</li>
+            <li><strong>Route the crews.</strong> A routing model books every farm before its sowing date; hired crews fill any gap.</li>
+            <li><strong>Store and deliver</strong> from five depots, month by month.</li>
+          </ol>
+        </article>
+        <article class="lane">
+          <h3>Industry</h3>
+          <ol>
+            <li><strong>Sign a volume</strong> for the months you need: CBG, biomass power, boilers, pellets.</li>
+            <li><strong>Get a price built from real costs:</strong> farm-gate, collection, storage, haulage, margin.</li>
+            <li><strong>Receive straw all year,</strong> not just in a six-week rush, from fields that were cleared, not burned.</li>
+          </ol>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="inner" id="record">
+    <p class="eyebrow">The satellite record <span class="badge">NASA FIRMS via Google Earth Engine</span></p>
+    <h2>Fewer fires are counted. The burned area hasn't moved.</h2>
+    <p class="muted lede-sm">Satellite fire detections in Punjab and Haryana each paddy season (Sep–Dec), counted day by day inside official district boundaries. Counts have fallen since 2021 under enforcement, but the area burned in 2024 matched 2023, which suggests burning moved to times the satellites miss. So we use fires as a signal of <em>when</em> straw comes off the fields, and take <em>how much</em> from crop statistics.</p>
+    <div id="record-chart" class="chart" role="img" aria-label="Fire detections per paddy season, 2002 to 2026"></div>
+    <p class="small muted" id="record-note"></p>
+  </section>
+
   <section class="band">
-    <div class="inner">
-      <p class="eyebrow">The problem</p>
-      <h2>Fewer fires counted, the same area burned</h2>
-      <div class="stats">
-        <div class="stat burn"><span class="v">36,663 → 5,085</span><span class="k">Punjab farm-fire counts, 2023 to 2025 (state estimate)</span></div>
-        <div class="stat flat"><span class="v">19.14 → 19.17</span><span class="k">lakh hectares burned, 2023 to 2024: counts fell, area did not</span></div>
-        <div class="stat good"><span class="v">0.92 → 7.06 Mt</span><span class="k">straw used by industry, 2020-21 to 2025: buyers exist</span></div>
+    <div class="inner split">
+      <div class="table-wrap">
+        <table>
+          <caption>Why a farmer still burns, per acre of paddy</caption>
+          <tbody>
+            <tr><th scope="row">Straw produced</th><td>17–18 quintals</td></tr>
+            <tr><th scope="row">Its value delivered to a plant</th><td>₹2,200–3,000</td></tr>
+            <tr><th scope="row">Baling and transport, paid by the farmer</th><td>₹2,500–4,000</td></tr>
+            <tr><th scope="row">Burning</th><td>≈₹500 and one day</td></tr>
+            <tr><th scope="row">Time before wheat sowing</th><td>10–15 days</td></tr>
+          </tbody>
+        </table>
       </div>
-      <div class="split">
-        <div class="table-wrap">
-          <table>
-            <caption>Why a farmer still burns, per acre of paddy</caption>
-            <tbody>
-              <tr><th scope="row">Straw produced</th><td>17–18 quintals</td></tr>
-              <tr><th scope="row">Its value delivered to a plant</th><td>₹2,200–3,000</td></tr>
-              <tr><th scope="row">Baling and transport, paid by the farmer</th><td>₹2,500–4,000</td></tr>
-              <tr><th scope="row">Burning</th><td>≈₹500 and one day</td></tr>
-              <tr><th scope="row">Time before wheat sowing</th><td>10–15 days</td></tr>
-            </tbody>
-          </table>
+      <p class="thesis">Selling straw nets a farmer roughly nothing, and a baler that arrives after the sowing date is worthless. We take the whole job off the farmer: free clearing before sowing and a small payment the same day. We make it pay by planning collection better than anyone else and selling the straw year-round.</p>
+    </div>
+  </section>
+
+  <section class="inner" id="industry">
+    <p class="eyebrow">Who needs this straw</p>
+    <h2>Punjab's industry already uses millions of tonnes a year</h2>
+    <p class="muted lede-sm">The state put ex-situ use at 5.96 Mt in 2024 and targets about 7 Mt in 2025. What industry lacks is reliable, year-round supply.</p>
+    <div class="segments">
+      <div class="segment"><span class="v">≈11.7 lakh t</span><span class="k">Biomass power: 11 plants, 101.5 MW</span><a href="https://bioenergytimes.com/four-cbg-plants-to-come-up-in-punjab-in-2026-27-to-consume-1-08-lakh-tonnes-of-paddy-residue/">BioEnergy Times (PEDA)</a></div>
+      <div class="segment"><span class="v">3.5–5.4 lakh t</span><span class="k">Compressed biogas; Verbio's Lehragaga plant alone is reported at about 1.3 lakh t a year</span><a href="https://renewablewatch.in/2024/01/30/taking-action-cbg-helps-address-the-issue-of-stubble-burning-in-punjab/">Renewable Watch</a></div>
+      <div class="segment"><span class="v">36–41 lakh t</span><span class="k">Industrial boilers, the fastest-growing use (projected for 2025)</span><a href="https://bioenergytimes.com/punjab-targets-zero-stubble-burning-by-2030-with-biomass-cbg-and-crop-diversification-push/">BioEnergy Times</a></div>
+      <div class="segment"><span class="v">7–17 lakh t</span><span class="k">Pellet plants, which also supply coal power plants under CAQM's co-firing directions</span><a href="https://www.energetica-india.net/news/71-thermal-power-plants-across-india-have-adopted-biomass-co-firing-caqm">Energetica India</a></div>
+    </div>
+    <p class="small muted">Named plants are public market information, not our customers. The customers in this prototype are invented and marked “(demo)”.</p>
+  </section>
+
+  <section class="band" id="tour">
+    <div class="inner">
+      <p class="eyebrow">Try it</p>
+      <h2>Four apps, one system</h2>
+      <div class="tour">
+        <a class="tour-card" href="kisan/?view=phone"><span class="tag">Farmer · phone</span><h3>Talk to book</h3><p>A Gemini agent that listens in Punjabi, Hindi or English, asks one thing at a time and books a pickup. Every number it says comes from our planners.</p></a>
+        <a class="tour-card" href="kisan/?view=laptop"><span class="tag">Farmer · laptop</span><h3>Book step by step</h3><p>The same booking with fuller explanations, today's prices by district, and a satellite-checked no-burn proof.</p></a>
+        <a class="tour-card" href="ops/"><span class="tag">Parali Setu team</span><h3>Run the season</h3><p>Crew routes on Google Maps, partner crews when ours are full, depot stock, the harvest forecast and the buying plan.</p></a>
+        <a class="tour-card" href="company/"><span class="tag">Industry</span><h3>Order straw</h3><p>A quote built from real costs, a signed monthly volume and a delivery plan from our depots.</p></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="inner" id="cloud">
+    <p class="eyebrow">Built on Google Cloud</p>
+    <h2>Language from Gemini. Numbers from optimizers. Timing from satellites.</h2>
+    <div class="arch" aria-label="Architecture">
+      <div class="col">
+        <p class="col-title">Apps · Firebase Hosting</p>
+        <div class="node">Farmer app: talk (phone) or step by step (laptop)</div>
+        <div class="node">Operations console</div>
+        <div class="node">Customer portal</div>
+        <div class="node">This page</div>
+      </div>
+      <div class="col mid">
+        <p class="col-title">API · Cloud Run (Python, OR-Tools)</p>
+        <div class="node strong">Farmer agent: Gemini function calling with guardrails enforced in code</div>
+        <div class="node">Procurement LP → posted price per district (shadow prices)</div>
+        <div class="node">Routing model → crew slots before sowing, partner crews</div>
+        <div class="node">Delivery LP → monthly shipments from depot stock</div>
+        <div class="node">Impact model → CO₂e, PM2.5, payouts</div>
+      </div>
+      <div class="col">
+        <p class="col-title">Google services</p>
+        <div class="node g">Vertex AI · Gemini: conversation, audio understanding, photo grading, explanations</div>
+        <div class="node g">Speech-to-Text · Text-to-Speech (Chirp 3 HD): Punjabi, Hindi, English</div>
+        <div class="node g">BigQuery · TimesFM (AI.FORECAST) and ARIMA_PLUS backtests</div>
+        <div class="node g">Earth Engine · NASA FIRMS fire history, FAO GAUL districts</div>
+        <div class="node g">Firestore · bookings, depots, stock, orders, conversations</div>
+        <div class="node g">Cloud Scheduler + Cloud Run jobs · daily fire refresh</div>
+        <div class="node g">Maps JavaScript API · crew routes and fire map</div>
+        <div class="node g">Billing budgets + Pub/Sub · automatic cost guard</div>
+      </div>
+    </div>
+    <ul class="principles">
+      <li><b>Gemini never sets a number.</b> Prices come from the procurement LP, slots from the routing model, payouts from price × weight. The agent may only repeat numbers a tool returned or the farmer said; anything else is blocked and rewritten.</li>
+      <li><b>A booking needs the farmer's own yes,</b> checked in code in their language, after the offer has been shown.</li>
+      <li><b>Forecasts are scored on held-out seasons.</b> TimesFM placed the 2024 and 2025 harvest peaks within a week, ahead of ARIMA_PLUS and a same-as-last-year baseline.</li>
+    </ul>
+  </section>
+
+  <section class="band" id="impact">
+    <div class="inner">
+      <p class="eyebrow">Impact</p>
+      <h2>What if a share of Punjab's straw went through Parali Setu?</h2>
+      <div class="scenario card">
+        <label for="share" class="share-label">Share of Punjab's ~19.7 Mt of paddy straw: <b><output id="share-out" for="share">5</output>%</b></label>
+        <input type="range" id="share" min="1" max="25" step="1" value="5">
+        <div class="scenario-grid" aria-live="polite">
+          <div><span class="v" id="sc-tonnes">–</span><span class="k">straw collected instead of burned</span></div>
+          <div><span class="v" id="sc-ghg">–</span><span class="k">greenhouse gas avoided, in CO₂-equivalent (methane and nitrous oxide)</span></div>
+          <div><span class="v" id="sc-pm">–</span><span class="k">fine smoke particles (PM2.5) not released</span></div>
+          <div><span class="v" id="sc-cost">–</span><span class="k">baling and haulage farmers no longer pay</span></div>
         </div>
-        <p class="thesis">Selling straw nets a farmer roughly nothing. What changes the decision is a free, guaranteed clearing before the sowing date, with a small payment on top. The bottleneck is coordinating a scarce baler fleet, and that is what Parali Setu optimizes.</p>
+        <p class="small muted" id="sc-method"></p>
       </div>
     </div>
   </section>
 
-  <section class="inner" id="how">
-    <p class="eyebrow">How it works</p>
-    <h2>Speak once, confirm once, get a slot</h2>
-    <ol class="steps">
-      <li><h3>Speak</h3><p>The farmer holds one button and says how many acres, which crop, the village and when the field must be clear. Cloud Speech-to-Text transcribes Punjabi or Hindi; Gemini turns it into a structured listing.</p></li>
-      <li><h3>Confirm</h3><p>The app reads the details back word for word. If something is missing, Gemini asks one question, never two. A photo lets Gemini grade the stubble.</p></li>
-      <li><h3>Match and schedule</h3><p>An OR-Tools linear program picks the buyer whose crews can reach the farm. An OR-Tools routing model books a crew slot before the sowing deadline, or says honestly why it can't.</p></li>
-      <li><h3>Collect and pay</h3><p>The crew marks the pickup collected, the farmer's payout is recorded and the avoided emissions are counted. Gemini explains every result; it never sets a price, a quantity or a slot.</p></li>
-    </ol>
-  </section>
-
-  <section class="band" id="fires">
-    <div class="inner">
-      <p class="eyebrow">Recent fire activity <span class="badge">refreshed periodically, not live</span></p>
-      <h2>What the satellites saw this week</h2>
-      <p class="muted">NASA FIRMS detections over the 8 demo districts, fetched through Google Earth Engine. They also cross-check farmers' no-burn photos.</p>
-      <div id="fire-map" class="map" role="img" aria-label="Map of recent fire detections"></div>
-      <p id="map-status" class="small muted"></p>
+  <section class="inner two-col">
+    <div>
+      <p class="eyebrow">What's real and what's simulated</p>
+      <ul class="real">
+        <li class="yes">Satellite fire history (25 seasons), the TimesFM forecast and its backtests</li>
+        <li class="yes">District straw from government crop statistics; industry demand from published figures</li>
+        <li class="yes">The Gemini agent, voice in Punjabi, Hindi and English, photo grading</li>
+        <li class="yes">The optimizers: posted prices, crew routes, deliveries</li>
+        <li class="no">Farms, customers, crews and partner crews are demo data</li>
+        <li class="no">Payments are simulated; cost figures marked “assumption” are our working estimates</li>
+      </ul>
     </div>
-  </section>
-
-  <section class="inner" id="impact">
-    <p class="eyebrow">Impact</p>
-    <h2>What if a share of Punjab's straw went through Parali Setu?</h2>
-    <div class="scenario card">
-      <label for="share" class="share-label">Share of Punjab's ~19.7 Mt of paddy straw: <b><output id="share-out" for="share">5</output>%</b></label>
-      <input type="range" id="share" min="1" max="25" step="1" value="5">
-      <div class="scenario-grid" aria-live="polite">
-        <div><span class="v" id="sc-tonnes">–</span><span class="k">straw collected</span></div>
-        <div><span class="v" id="sc-ghg">–</span><span class="k">CO₂e avoided (methane + N₂O)</span></div>
-        <div><span class="v" id="sc-pm">–</span><span class="k">PM2.5 not released</span></div>
-        <div><span class="v" id="sc-cost">–</span><span class="k">clearing cost farmers avoid</span></div>
-      </div>
-      <p class="small muted" id="sc-method"></p>
-    </div>
-  </section>
-
-  <section class="band" id="architecture">
-    <div class="inner">
-      <p class="eyebrow">Architecture on Google Cloud</p>
-      <h2>Language from Gemini, numbers from optimizers</h2>
-      <div class="arch">
-        <a href="img/architecture.png" class="arch-img"><img src="img/architecture.png" alt="Architecture: Firebase Hosting pages call the parali-setu-api on Cloud Run, which uses Vertex AI Gemini, Speech-to-Text and Text-to-Speech for language, OR-Tools for matching and pickup routing, Firestore for state, BigQuery ML for demand forecasts and Earth Engine for fire detections. Billing budgets, Pub/Sub and a cost-guard function protect the free-tier budget." width="2000" height="1280" loading="lazy"></a>
-        <ul class="principles">
-          <li><b>Gemini on Vertex AI</b> understands speech and photos, asks the one follow-up question and explains results, in Punjabi, Hindi or English.</li>
-          <li><b>OR-Tools on Cloud Run</b> decides every price, quantity and pickup slot: a linear program for matching, a routing model for crews.</li>
-          <li><b>Firestore</b> holds live state; <b>BigQuery ML</b> forecasts buyer demand; <b>Earth Engine</b> supplies NASA FIRMS fire detections.</li>
-          <li><b>Cost guard:</b> billing budgets alert the team and a Cloud Run function throttles the API if real money is ever charged.</li>
-        </ul>
-      </div>
+    <div>
+      <p class="eyebrow">Team</p>
+      <p>Navneet Kumar (<a href="https://github.com/PeepSheep99">@PeepSheep99</a>) and Sainath (<a href="https://github.com/sainathch45">@sainathch45</a>), Team Ctrl Alt Conquer, Google Cloud AI Builder Cup 2026.</p>
+      <p class="small muted">Questions or feedback: <a href="https://github.com/PeepSheep99/parali-setu/issues">open an issue on GitHub</a>. Source: <a href="https://github.com/PeepSheep99/parali-setu">github.com/PeepSheep99/parali-setu</a>.</p>
     </div>
   </section>
 </main>
 
 <footer class="inner footer">
-  <p><a href="https://github.com/PeepSheep99/parali-setu">Source on GitHub</a> · Google Cloud AI Builder Cup 2026 · Team Ctrl Alt Conquer</p>
-  <p class="small muted">Buyers, crews and listings are demo data. Prices are farm-gate estimates (plants pay about ₹169 per quintal delivered). Payments are simulated. Fire counts: PPCB via Business Standard and Tribune; burnt area: Vajiram &amp; Ravi; farm economics: Tribune, Hindustan Times, Mongabay; emission factors: Gadde et al. 2009 with IPCC AR6 GWP100.</p>
+  <p class="small muted">Sources: fire counts PPCB via Business Standard and Tribune; burned area Vajiram &amp; Ravi; farm economics Tribune, Hindustan Times, Mongabay; respiratory risk IFPRI (Scott et al.); ex-situ use NGT status report (State of Punjab), PEDA via BioEnergy Times; emission factors Gadde et al. 2009 with IPCC AR6 GWP100; fire data NASA FIRMS; crop statistics Ministry of Agriculture APY data via Kaggle.</p>
 </footer>
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 
 <script src="config.js"></script>
 <script src="landing.js"></script>
