@@ -147,6 +147,7 @@ def impact_summary():
     db = store.get_firestore_client()
     collected_kg = booked_kg = paid_inr = 0.0
     farmers = set()
+    paid = []
     for b in store.get_bookings(db, ("booked", "verified", "collected", "paid")):
         if b["status"] in ("booked", "verified"):
             booked_kg += b["kg"]
@@ -154,8 +155,11 @@ def impact_summary():
             collected_kg += b.get("collected_kg") or b["kg"]
             paid_inr += b.get("payout_inr") or 0.0
             farmers.add(b["farmer_id"])
+            paid.append(b)
+    import satellite_check
     return {"collected": impact_for_kg(collected_kg), "booked": impact_for_kg(booked_kg),
-            "paid_to_farmers_inr": round(paid_inr, 2), "farmers_paid": len(farmers)}
+            "paid_to_farmers_inr": round(paid_inr, 2), "farmers_paid": len(farmers),
+            "field_checks": satellite_check.summary(paid, pickups.now_ist().date())}
 
 
 @app.get("/impact/scenario")
