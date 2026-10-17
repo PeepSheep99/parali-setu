@@ -1,6 +1,7 @@
-// Kisan: speak once, confirm once. Talks only to the deployed API
-// (../config.js). Never computes a price, quantity or slot itself -- every
-// number shown comes from the API response.
+// Kisan: the farmer's app, in two views of one booking.
+// Phone: a conversation with the talking agent (/agent/turn).
+// Laptop: the same booking as a step-by-step page (/listings/draft, /confirm).
+// Display only: every price, weight, payout and slot shown comes from the API.
 (() => {
   const STR = window.KISAN_STRINGS;
   const LANG_API = { hi: "Hindi", pa: "Punjabi", en: "English" };
@@ -10,24 +11,23 @@
     Ludhiana: ["ਲੁਧਿਆਣਾ", "लुधियाना"], Moga: ["ਮੋਗਾ", "मोगा"], Karnal: ["ਕਰਨਾਲ", "करनाल"],
     Kaithal: ["ਕੈਥਲ", "कैथल"], Kurukshetra: ["ਕੁਰੂਕਸ਼ੇਤਰ", "कुरुक्षेत्र"],
   };
-
   const $ = (id) => document.getElementById(id);
   const state = {
-    lang: null, farmerId: null, draft: null, edits: {}, location: null,
-    photo: null, offerBody: null, lastPlace: null,
+    lang: null, view: null, farmerId: null,
+    conversationId: null, talkPhoto: null, busy: false,
+    draft: null, edits: {}, location: null, deskPhoto: null, offer: null,
   };
 
-  // ---- storage (per-device convenience only; tolerate blocked storage)
+  // ---- storage: per-device conveniences only; tolerate blocked storage
   const saved = {
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
   };
 
-  // ---- text helpers
+  // ---- text
   const fill = (s, vars) => s.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] !== undefined ? vars[k] : ""));
   const t = (key, vars) => fill((STR[state.lang] || STR.en)[key] || STR.en[key] || key, vars);
   const en = (key, vars) => fill(STR.en[key] || key, vars);
-
   function h(tag, attrs = {}, ...children) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs)) {
@@ -35,19 +35,15 @@
       else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
       else if (v !== null && v !== undefined && v !== false) el.setAttribute(k, v === true ? "" : v);
     }
-    for (const c of children.flat()) if (c !== null && c !== undefined) el.append(c.nodeType ? c : String(c));
+    for (const c of children.flat()) if (c !== null && c !== undefined && c !== false) el.append(c.nodeType ? c : String(c));
     return el;
   }
-
-  // A label in the farmer's language, with the English line underneath
-  // for Hindi/Punjabi so others can follow.
   function labelNodes(key, vars) {
     const nodes = [t(key, vars)];
     if (state.lang !== "en") nodes.push(h("span", { class: "sub", lang: "en" }, en(key, vars)));
     return nodes;
   }
-  function setLabel(el, key, vars) { el.replaceChildren(...labelNodes(key, vars)); }
-
+  const setLabel = (el, key, vars) => el.replaceChildren(...labelNodes(key, vars));
   function toast(message) {
     const el = $("toast");
     el.textContent = message;
@@ -55,12 +51,11 @@
     clearTimeout(toast.timer);
     toast.timer = setTimeout(() => { el.hidden = true; }, 4500);
   }
-
   function playAudio(spoken) {
     if (!spoken || !spoken.audio_base64) return;
     const audio = $("voice");
     audio.src = `data:audio/mp3;base64,${spoken.audio_base64}`;
-    audio.play().catch(() => { /* autoplay blocked; the Listen button replays */ });
+    audio.play().catch(() => { /* autoplay blocked: the replay button works */ });
   }
 
   // ---- API
@@ -68,19 +63,13 @@
     const resp = await fetch(`${API_BASE}${path}`, options);
     let body = {};
     try { body = await resp.json(); } catch { /* empty body */ }
-    if (!resp.ok) {
-      const detail = typeof body.detail === "string" ? body.detail : t("error_generic");
-      throw new Error(detail);
-    }
+    if (!resp.ok) throw new Error(typeof body.detail === "string" ? body.detail : t("error_generic"));
     return body;
   }
-  const postJson = (path, data) => api(path, {
-    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
-  });
+  const postJson = (path, data) => api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
 
-  // ---- formatting (display only)
-  // Explicit names: browser locale data for pa-IN is often missing and
-  // renders months as "M10".
+  // ---- formatting (display only). Explicit names: browser locale data for
+  // pa-IN is often missing and renders months as "M10".
   const MONTHS = {
     en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     hi: ["जनवरी", "फ़रवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"],
@@ -92,72 +81,76 @@
     pa: ["ਐਤਵਾਰ", "ਸੋਮਵਾਰ", "ਮੰਗਲਵਾਰ", "ਬੁੱਧਵਾਰ", "ਵੀਰਵਾਰ", "ਸ਼ੁੱਕਰਵਾਰ", "ਸ਼ਨੀਵਾਰ"],
   };
   function parseDay(iso) {
-    const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
-    if (!y || !m || !d) return null;
-    return new Date(y, m - 1, d);
+    const [y, m, d] = String(iso || "").slice(0, 10).split("-").map(Number);
+    return y && m && d ? new Date(y, m - 1, d) : null;
   }
-  function formatWindow(slot) {
-    if (!slot) return t("not_given");
-    const d = parseDay(slot.date);
+  const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  function formatSlot(slot) {
+    const d = slot && parseDay(slot.date);
     if (!d) return t("not_given");
-    const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-    const day = `${WEEKDAYS[state.lang][d.getDay()]}, ${d.getDate()} ${MONTHS[state.lang][d.getMonth()]}`;
-    return `${day}, ${hm(slot.window_start_min)}–${hm(slot.window_end_min)}`;
+    return `${WEEKDAYS[state.lang][d.getDay()]}, ${d.getDate()} ${MONTHS[state.lang][d.getMonth()]}, ${hm(slot.window_start_min)}–${hm(slot.window_end_min)}`;
+  }
+  function formatLabel(label) {   // "2026-10-19 09:00-12:00" from the API
+    const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})-(\d{2}):(\d{2})$/.exec(label || "");
+    return m ? formatSlot({ date: m[1], window_start_min: +m[2] * 60 + +m[3], window_end_min: +m[4] * 60 + +m[5] }) : (label || t("not_given"));
   }
   function formatDate(iso) {
-    if (!iso) return null;
     const d = parseDay(iso);
     return d ? `${d.getDate()} ${MONTHS[state.lang][d.getMonth()]}` : null;
   }
+  const clock = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString(LOCALE[state.lang], { hour: "numeric", minute: "2-digit" }); };
   const rupees = (n) => `₹${Number(n).toLocaleString(LOCALE[state.lang], { maximumFractionDigits: 2 })}`;
+  const perKg = (n) => `₹${Number(n).toLocaleString(LOCALE[state.lang], { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${t("per_kg")}`;
+  const kg = (n) => `${Number(n).toLocaleString(LOCALE[state.lang], { maximumFractionDigits: 0 })} kg`;
 
-  // ---- language
-  function setLanguage(lang) {
-    state.lang = lang;
-    saved.set("parali_lang", lang);
-    document.documentElement.lang = lang;
-    document.querySelectorAll("[data-t]").forEach((el) => setLabel(el, el.dataset.t));
-    document.querySelectorAll(".langs button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
-    $("typed").placeholder = t("type_placeholder");
-    $("lang-gate").hidden = true;
-    $("app").hidden = false;
-    if (state.photo) setLabel($("photo-label"), "photo_added");
-    if (state.location) setLabel($("locate-label"), "location_added");
-    if (state.draft) renderConfirm();
-    if (state.offerBody) renderOffer();
-    renderDistrictSelect();
-    loadPickups();
+  // ---- recording: tap to start, tap to stop (or hold and release), sent as
+  // 16 kHz mono WAV, which Gemini and Cloud Speech-to-Text both accept.
+  async function toWav(blob) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const decoded = await new Ctx().decodeAudioData(await blob.arrayBuffer());
+    const rate = 16000;
+    const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * rate), rate);
+    const src = offline.createBufferSource();
+    src.buffer = decoded;
+    src.connect(offline.destination);
+    src.start();
+    const pcm = (await offline.startRendering()).getChannelData(0);
+    const view = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+    const str = (o, s) => [...s].forEach((c, i) => view.setUint8(o + i, c.charCodeAt(0)));
+    str(0, "RIFF"); view.setUint32(4, 36 + pcm.length * 2, true); str(8, "WAVE"); str(12, "fmt ");
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+    str(36, "data"); view.setUint32(40, pcm.length * 2, true);
+    pcm.forEach((s, i) => view.setInt16(44 + i * 2, Math.max(-1, Math.min(1, s)) * 0x7fff, true));
+    return new Blob([view], { type: "audio/wav" });
   }
 
-  // ---- voice recording: hold to talk, or tap to start and tap to stop
   function makeRecorder(button, labelEl, idleKey, onAudio) {
-    let recorder = null, chunks = [], pressedAt = 0, tapMode = false;
-
+    let recorder = null, pressedAt = 0, tapMode = false;
     async function start() {
       if (!navigator.mediaDevices || !window.MediaRecorder) { toast(t("mic_unavailable")); return; }
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const type = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "";
-        recorder = new MediaRecorder(stream, type ? { mimeType: type } : undefined);
-        chunks = [];
+        const chunks = [];
+        recorder = new MediaRecorder(stream);
         recorder.ondataavailable = (e) => chunks.push(e.data);
-        recorder.onstop = () => {
+        recorder.onstop = async () => {
           stream.getTracks().forEach((tr) => tr.stop());
           const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
           recorder = null;
           button.classList.remove("recording");
           setLabel(labelEl, idleKey);
-          if (blob.size > 2000) onAudio(blob);
+          if (blob.size < 2000) return;
+          try { onAudio(await toWav(blob)); } catch { toast(t("mic_unavailable")); }
         };
         recorder.start();
         button.classList.add("recording");
-        setLabel(labelEl, "tap_to_stop");
+        setLabel(labelEl, "listening");
       } catch {
         toast(t("mic_unavailable"));
       }
     }
     const stop = () => { if (recorder && recorder.state === "recording") recorder.stop(); };
-
     button.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       if (recorder) { stop(); tapMode = false; return; }
@@ -167,10 +160,8 @@
     });
     button.addEventListener("pointerup", () => {
       if (!recorder) return;
-      if (Date.now() - pressedAt > 450) stop();   // held: release sends
-      else tapMode = true;                         // quick tap: keep listening until the next tap
+      if (Date.now() - pressedAt > 450) stop(); else tapMode = true;
     });
-    button.addEventListener("pointerleave", () => { if (recorder && !tapMode && Date.now() - pressedAt > 450) stop(); });
     button.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
@@ -178,12 +169,173 @@
     });
   }
 
-  // ---- step 1: draft
-  function showWorking(key) {
-    setLabel($("working-text"), key);
-    $("working").hidden = false;
+  // ---- view and language
+  function setView(view) {
+    state.view = view;
+    saved.set("parali_view", view);
+    document.body.classList.toggle("view-phone", view === "phone");
+    document.body.classList.toggle("view-laptop", view === "laptop");
+    document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
+    if (view === "laptop") { loadPrices(); loadPickups(); }
   }
-  const hideWorking = () => { $("working").hidden = true; };
+
+  function setLanguage(lang) {
+    const changed = state.lang && state.lang !== lang;
+    state.lang = lang;
+    saved.set("parali_lang", lang);
+    document.documentElement.lang = lang;
+    document.querySelectorAll("[data-t]").forEach((el) => setLabel(el, el.dataset.t));
+    document.querySelectorAll(".langs button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+    $("typed").placeholder = t("type_placeholder");
+    $("kbd-input").placeholder = t("type_placeholder");
+    $("lang-gate").hidden = true;
+    $("app").hidden = false;
+    if (changed || !$("log").children.length) resetTalk();
+    if (state.draft) renderConfirm();
+    if (state.offer) renderOffer();
+    renderDistrictSelect();
+    loadPrices();
+    loadPickups();
+  }
+
+  // =========================================================================
+  // Phone view: talking to the agent
+  // =========================================================================
+  function scrollLog() { const log = $("log"); log.scrollTop = log.scrollHeight; }
+
+  function resetTalk() {
+    state.conversationId = null;
+    $("log").replaceChildren(h("div", { class: "bubble agent" }, t("greeting")));
+  }
+
+  function farmerBubble(text, english) {
+    $("log").append(h("div", { class: "bubble farmer" }, text,
+      english && state.lang !== "en" ? h("span", { class: "en", lang: "en" }, english) : null));
+    scrollLog();
+  }
+
+  function agentBubble(reply) {
+    const bubble = h("div", { class: "bubble agent" }, reply.text,
+      reply.audio_base64 ? h("button", { type: "button", class: "replay", onclick: () => playAudio(reply) }, `▶ ${t("replay")}`) : null);
+    $("log").append(bubble);
+    scrollLog();
+  }
+
+  function thinking(on) {
+    document.querySelector(".log .dots")?.remove();
+    if (on) { $("log").append(h("div", { class: "dots", "aria-label": t("thinking") }, h("i"), h("i"), h("i"))); scrollLog(); }
+    $("talk-mic").classList.toggle("busy", on);
+  }
+
+  function cropName(c) { return c === "wheat_stubble" ? t("wheat") : c === "rice_stubble" ? t("rice") : null; }
+
+  function draftCard(card) {
+    const f = card.fields || {};
+    const items = [
+      f.acres ? `${f.acres} ${t("f_acres")}` : null, cropName(f.crop_type),
+      f.village_or_district || null, f.sowing_deadline ? `${t("f_sowing")}: ${formatDate(f.sowing_deadline)}` : null,
+    ].filter(Boolean);
+    const missing = (card.missing_fields || []).map((m) => ({ quantity: "f_acres", crop_type: "f_crop", location: "f_place", sowing_deadline: "f_sowing" }[m]));
+    return h("div", { class: "tcard" },
+      h("div", { class: "mini-chips" }, items.map((i) => h("span", { class: "mini-chip" }, i)),
+        missing.filter(Boolean).map((k) => h("span", { class: "mini-chip missing" }, `${t(k)}?`))));
+  }
+
+  function priceCard(card) {
+    return h("div", { class: "tcard" },
+      h("span", { class: "hint" }, `${t("price_today")} · ${card.district}`),
+      h("span", { class: "big-price" }, perKg(card.price_per_kg)),
+      h("div", { class: "badges" }, h("span", { class: "badge" }, t("field_free")), h("span", { class: "badge" }, t("paid_same_day"))));
+  }
+
+  function offerCard(card) {
+    const book = h("button", { type: "button", class: "primary wide" }, labelNodes("book_this"));
+    book.addEventListener("click", () => acceptBooking(card.booking_id, book, (result) => {
+      box.replaceWith(bookedCard({ pickup_window: result.pickup_window, payout_inr: result.booking.payout_estimate_inr,
+                                   pickup_window_spoken: card.pickup_window_spoken }));
+    }));
+    const box = h("div", { class: "tcard offer" },
+      h("div", { class: "kv" }, h("span", { class: "k" }, t("price_today")), h("span", { class: "v" }, perKg(card.price_per_kg))),
+      h("div", { class: "kv" }, h("span", { class: "k" }, t("straw")), h("span", { class: "v" }, kg(card.kg))),
+      h("div", { class: "kv" }, h("span", { class: "k" }, t("pickup")), h("span", { class: "v" }, card.pickup_window_spoken || formatLabel(card.pickup_window))),
+      h("span", { class: "hint" }, t("you_get")),
+      h("span", { class: "money" }, rupees(card.payout_inr)),
+      h("div", { class: "badges" }, h("span", { class: "badge" }, t("field_free")), h("span", { class: "badge" }, t("paid_same_day"))),
+      card.partner_crew ? h("p", { class: "note" }, t("partner_crew")) : null,
+      card.offer_valid_until ? h("p", { class: "hint" }, t("held_until", { t: clock(card.offer_valid_until) })) : null,
+      book);
+    return box;
+  }
+
+  function bookedCard(card) {
+    return h("div", { class: "tcard done" }, h("strong", {}, labelNodes("booked")),
+      h("span", {}, t("booked_line", { w: card.pickup_window_spoken || formatLabel(card.pickup_window), p: rupees(card.payout_inr) })));
+  }
+
+  function renderCards(cards) {
+    // Show only the latest card of each kind from this turn, in a sensible order.
+    const latest = {};
+    for (const c of cards || []) latest[c.type] = c;
+    const order = latest.booked ? ["booked"] : latest.offer ? ["offer"] : ["price", "draft", "bookings"];
+    for (const type of order) {
+      const c = latest[type];
+      if (!c) continue;
+      if (type === "draft") $("log").append(draftCard(c));
+      else if (type === "price") $("log").append(priceCard(c));
+      else if (type === "offer") $("log").append(offerCard(c));
+      else if (type === "booked") $("log").append(bookedCard(c));
+      else if (type === "bookings") openSheet();
+    }
+    scrollLog();
+  }
+
+  async function sendTurn({ audio, text }) {
+    if (state.busy) return;
+    state.busy = true;
+    if (text) farmerBubble(text);
+    thinking(true);
+    const form = new FormData();
+    form.append("farmer_id", state.farmerId);
+    form.append("language", LANG_API[state.lang]);
+    if (state.conversationId) form.append("conversation_id", state.conversationId);
+    if (text) form.append("text", text);
+    if (audio) form.append("audio", audio, "speech.wav");
+    if (state.talkPhoto) form.append("photo", state.talkPhoto);
+    try {
+      const body = await api("/agent/turn", { method: "POST", body: form });
+      thinking(false);
+      state.conversationId = body.conversation_id;
+      state.talkPhoto = null;
+      document.querySelector("label[for=talk-photo]").classList.remove("done");
+      if (audio) farmerBubble(body.heard.text, body.heard.english);
+      agentBubble(body.reply);
+      renderCards(body.cards);
+      playAudio(body.reply);
+      if ((body.cards || []).some((c) => c.type === "offer" || c.type === "booked")) loadPickups();
+    } catch (err) {
+      thinking(false);
+      toast(err.message);
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  function openSheet() { loadPickups(); $("sheet").hidden = false; }
+
+  // =========================================================================
+  // Laptop view: the step-by-step booking
+  // =========================================================================
+  function setStep(step) {
+    const order = ["tell", "check", "book"];
+    order.forEach((s, i) => {
+      const li = $(`step-${s}`);
+      li.classList.toggle("on", s === step);
+      li.classList.toggle("done", i < order.indexOf(step));
+    });
+  }
+  function working(key) {
+    if (key) { setLabel($("working-text"), key); $("working").hidden = false; } else { $("working").hidden = true; }
+  }
 
   async function sendDraft({ audio, text }) {
     const form = new FormData();
@@ -191,30 +343,29 @@
     form.append("language", LANG_API[state.lang]);
     if (state.draft) form.append("draft_id", state.draft.draft_id);
     if (text) form.append("text", text);
-    if (audio) form.append("audio", audio, "speech.webm");
+    if (audio) form.append("audio", audio, "speech.wav");
     if (state.location) { form.append("lat", state.location.lat); form.append("lon", state.location.lon); }
-    if (state.photo) form.append("photo", state.photo);
-    showWorking("understanding");
+    if (state.deskPhoto) form.append("photo", state.deskPhoto);
+    working("understanding");
     try {
       const body = await api("/listings/draft", { method: "POST", body: form });
-      state.photo = null;
+      state.deskPhoto = null;
       state.draft = body;
       state.edits = {};
-      state.offerBody = null;
+      state.offer = null;
       $("offer").hidden = true;
       renderConfirm();
+      setStep("check");
       playAudio(body.follow_up || body.confirm_summary);
       $("confirm").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (err) {
       toast(err.message);
     } finally {
-      hideWorking();
+      working(null);
     }
   }
 
-  function currentFields() {
-    return { ...(state.draft ? state.draft.fields : {}), ...state.edits };
-  }
+  const currentFields = () => ({ ...(state.draft ? state.draft.fields : {}), ...state.edits });
 
   function renderConfirm() {
     const d = state.draft;
@@ -223,50 +374,37 @@
     $("question").hidden = !d.follow_up;
     if (d.follow_up) $("question-text").textContent = d.follow_up.text;
     $("transcript").textContent = d.transcript ? `“${d.transcript}”` : "";
-
     const f = currentFields();
-    const cropName = f.crop_type === "wheat_stubble" ? t("wheat") : f.crop_type === "rice_stubble" ? t("rice") : null;
     const chips = [
       { field: "acres", key: "f_acres", value: f.acres ? String(f.acres) : null },
-      { field: "crop_type", key: "f_crop", value: cropName },
+      { field: "crop_type", key: "f_crop", value: cropName(f.crop_type) },
       { field: "village_or_district", key: "f_place", value: f.village_or_district || (state.location ? t("location_added") : null) },
       { field: "sowing_deadline", key: "f_sowing", value: formatDate(f.sowing_deadline) },
+      { field: "contact", key: "f_phone", value: f.contact || null, optional: true },
     ];
-    const nodes = chips.map((c) => h("button", {
-      type: "button", class: `chip${c.value ? "" : " missing"}`, onclick: () => editChip(c.field),
-    },
-      h("span", { class: "k" }, labelNodes(c.key)),
-      h("span", { class: "v" }, c.value || t("not_given")),
-      h("span", { class: "edit", "aria-hidden": "true" }, "✎"),
-    ));
+    const nodes = chips.map((c) => h("button", { type: "button", class: `chip${c.value || c.optional ? "" : " missing"}`, "data-field": c.field, onclick: () => editChip(c.field) },
+      h("span", { class: "k" }, labelNodes(c.key)), h("span", { class: "v" }, c.value || (c.optional ? "—" : t("not_given"))),
+      h("span", { class: "edit", "aria-hidden": "true" }, "✎")));
     if (d.quality && d.quality.grade && d.quality.grade !== "unknown") {
-      nodes.push(h("div", { class: "chip" }, h("span", { class: "k" }, labelNodes("f_quality")),
-        h("span", { class: "v" }, `${d.quality.grade}${d.quality.note ? " · " + d.quality.note : ""}`)));
+      nodes.push(h("div", { class: "chip" }, h("span", { class: "k" }, labelNodes("f_quality")), h("span", { class: "v" }, d.quality.grade)));
     }
     if (d.location_approximate) nodes.push(h("p", { class: "note" }, labelNodes("approx_location")));
     $("chips").replaceChildren(...nodes);
-    $("confirm-btn").disabled = !(f.acres || f.quantity_kg) || !f.crop_type;
+    $("confirm-btn").disabled = !(f.acres || f.quantity_kg) || !f.crop_type || !(f.village_or_district || state.location);
   }
 
   function editChip(field) {
     const f = currentFields();
     let input;
-    if (field === "acres") {
-      input = h("input", { type: "number", min: "0.5", max: "1000", step: "0.5", inputmode: "decimal", value: f.acres || "" });
-    } else if (field === "crop_type") {
-      input = h("select", {},
-        h("option", { value: "rice_stubble", selected: f.crop_type !== "wheat_stubble" }, t("rice")),
+    if (field === "acres") input = h("input", { type: "number", min: "0.5", max: "1000", step: "0.5", inputmode: "decimal", value: f.acres || "" });
+    else if (field === "crop_type") {
+      input = h("select", {}, h("option", { value: "rice_stubble", selected: f.crop_type !== "wheat_stubble" }, t("rice")),
         h("option", { value: "wheat_stubble", selected: f.crop_type === "wheat_stubble" }, t("wheat")));
-    } else if (field === "sowing_deadline") {
-      input = h("input", { type: "date", value: f.sowing_deadline ? String(f.sowing_deadline).slice(0, 10) : "" });
-    } else {
-      input = h("input", { type: "text", maxlength: "120", value: f.village_or_district || "" });
-    }
+    } else if (field === "sowing_deadline") input = h("input", { type: "date", value: f.sowing_deadline ? String(f.sowing_deadline).slice(0, 10) : "" });
+    else if (field === "contact") input = h("input", { type: "tel", inputmode: "tel", maxlength: "15", value: f.contact || "" });
+    else input = h("input", { type: "text", maxlength: "120", value: f.village_or_district || "" });
     const save = h("button", { type: "button", class: "primary" }, "✓");
-    const editor = h("div", { class: "chip-editor" }, input, save);
-    const chipButtons = [...$("chips").querySelectorAll("button.chip")];
-    const order = ["acres", "crop_type", "village_or_district", "sowing_deadline"];
-    chipButtons[order.indexOf(field)].replaceWith(editor);
+    $("chips").querySelector(`[data-field="${field}"]`).replaceWith(h("div", { class: "chip-editor" }, input, save));
     input.focus();
     const commit = () => {
       const raw = input.value.trim();
@@ -277,22 +415,18 @@
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); });
   }
 
-  // ---- step 2: confirm -> offer
   async function confirmListing() {
-    const edits = {};
-    for (const [k, v] of Object.entries(state.edits)) if (v !== "" && v !== null) edits[k] = v;
-    showWorking("finding");
+    const edits = Object.fromEntries(Object.entries(state.edits).filter(([, v]) => v !== "" && v !== null));
+    working("finding");
     $("confirm-btn").disabled = true;
     try {
-      const body = await postJson(`/listings/${state.draft.draft_id}/confirm`, {
-        farmer_id: state.farmerId, edits: Object.keys(edits).length ? edits : null,
-      });
-      state.lastPlace = body.listing && body.listing.village_or_district;
+      const body = await postJson(`/listings/${state.draft.draft_id}/confirm`, { farmer_id: state.farmerId, edits: Object.keys(edits).length ? edits : null });
       state.draft = null;
       state.edits = {};
       $("confirm").hidden = true;
-      state.offerBody = body;
+      state.offer = body;
       renderOffer();
+      setStep("book");
       playAudio(body.explanation);
       $("offer").scrollIntoView({ behavior: "smooth", block: "start" });
       loadPickups();
@@ -300,70 +434,64 @@
       toast(err.message);
       $("confirm-btn").disabled = false;
     } finally {
-      hideWorking();
+      working(null);
     }
   }
 
+  const REASONS = ["booked", "no_capacity", "deadline_passed", "too_far", "beyond_horizon", "expired"];
+  const reasonText = (code) => (REASONS.includes(code) ? t(`r_${code}`) : t("error_generic"));
+
   function renderOffer() {
-    const body = state.offerBody;
+    const body = state.offer;
     const box = $("offer");
     if (!body) { box.hidden = true; return; }
     box.hidden = false;
-
-    if (body.status !== "offered") {
-      const titleKey = body.status === "waitlisted" ? "waitlisted_title" : "no_buyer_title";
-      const bodyKey = body.status === "waitlisted" ? "waitlisted_body" : "no_buyer_body";
-      box.replaceChildren(
-        h("div", { class: "state-banner" }, h("h2", {}, labelNodes(titleKey)), h("p", {}, t(bodyKey))),
-        h("button", { type: "button", class: "ghost", onclick: resetCompose }, labelNodes("list_more")),
-      );
+    if (body.status === "out_of_area") { box.replaceChildren(h("p", { class: "result warn" }, t("out_of_area"))); return; }
+    const b = body.booking;
+    if (b.status === "unschedulable") {
+      box.replaceChildren(h("p", { class: "result warn" }, t("unschedulable", { r: reasonText(b.status_reason_code) })));
       return;
     }
-
-    const offer = body.offers.find((o) => o.status === "proposed" && o.slots && o.slots.length) || body.offers[0];
-    const accepted = offer.status === "scheduled";
-    const impact = body.impact_if_collected;
-    const grid = h("div", { class: "offer-grid" },
-      h("div", { class: "kv" }, h("span", { class: "k" }, labelNodes("buyer")), h("span", { class: "v" }, offer.company_name)),
-      h("div", { class: "kv" }, h("span", { class: "k" }, labelNodes("pickup")), h("span", { class: "v" }, formatWindow(offer.slots[0]))),
-      h("div", { class: "kv" }, h("span", { class: "k" }, labelNodes("price")),
-        h("span", { class: "v", id: "offer-price" }, `${rupees(offer.price_agreed_per_kg)}/kg`)),
-      h("div", {}, h("p", { class: "k hint" }, labelNodes("you_get")),
-        h("p", { class: "big-money", id: "offer-total" }, rupees(offer.matched_kg * offer.price_agreed_per_kg)),
-        h("p", { class: "hint" }, `${Number(offer.matched_kg).toLocaleString(LOCALE[state.lang])} kg`)),
-    );
-    const extras = [];
-    if (impact) {
-      extras.push(h("div", { class: "impact" }, h("strong", {}, labelNodes("instead_of_burning")),
-        h("p", {}, t("impact_line", { ghg: impact.ghg_avoided_t_co2e, pm: Math.round(impact.pm25_avoided_kg) }))));
-    }
-    if (body.window_assumed) extras.push(h("p", { class: "note" }, labelNodes("assumed_window")));
-    if (body.location_approximate) extras.push(h("p", { class: "note" }, labelNodes("approx_location")));
-
-    const acceptBtn = h("button", {
-      type: "button", class: "primary wide", disabled: accepted,
-      onclick: () => acceptSlot(offer, acceptBtn),
-    }, labelNodes(accepted ? "accepted" : "accept_slot"));
+    const booked = b.status === "booked";
+    const accept = h("button", { type: "button", class: "primary wide", disabled: booked }, labelNodes(booked ? "booked" : "accept_slot"));
+    accept.addEventListener("click", () => acceptBooking(b.id, accept, () => { b.status = "booked"; renderOffer(); }));
     const whyOut = h("p", { class: "result", "aria-live": "polite" });
-    const whyBtn = h("button", { type: "button", class: "ghost", onclick: () => whyPrice(offer, whyOut) }, labelNodes("why_price"));
-    const negotiatePanel = buildNegotiation(offer);
-    const listenBtn = body.explanation && body.explanation.audio_base64
-      ? h("button", { type: "button", class: "ghost", onclick: () => playAudio(body.explanation) }, labelNodes("listen")) : null;
-
-    box.replaceChildren(
-      h("h2", {}, labelNodes("offer_title")), grid, ...extras,
-      h("div", { class: "row" }, acceptBtn),
-      h("div", { class: "row" }, whyBtn, listenBtn), whyOut, negotiatePanel,
-    );
+    const why = h("button", { type: "button", class: "ghost", onclick: () => whyPrice(b.id, whyOut) }, labelNodes("why_price"));
+    const impact = body.impact_if_collected;
+    box.replaceChildren(...[
+      h("h2", {}, labelNodes("offer_title")),
+      h("div", { class: "offer-grid" },
+        h("div", { class: "kv" }, h("span", { class: "k" }, labelNodes("price_today")), h("span", { class: "v" }, `${perKg(b.price_per_kg)} · ${b.district}`)),
+        h("div", { class: "kv" }, h("span", { class: "k" }, labelNodes("straw")), h("span", { class: "v" }, kg(b.kg))),
+        h("div", { class: "kv" }, h("span", { class: "k" }, labelNodes("pickup")), h("span", { class: "v" }, formatSlot(b.slots[0]))),
+        h("div", { class: "kv" }, h("span", { class: "k" }, labelNodes("depot")), h("span", { class: "v" }, b.depot_name))),
+      h("span", { class: "hint" }, labelNodes("you_get")),
+      h("span", { class: "money" }, rupees(b.payout_estimate_inr)),
+      h("div", { class: "badges" }, h("span", { class: "badge" }, t("field_free")), h("span", { class: "badge" }, t("paid_same_day"))),
+      b.partner_crew ? h("p", { class: "note" }, t("partner_crew")) : null,
+      impact ? h("div", { class: "impact" }, h("strong", {}, labelNodes("instead_of_burning")),
+        h("p", {}, t("impact_line", { ghg: impact.ghg_avoided_t_co2e, pm: Math.round(impact.pm25_avoided_kg) }))) : null,
+      !booked && b.offer_expires_at ? h("p", { class: "hint" }, t("held_until", { t: clock(b.offer_expires_at) })) : null,
+      h("div", { class: "row" }, accept, why), whyOut].filter(Boolean));
   }
 
-  async function acceptSlot(offer, button) {
+  async function whyPrice(bookingId, out) {
+    out.textContent = "…";
+    try {
+      const body = await api(`/bookings/${encodeURIComponent(bookingId)}/price-explanation?language=${encodeURIComponent(LANG_API[state.lang])}`);
+      out.textContent = body.explanation;
+    } catch (err) {
+      out.textContent = err.message;
+    }
+  }
+
+  // ---- shared: accept, prices, my pickups, proof
+  async function acceptBooking(bookingId, button, onDone) {
     button.disabled = true;
     try {
-      const body = await postJson(`/matches/${offer.id}/accept-slot`, { farmer_id: state.farmerId });
-      offer.status = "scheduled";
-      toast(`${t("accepted")} · ${formatWindow(body.slots[0])}`);
-      renderOffer();
+      const body = await postJson(`/bookings/${encodeURIComponent(bookingId)}/accept`, { farmer_id: state.farmerId });
+      toast(`${t("booked")} · ${formatLabel(body.pickup_window)}`);
+      onDone(body);
       loadPickups();
     } catch (err) {
       toast(err.message);
@@ -371,106 +499,62 @@
     }
   }
 
-  async function whyPrice(offer, out) {
-    out.textContent = "…";
+  async function loadPrices() {
+    if (state.view !== "laptop") return;
     try {
-      const body = await api(`/matches/${offer.id}/pricing-explanation?language=${encodeURIComponent(LANG_API[state.lang])}`);
-      out.textContent = body.explanation;
-    } catch (err) {
-      out.textContent = err.message;
-    }
-  }
-
-  function buildNegotiation(offer) {
-    const details = h("details", { class: "panel" });
-    const floor = h("input", { type: "number", min: "0.1", step: "0.05", inputmode: "decimal", id: "floor", value: offer.price_agreed_per_kg });
-    const out = h("div", { class: "turns", "aria-live": "polite" });
-    const go = h("button", { type: "button", class: "primary" }, labelNodes("negotiate"));
-    go.addEventListener("click", async () => {
-      go.disabled = true;
-      out.replaceChildren(h("p", { class: "hint" }, "…"));
-      try {
-        const session = await postJson("/negotiate/agents", {
-          match_id: offer.id, farmer_floor: Number(floor.value), language: LANG_API[state.lang],
-        });
-        const rows = session.turns.map((turn) => h("div", { class: "turn" },
-          h("span", {}, `${rupees(turn.farmer_ask_per_kg)} · ${turn.farmer_message || ""}`),
-          h("span", {}, `${rupees(turn.buyer_offer_per_kg)} · ${turn.buyer_message || ""}`)));
-        const nodes = [...rows];
-        if (session.final_price_per_kg && session.final_price_per_kg > offer.price_agreed_per_kg) {
-          const accept = h("button", { type: "button", class: "primary" }, labelNodes("accept_price", { p: session.final_price_per_kg }));
-          accept.addEventListener("click", async () => {
-            accept.disabled = true;
-            try {
-              const done = await postJson(`/matches/${offer.id}/confirm-price`, { session_id: session.id });
-              offer.price_agreed_per_kg = done.new_price_per_kg;
-              toast(t("price_updated", { p: done.new_price_per_kg }));
-              renderOffer();
-            } catch (err) {
-              toast(err.message);
-              accept.disabled = false;
-            }
-          });
-          nodes.push(accept);
-        } else {
-          nodes.push(h("p", { class: "result" }, t("no_deal")));
-        }
-        out.replaceChildren(...nodes);
-      } catch (err) {
-        out.replaceChildren(h("p", { class: "result warn" }, err.message));
-      } finally {
-        go.disabled = false;
-      }
-    });
-    details.append(h("summary", {}, labelNodes("better_price")),
-      h("label", { for: "floor", class: "hint" }, labelNodes("floor_label")), floor, go, out);
-    return details;
-  }
-
-  function resetCompose() {
-    state.offerBody = null;
-    renderOffer();
-    $("compose").scrollIntoView({ behavior: "smooth" });
-  }
-
-  // ---- my pickups
-  const STEP_ORDER = ["proposed", "scheduled", "collected", "paid"];
-  async function loadPickups() {
-    const box = $("pickups");
-    try {
-      const body = await api(`/farmers/${encodeURIComponent(state.farmerId)}/pickups`);
-      if (!body.pickups.length) { box.replaceChildren(h("p", { class: "empty" }, t("no_pickups"))); return; }
-      box.replaceChildren(...body.pickups.map((p) => {
-        const reached = STEP_ORDER.indexOf(p.status);
-        return h("div", { class: "pickup" },
-          h("div", { class: "top-line" }, h("strong", {}, p.company_name),
-            h("span", { class: `pill ${p.status}` }, t(`s_${p.status}`) || p.status)),
-          h("span", { class: "hint" }, `${Number(p.matched_kg).toLocaleString(LOCALE[state.lang])} kg · ${rupees(p.price_agreed_per_kg)}/kg`),
-          p.slots && p.slots.length ? h("span", {}, formatWindow(p.slots[0])) : null,
-          p.status === "paid" && p.payout_inr ? h("span", { class: "result ok" }, `${t("s_paid")}: ${rupees(p.payout_inr)}`) : null,
-          p.status === "waitlisted" && p.status_reason ? h("span", { class: "hint" }, p.status_reason) : null,
-          h("div", { class: "steps", "aria-hidden": "true" }, STEP_ORDER.map((_, i) => h("i", { class: i <= reached ? "on" : "" }))),
-        );
+      const { prices } = await api("/prices/today");
+      $("prices").replaceChildren(...prices.map((p) => {
+        const local = DISTRICTS[p.district] ? (state.lang === "pa" ? DISTRICTS[p.district][0] : state.lang === "hi" ? DISTRICTS[p.district][1] : p.district) : p.district;
+        return h("div", { class: `price-row ${p.reason_code}`, title: p.reason }, h("span", {}, local), h("span", { class: "v" }, perKg(p.price_per_kg)));
       }));
     } catch {
-      box.replaceChildren(h("p", { class: "empty" }, t("error_generic")));
+      $("prices").replaceChildren(h("p", { class: "empty" }, t("error_generic")));
     }
   }
 
-  // ---- no-burn proof
-  function renderDistrictSelect() {
-    let select = $("proof-district");
-    if (!select) {
-      select = h("select", { id: "proof-district", "aria-label": "District" });
-      $("proof-send").before(select);
+  const STEP_ORDER = ["offered", "booked", "collected", "paid"];
+  async function loadPickups() {
+    let bookings = [];
+    try { ({ bookings } = await api(`/farmers/${encodeURIComponent(state.farmerId)}/bookings`)); } catch { /* shown as empty */ }
+    const rows = bookings.length ? bookings.map((b) => {
+      const reached = STEP_ORDER.indexOf(b.status);
+      const cancel = ["offered", "booked"].includes(b.status)
+        ? h("button", { type: "button", class: "ghost", onclick: () => cancelBooking(b.id) }, t("cancel")) : null;
+      return h("div", { class: "pickup" },
+        h("div", { class: "top-line" }, h("strong", {}, `${b.district} · ${kg(b.kg)}`), h("span", { class: `pill ${b.status}` }, t(`s_${b.status}`))),
+        h("span", { class: "hint" }, `${perKg(b.price_per_kg)} · ${b.depot_name}`),
+        b.slots && b.slots.length ? h("span", {}, formatSlot(b.slots[0])) : null,
+        b.status === "paid" && b.payout_inr ? h("span", { class: "result ok" }, t("paid_line", { p: rupees(b.payout_inr) })) : null,
+        b.status === "unschedulable" ? h("span", { class: "note" }, reasonText(b.status_reason_code)) : null,
+        reached >= 0 ? h("div", { class: "steps", "aria-hidden": "true" }, STEP_ORDER.map((_, i) => h("i", { class: i <= reached ? "on" : "" }))) : null,
+        cancel);
+    }) : [h("p", { class: "empty" }, t("no_pickups"))];
+    $("desk-pickups").replaceChildren(...rows.map((r) => r.cloneNode(true)));
+    $("sheet-list").replaceChildren(...rows);
+    // cloneNode drops listeners; rebind cancel buttons in the desk copy
+    $("desk-pickups").querySelectorAll(".pickup").forEach((el, i) => {
+      const btn = el.querySelector("button");
+      if (btn && bookings[i]) btn.addEventListener("click", () => cancelBooking(bookings[i].id));
+    });
+  }
+
+  async function cancelBooking(bookingId) {
+    try {
+      await postJson(`/bookings/${encodeURIComponent(bookingId)}/cancel`, { farmer_id: state.farmerId });
+      toast(t("cancelled"));
+      loadPickups();
+    } catch (err) {
+      toast(err.message);
     }
+  }
+
+  function renderDistrictSelect() {
+    const select = $("proof-district");
     const current = select.value;
     const idx = state.lang === "pa" ? 0 : 1;
     select.replaceChildren(...Object.entries(DISTRICTS).map(([name, local]) =>
       h("option", { value: name }, state.lang === "en" ? name : `${local[idx]} (${name})`)));
-    const guess = Object.keys(DISTRICTS).find((d) => (state.lastPlace || "").includes(d)
-      || DISTRICTS[d].some((n) => (state.lastPlace || "").includes(n)));
-    select.value = current || guess || "Sangrur";
+    if (current) select.value = current;
   }
 
   async function sendProof() {
@@ -478,15 +562,13 @@
     if (!file) return;
     const form = new FormData();
     form.append("photo", file);
-    const params = new URLSearchParams({ district: $("proof-district").value });
     $("proof-send").disabled = true;
     $("proof-result").textContent = "…";
     try {
-      const body = await api(`/farmers/${encodeURIComponent(state.farmerId)}/no-burn-proof?${params}`, { method: "POST", body: form });
+      const body = await api(`/farmers/${encodeURIComponent(state.farmerId)}/no-burn-proof?district=${encodeURIComponent($("proof-district").value)}`, { method: "POST", body: form });
       const out = $("proof-result");
       out.className = `result ${body.disputed ? "warn" : "ok"}`;
-      out.textContent = t("trust_result", { s: Number(body.trust_score).toFixed(2), sat: t(`sat_${body.satellite_corroboration}`) })
-        + (body.disputed ? ` ${t("disputed")}` : "");
+      out.textContent = body.disputed ? t("proof_disputed") : t("proof_ok", { sat: t(`sat_${body.satellite_corroboration}`) });
     } catch (err) {
       $("proof-result").textContent = err.message;
     } finally {
@@ -497,37 +579,46 @@
   // ---- wiring
   function init() {
     let id = saved.get("parali_farmer_id");
-    if (!id) {
-      id = `farmer_${Math.random().toString(36).slice(2, 10)}`;
-      saved.set("parali_farmer_id", id);
-    }
+    if (!id) { id = `farmer_${Math.random().toString(36).slice(2, 10)}`; saved.set("parali_farmer_id", id); }
     state.farmerId = id;
 
     document.querySelectorAll("[data-lang]").forEach((b) => b.addEventListener("click", () => setLanguage(b.dataset.lang)));
+    document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 
-    makeRecorder($("mic"), $("mic-label"), "hold_to_speak", (blob) => sendDraft({ audio: blob }));
-    makeRecorder($("answer-mic"), $("answer-label"), "hold_to_answer", (blob) => sendDraft({ audio: blob }));
+    // phone view
+    makeRecorder($("talk-mic"), $("talk-label"), "speak", (wav) => sendTurn({ audio: wav }));
+    $("kbd-toggle").addEventListener("click", () => { $("kbd").hidden = !$("kbd").hidden; if (!$("kbd").hidden) $("kbd-input").focus(); });
+    $("kbd").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const text = $("kbd-input").value.trim();
+      if (text) { $("kbd-input").value = ""; sendTurn({ text }); }
+    });
+    $("talk-photo").addEventListener("change", () => {
+      state.talkPhoto = $("talk-photo").files[0] || null;
+      document.querySelector("label[for=talk-photo]").classList.toggle("done", !!state.talkPhoto);
+      if (state.talkPhoto) toast(t("photo_added"));
+    });
+    $("talk-pickups").addEventListener("click", openSheet);
+    $("sheet-close").addEventListener("click", () => { $("sheet").hidden = true; });
 
+    // laptop view
+    makeRecorder($("desk-mic"), $("desk-mic-label"), "hold_to_speak", (wav) => sendDraft({ audio: wav }));
     $("send-typed").addEventListener("click", () => {
       const text = $("typed").value.trim();
-      if (text) { sendDraft({ text }); $("typed").value = ""; }
+      if (text) { $("typed").value = ""; sendDraft({ text }); }
     });
-    $("photo").addEventListener("change", () => {
-      state.photo = $("photo").files[0] || null;
-      $("photo").closest(".tool").classList.toggle("done", !!state.photo);
-      setLabel($("photo-label"), state.photo ? "photo_added" : "add_photo");
+    $("desk-photo").addEventListener("change", () => {
+      state.deskPhoto = $("desk-photo").files[0] || null;
+      $("desk-photo").closest(".tool").classList.toggle("done", !!state.deskPhoto);
+      setLabel($("desk-photo-label"), state.deskPhoto ? "photo_added" : "add_photo");
     });
     $("locate").addEventListener("click", () => {
       if (!navigator.geolocation) { toast(t("location_failed")); return; }
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          state.location = { lat: pos.coords.latitude.toFixed(5), lon: pos.coords.longitude.toFixed(5) };
-          $("locate").classList.add("done");
-          setLabel($("locate-label"), "location_added");
-        },
-        () => toast(t("location_failed")),
-        { enableHighAccuracy: true, timeout: 10000 },
-      );
+      navigator.geolocation.getCurrentPosition((pos) => {
+        state.location = { lat: pos.coords.latitude.toFixed(5), lon: pos.coords.longitude.toFixed(5) };
+        $("locate").classList.add("done");
+        setLabel($("locate-label"), "location_added");
+      }, () => toast(t("location_failed")), { enableHighAccuracy: true, timeout: 10000 });
     });
     $("confirm-btn").addEventListener("click", confirmListing);
     $("listen-confirm").addEventListener("click", () => state.draft && playAudio(state.draft.follow_up || state.draft.confirm_summary));
@@ -539,10 +630,13 @@
     });
     $("proof-send").addEventListener("click", sendProof);
 
-    const lang = saved.get("parali_lang");
-    if (lang && STR[lang]) {
-      setLanguage(lang);
-    } else {
+    const params = new URLSearchParams(location.search);
+    const view = ["phone", "laptop"].includes(params.get("view")) ? params.get("view")
+      : saved.get("parali_view") || (window.matchMedia("(min-width: 900px)").matches ? "laptop" : "phone");
+    setView(view);
+    const lang = params.get("lang") || saved.get("parali_lang");
+    if (lang && STR[lang]) setLanguage(lang);
+    else {
       state.lang = "pa";
       document.querySelectorAll("[data-t]").forEach((el) => setLabel(el, el.dataset.t));
       $("lang-gate").hidden = false;
