@@ -55,7 +55,7 @@ six-week rush.
 3. **One fair price.** Each district gets one posted farm-gate price per day (₹0.5–1.5/kg) from the procurement optimizer. It never changes during the day, and there is no bargaining.
 4. **A slot before sowing.** The routing model books the farm on one of our crews; when ours are full, an **on-call crew** hired for the day takes it. The offer card shows the payout and what the farmer no longer has to do: rent a baler, find labour, make trolley trips, race the sowing date.
 5. **A person confirms, then the crew goes.** A booking needs the farmer's own yes. It then waits in the ops **Calls to make** queue; only pickups our team has confirmed by phone (simulated) go on a crew's dispatch sheet.
-6. **Paid the same day.** When the crew collects, the payout is recorded (simulated UPI) and the straw goes into depot stock.
+6. **Paid the same day.** When the crew collects (not before the slot day), the payout (simulated UPI) and the depot stock are written together in one transaction. Weeks later, Sentinel-2 checks that the field stayed unburned.
 7. **Ready for the peak.** The ops Dispatch board compares the acres farmers are forecast to book each day with what our own crews clear, and says how many on-call crews to hire, or to sign up before the peak.
 8. **Supplied all year.** Companies price an order in one sentence, see what we can commit month by month, and sign. Orders signed first keep their stock.
 
@@ -65,16 +65,17 @@ six-week rush.
 
 | Service | Role |
 |---|---|
-| **Vertex AI · Gemini 3.5 Flash** (global) | The farmer's talking agent, using function calling. About 1 s per step in our tests on 17 Oct 2026, while 3.8 Flash on the same endpoint was returning 429s and 504s. A step that is slow or rate-limited goes straight to **Gemini 2.5 Flash in Mumbai**. Also hears recorded audio, grades photos and explains prices. **Never produces a number.** |
+| **Vertex AI · Gemini 3.5 Flash** (global) | The farmer's talking agent, using function calling. About 1 s per step in our tests on 17 Oct 2026, while 3.8 Flash on the same endpoint was returning 429s and 504s. A step that is slow or rate-limited goes straight to **Gemini 2.5 Flash in Mumbai**. Also hears recorded audio and grades photos. **Never produces a number.** |
 | **Gemini live transcription** (global) | "Live words": captions appear while the farmer speaks; it listens for Punjabi, Hindi and English at once. The final words go through the same guarded agent. |
 | **Text-to-Speech / Speech-to-Text** | Spoken replies in Chirp 3 HD voices (pa-IN, hi-IN, en-IN), fetched alongside the reply text so the farmer never waits on audio. Speech-to-Text is the fallback when Gemini can't hear a recording. |
 | **BigQuery** | Weekly series of 25 paddy seasons of fire detections per district. **TimesFM (`AI.FORECAST`)** forecasts this season's harvest timing; **ARIMA_PLUS** and a same-as-last-year baseline are backtested against it. |
-| **Earth Engine** | NASA FIRMS fire detections, 2001–2026, counted per day within FAO GAUL 2025 district boundaries for Punjab and Haryana. |
-| **Cloud Run** | The API, with three OR-Tools planners (procurement LP, routing model, delivery LP), verification, readiness and the WebSocket for live words. Also the daily fire refresh and weekly forecast jobs, triggered by **Cloud Scheduler**. |
-| **Firestore** | Bookings and their verification, depots, crews, slots, posted prices, purchases, stock moves, customers, orders, deliveries, plans, forecasts, conversations. |
+| **Earth Engine** | NASA FIRMS fire detections, 2001–2026, counted per day within FAO GAUL 2025 district boundaries for Punjab and Haryana; the 2024 season's fire map on the landing page; and a **Sentinel-2** burn-scar check on every collected field. |
+| **Cloud Run** | The API, with three OR-Tools planners (procurement LP, routing model, delivery LP), verification, readiness and the WebSocket for live words. Also the daily fire refresh (with the Sentinel-2 field checks) and weekly forecast jobs, triggered by **Cloud Scheduler**. |
+| **Firestore** | Bookings and their verification, depots, crews, slots, posted prices, purchases, stock moves, customers, orders, deliveries, plans, forecasts, conversations. Security rules allow no browser access; only the API reads and writes. |
 | **Firebase Hosting** | The landing page, pickup page, ops console and customer portal, in one shared design system. |
 | **Maps JavaScript API** | Crew routes in the ops console. |
-| **Billing budgets + Pub/Sub + Cloud Run function** | Cost guard. Emails both teammates, and closes the API and turns off the AI APIs if real money is ever charged. |
+| **Billing budgets + Pub/Sub + Cloud Run function** | Cost guard. Emails both teammates, and closes the API and turns off the AI APIs if real money is ever charged. The API also rate-limits every endpoint that calls Gemini or speech. |
+| **Vertex AI Gen AI Evaluation, Routes API** (offline) | Measure the agent's replies (groundedness 0.96) and the travel model against real roads (1.28× the straight line). See [bench/RESULTS.md](parali-setu-api/bench/RESULTS.md). |
 
 The design rule: **language from Gemini, numbers from optimizers, timing from satellites.**
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the agent's guardrails, the planners and

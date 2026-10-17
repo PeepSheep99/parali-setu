@@ -1,4 +1,4 @@
-# Parali Setu architecture (2.1)
+# Parali Setu architecture (2.2)
 
 Parali Setu buys paddy straw from farmers, collects it before wheat sowing, pays the same
 day, stores it at depots and supplies companies all year. This document describes the
@@ -16,19 +16,22 @@ exported to `parali-setu-frontend/img/`.
 | Language | `agent.py`, `language.py`, `live.py`, `extraction.py`, `speech.py`, `phrases.py` | Which language the farmer speaks, understanding them (audio, text, photos), asking and cross-checking, explaining | Produce a price, weight, payout, date or slot |
 | Forecast | `forecast/` (Earth Engine, BigQuery) | When straw comes off the fields (TimesFM), how much (crop statistics), who buys it (published figures) | Run at request time |
 | Planning | `procurement.py`, `scheduler.py`, `deliveries.py`, `costs.py`, `operations.readiness` | Posted prices, what to buy where, crew slots and on-call crews, monthly deliveries, quotes and what we can commit, crews needed for the forecast | Talk to anyone |
-| Operations | `operations.py`, `pickups.py`, `firestore_store.py` | Bookings, verification before dispatch, offer expiry, same-day payouts, depot stock | Decide a number itself |
+| Operations | `operations.py`, `pickups.py`, `firestore_store.py` | Bookings, verification before dispatch, offer expiry, same-day payouts and depot stock (one transaction), shipments out | Decide a number itself |
+| Evidence | `satellite_check.py`, `agent_health.py`, `economics.py`, `bench/` | Sentinel-2 field check after a pickup, the agent's measured health, a farmer's break-even, the benchmarks behind every claim | Decide a payout |
+| Protection | `ratelimit.py`, `firestore.rules`, `ops/cost-guard/` | Caps on Gemini and speech calls, no browser access to the database, shutting down if real money is charged | Serve a page |
 
 ## Deployment
 
 ```mermaid
 flowchart LR
   subgraph Apps[Firebase Hosting: parali-setu-aibuildercup-2026.web.app]
-    L["/ landing"]
+    L["/ landing: story, 2024 fire map, farmer break-even"]
     K["/kisan one conversation, any of 3 languages"]
-    O["/ops dispatch, routes, forecast"]
+    O["/ops dispatch, routes, forecast, fires, agent health"]
     C["/company quotes and orders"]
   end
   subgraph Run[Cloud Run: parali-setu-api]
+    RL[ratelimit.py<br/>caps on Gemini and speech calls]
     A[agent.py + language.py<br/>Gemini function calling + guardrails]
     LV[live.py<br/>WebSocket /agent/live]
     P[procurement.py<br/>GLOP LP + shadow prices]
@@ -36,30 +39,39 @@ flowchart LR
     VF[verification<br/>before dispatch]
     R[readiness<br/>forecast acres vs crews]
     D[deliveries.py<br/>GLOP LP, earliest order first]
-    I[impact.py · costs.py]
+    I[impact.py · costs.py · economics.py]
+    AH[agent_health.py<br/>guardrail reports + benchmark]
+    SC[satellite_check.py<br/>Sentinel-2 field check]
   end
   G[Vertex AI Gemini 3.5 Flash<br/>fallback 2.5 Flash, Mumbai]
   GL[Gemini live transcription]
   V[Text-to-Speech / Speech-to-Text]
-  F[(Firestore)]
+  F[(Firestore<br/>rules: no browser access)]
   BQ[(BigQuery<br/>TimesFM AI.FORECAST · ARIMA_PLUS)]
-  EE[Earth Engine<br/>NASA FIRMS · FAO GAUL]
-  J[Cloud Run jobs + Cloud Scheduler<br/>daily fires, weekly forecast]
+  EE[Earth Engine<br/>NASA FIRMS · Sentinel-2 · FAO GAUL]
+  J[Cloud Run jobs + Cloud Scheduler<br/>daily fires and field checks, weekly forecast]
   M[Maps JavaScript API]
-  K --> A
+  K --> RL --> A
   K --> LV --> GL
   K & O & C & L --> Run
   A --> G & V
   Run --> F
   EE --> BQ --> F
   J --> EE
+  J --> SC --> F
   O -.-> M
 ```
 
-Cost protection (`ops/cost-guard/`) is unchanged:
+The landing page's 2024 fire map is a static file (`parali-setu-frontend/data/fires_2024.json`,
+built by `forecast/fire_map_data.py` from Earth Engine), so it costs nothing per visit.
+
+**Protection.**
+- **Rate limits (`ratelimit.py`):** the endpoints that call Gemini or speech allow 20 calls a minute and 200 an hour per visitor, and 1,500 an hour across all visitors on each instance. A request over the limit gets 429 and never reaches Gemini.
+- **Firestore rules (`firestore.rules`):** browsers can't read or write the database; only the API's service account can.
 - **Budgets:** a gross-usage budget, and a ₹100 real-money budget that publishes to Pub/Sub.
-- **The guard:** a Cloud Run function closes the API's ingress and turns off the AI APIs if real money is ever charged.
+- **The guard (`ops/cost-guard/`):** a Cloud Run function closes the API's ingress and turns off the AI APIs if real money is ever charged.
 - **Limits:** `--max-instances 3` on the API.
+- **Config:** `parali-setu-frontend/build_config.py` writes `config.js` from `API_BASE` and `MAPS_API_KEY`, so no URL or key is committed.
 
 ## The farmer agent
 
@@ -99,17 +111,20 @@ sequenceDiagram
 - `cancel_booking`
 
 **Guardrails enforced in code:**
-- **Numbers.** Every number in a reply must appear among the tools' returned values or in the farmer's own words. Identifiers are excluded, so a random id can't license digits.
+- **Numbers.** Every number in a reply must appear among the tools' returned values or in the farmer's own words, whether it is written in digits or in words. Identifiers are excluded, so a random id can't license digits.
 - **Claims.** No "government" rate, no schemes or subsidies, no "trust us": we are a private company and payments are simulated (unless the farmer raised the word, so the agent can say no).
 - **Language.** A reply in another script than the farmer's language is rewritten.
 - A violation of any of these triggers one rewrite. If that fails, a deterministic template built from tool results is used.
-- **An explicit yes.** `confirm_booking` needs an offer shown in an earlier turn, and the farmer's latest words must say yes. That is checked in their language and in English; a question or a "no" never counts.
+- **An explicit yes.** `confirm_booking` needs an offer shown in an earlier turn, and the farmer's latest words must say yes. That is checked in their language and in English. A softened yes ("haan ji, theek hai") counts; a question or a "no" never does.
+- **Language stickiness.** A message with only a name and a number keeps the conversation's language instead of switching to English.
 - **Who and where.** No offer without a name and a valid 10-digit mobile. The farm location is a demo pin near the stated village (the prototype never reads the device's location).
 - **Cross-checks.** An acres-versus-weight mismatch, a sowing date already past, or a harvest after sowing blocks booking until it is resolved; a sowing date within 2 days is flagged.
 - **Scope and size.** Off-topic requests declined, bounded input, at most 5 tool calls per turn and 40 turns per conversation.
 - **Records.** Every turn stores the farmer's words, an English rendering and a guardrail report, so ops can audit it (`GET /agent/conversations/{id}`).
 
-**Speed.** A primary step has 5 s, then the fallback model in Mumbai; a rate-limited primary is skipped for 30 s, and once the fallback answers it keeps the rest of the turn (the two models sign function calls differently). Thinking is off for these calls.
+**Speed.** A primary step has 5 s, then the fallback model in Mumbai; a rate-limited primary is skipped for 30 s, and once the fallback answers it keeps the rest of the turn (the two models sign function calls differently). Thinking is off for these calls. Measured: an agent turn takes 2.5 s median (10.9 s at the 95th percentile) against real Gemini, and 3.8 s median over the internet including the spoken reply.
+
+**Health.** Every turn stores its guardrail report. `GET /ops/agent-health` counts speed, fallbacks and what the guardrails caught over recent conversations, next to the latest benchmark, and the ops console shows it.
 
 ## Forecasting
 
@@ -176,31 +191,58 @@ stateDiagram-v2
   booked --> cancelled
   booked --> verified: our team confirms by phone (simulated)
   verified --> cancelled
-  verified --> collected: crew marks collected
-  collected --> paid: same-day payout recorded (simulated UPI) + depot stock
+  verified --> collected: crew marks collected, on or after the slot day
+  collected --> paid: same-day payout (simulated UPI) + depot stock, one transaction
   paid --> [*]
 ```
+
+**The ledger.** Collected, paid and depot stock are written in one Firestore transaction
+(`store.record_pickup`): a crash can't leave a farm collected but unpaid, or paid without
+stock. A crew can't mark a farm collected before its slot day, a depot refuses straw beyond
+its capacity, and a shipment to a customer (`POST /deliveries/{id}/shipped`) takes the straw
+out of stock so the next plan counts it as delivered.
+
+**After the pickup.** The daily fire job compares Sentinel-2 images of each paid field before
+and after collection (dNBR). A burn scar needs both a dNBR above 0.27 and a charred surface,
+because harvesting alone also lowers NBR. The result is stored on the booking as
+`field_check` and shown on the ops Impact tab. It is evidence for a person to review and never
+changes a payout.
 
 ## Data model (Firestore)
 
 | Collection | Holds |
 |---|---|
 | `listings` | The farmer's field: name, phone, acres, kg, crop, district, location (and whether it is a demo pin), sowing date |
-| `bookings` | Listing → depot at the posted price; lifecycle status, verification record (pending, verified, needs a change), reason code, payout |
+| `bookings` | Listing → depot at the posted price; lifecycle status, verification record (pending, verified, needs a change), reason code, payout, Sentinel-2 `field_check` |
 | `depots`, `crews`, `pickup_slots` | Storage sites and radius; own and on-call crews; planned visits (arrival window, planned start and end, locked flag) |
 | `posted_prices` | Price per district per day (locked once posted), shadow price, reason |
-| `purchases`, `inventory_moves` | Same-day payouts; straw in and out of each depot |
-| `customers`, `orders`, `deliveries` | Companies, forward orders with quote, PO code and status (cancelled orders keep their record), planned monthly shipments |
+| `purchases`, `inventory_moves` | Same-day payouts; straw into each depot at collection and out at shipment |
+| `customers`, `orders`, `deliveries` | Companies, forward orders with quote, PO code and status (cancelled orders keep their record), planned monthly shipments and when each shipped |
 | `plans` | Latest procurement and delivery plans with their assumptions |
 | `forecasts` | TimesFM live forecast and backtest results |
 | `conversations` | Agent turns, English records, tool facts, guardrail reports |
 | `farmers`, `no_burn_proofs`, `fire_detections` | Trust score, photo proofs, the latest FIRMS batch |
 
+## Measured, not claimed
+
+Every number below comes from a script in `parali-setu-api/bench/`; the full tables are in
+[bench/RESULTS.md](../parali-setu-api/bench/RESULTS.md).
+
+| What | Result |
+|---|---|
+| 40 simulated farmers booking against real Gemini | 40/40 booked; no unverified number reached a farmer; 10/10 trick conversations handled |
+| Vertex AI Gen AI Evaluation, 80 real replies | groundedness 0.96, instruction following 4.62/5, fluency 4.96/5, safety 1.00 |
+| Routing model against two hand-dispatch rules | the fewest km at every size from 50 to 400 farms, all cleared before sowing |
+| Travel model against the Routes API, 100 trips | roads are 1.28× the straight line (model 1.3×) |
+| Sentinel-2 field check on the 2024 season | a scar at 66% of FIRMS fire points and 11% of points with no fire nearby |
+
 ## Known limitations
 
 - **Demo and simulated data:** farms, customers and crews are demo data, and the on-call pool is simulated. Confirmation calls, SMS and payments are simulated.
 - **Cost assumptions:** collection, freight and storage costs are working assumptions, labelled as such on the ops console.
-- **Travel times** are straight-line × 1.3 at 30 km/h, not road routes.
+- **Travel times** are straight-line × 1.3 at 30 km/h, not road routes. Checked against the Routes API, distance is within 7.7% per trip, and the 30 km/h is deliberately slower than Google's 37 km/h car speed because the crew drives a tractor and baler.
 - **Forecast inputs:** the forecast predicts timing, not volume. Demand is derived from published figures.
-- **Latency:** a typed turn is a median of about 5.8 s over HTTP (Gemini's 1–3 s per call is the floor); streaming replies are on the roadmap.
+- **Latency:** an agent turn's 95th percentile is 10.9 s, mostly when the primary model is rate-limited and the fallback answers; streaming replies are on the roadmap.
+- **Punjabi speech** is heard right 70.8% of the time by word (Hindi and English 100%); the read-back and the date check catch the slips.
+- **Field check:** Sentinel-2 needs a clear image before and after the pickup; a field without one is marked `no_clear_image` and checked again on the next daily run.
 - **Booking share** (0.5%) and the on-call pool size are assumptions that set the readiness numbers.
