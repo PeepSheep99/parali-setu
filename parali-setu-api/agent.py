@@ -587,10 +587,21 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
     framed = f"[The farmer is speaking {conv['language']}. Reply in {conv['language']}.]\n{user_text}"
     contents = _history(conv) + [types.Content(role="user", parts=[types.Part.from_text(text=framed)])]
     report = {"tool_calls": [], "regenerated": False, "fallback": False, "blocked_numbers": [],
-              "blocked_claims": []}
+              "blocked_claims": [], "model_calls": []}
+
+    def generate():
+        # Timed per call, with which model answered, so ops (and the benchmark)
+        # can see latency and how often the regional fallback was needed.
+        started = time.perf_counter()
+        out = _generate(client, contents, config)
+        report["model_calls"].append({"ms": round((time.perf_counter() - started) * 1000),
+                                      "model": "fallback" if getattr(_turn_model, "fallback", False) else "primary",
+                                      "ok": out[2] is not None or bool(out[1])})
+        return out
+
     text = None
     for _ in range(MAX_TOOL_STEPS):
-        calls, text, model_content = _generate(client, contents, config)
+        calls, text, model_content = generate()
         if not calls:
             break
         if model_content is not None:
@@ -625,7 +636,7 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
         contents.append(types.Content(role="user", parts=[types.Part.from_text(text=(
             "Rewrite your last reply without " + " and without ".join(problems) +
             f". Use only numbers from the tool results. Write it in {conv['language']}."))]))
-        _, text, _ = _generate(client, contents, config)
+        _, text, _ = generate()
         if text and (unsupported_numbers(text, farmer_texts, tool_values) or forbidden_claims(text, farmer_texts)
                      or wrong_language(text, conv["language"])):
             text = None
@@ -651,10 +662,13 @@ def understand(client, language: str | None, text: str | None, audio: bytes | No
 def reply_language(words: str, hint: str | None, conv: dict | None) -> str:
     """The language to answer in: what the farmer just used, else the hint
     (a language pill they tapped), else the conversation's, else Punjabi."""
-    detected = lang_detect.detect(words)
+    detected, decisive = lang_detect.detect_with_confidence(words)
+    ongoing = (conv or {}).get("language")
+    if detected in lang_detect.SUPPORTED and not decisive and ongoing in lang_detect.SUPPORTED:
+        return ongoing      # "mera naam Gurpreet, number 98..." keeps a Punjabi chat in Punjabi
     if detected in lang_detect.SUPPORTED:
         return detected
-    for candidate in (hint, (conv or {}).get("language")):
+    for candidate in (hint, ongoing):
         if candidate in lang_detect.SUPPORTED:
             return candidate
     return "Punjabi"
