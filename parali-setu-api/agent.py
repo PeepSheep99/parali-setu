@@ -25,16 +25,21 @@ inventory work from one normalised record whatever language was spoken.
 from __future__ import annotations
 
 import json
+import threading
+import time
+import os
+import logging
 import re
 from datetime import date
 
+from google import genai
 from google.genai import types
 
 import firestore_store as store
 import operations
 import pickups
 from extraction import to_english, understand_audio
-from gemini_client import GEMINI_MODEL, quota_cooling_down
+from gemini_client import GEMINI_MODEL, PROJECT_ID, REQUEST_HTTP_OPTIONS
 from geo import DISTRICT_COORDS, district_from_text, demo_farm_location
 from impact import impact_for_kg
 from phrases import window_words
@@ -442,18 +447,48 @@ class Turn:
 
 # ---- model calls --------------------------------------------------------------
 
+# Gemini 3 on the global endpoint has a tight per-minute quota. On a 429 the agent
+# waits a moment and retries, then falls back to gemini-2.5-flash in Mumbai, which
+# has its own quota, so a busy minute slows a farmer down instead of dropping the
+# conversation to a template.
+FALLBACK_MODEL = os.environ.get("AGENT_FALLBACK_MODEL", "gemini-2.5-flash")
+FALLBACK_LOCATION = os.environ.get("AGENT_FALLBACK_LOCATION", "asia-south1")
+_fallback_client = None
+# Once the fallback model answers a step, the rest of that turn stays on it: the
+# two models sign function calls differently, so mixing them mid-turn is rejected.
+_turn_model = threading.local()
+
+
+def _fallback():
+    global _fallback_client
+    if _fallback_client is None:
+        _fallback_client = genai.Client(vertexai=True, project=PROJECT_ID, location=FALLBACK_LOCATION,
+                                        http_options=REQUEST_HTTP_OPTIONS)
+    return _fallback_client
+
+
 def _generate(client, contents: list, config: types.GenerateContentConfig):
     """One model step. Returns (function_calls, text, model_content). A thin
     seam so tests can script the model."""
-    if quota_cooling_down():
-        return [], None, None
-    try:
-        response = client.models.generate_content(model=GEMINI_MODEL, contents=contents, config=config)
-    except Exception:   # unavailable or rate-limited: the caller falls back to a template
-        return [], None, None
-    calls = [(c.name, dict(c.args or {})) for c in (response.function_calls or [])]
-    content = response.candidates[0].content if response.candidates else None
-    return calls, (response.text if not calls else None), content
+    log = logging.getLogger("parali.agent")
+    steps = (("fallback", 0),) if getattr(_turn_model, "fallback", False) else (("primary", 0), ("primary retry", 2.0), ("fallback", 0))
+    for label, wait in steps:
+        if wait:
+            time.sleep(wait)
+        try:
+            if label == "fallback":
+                response = _fallback().models.generate_content(model=FALLBACK_MODEL, contents=contents, config=config)
+            else:
+                response = client.models.generate_content(model=GEMINI_MODEL, contents=contents, config=config)
+        except Exception as exc:   # rate-limited or unavailable: try the next way, else the caller uses a template
+            log.warning("model call failed (%s): %s: %s", label, type(exc).__name__, str(exc)[:200])
+            continue
+        if label == "fallback":
+            _turn_model.fallback = True
+        calls = [(c.name, dict(c.args or {})) for c in (response.function_calls or [])]
+        content = response.candidates[0].content if response.candidates else None
+        return calls, (response.text if not calls else None), content
+    return [], None, None
 
 
 def _facts_summary(conv: dict) -> str:
@@ -480,10 +515,12 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
     """Runs the tool loop for one farmer turn and returns (reply, guardrail
     report)."""
     conv = turn.conv
+    _turn_model.fallback = False
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT.format(language=conv["language"], today=pickups.now_ist().date().isoformat(),
                                                 facts=_facts_summary(conv)),
         tools=[TOOLS], temperature=0.2,
+        thinking_config=types.ThinkingConfig(thinking_budget=0),   # ~2 s per call instead of 5+; the guardrails live in code
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
     contents = _history(conv) + [types.Content(role="user", parts=[types.Part.from_text(text=user_text)])]
@@ -541,6 +578,8 @@ def understand(client, language: str, text: str | None, audio: bytes | None, mim
             return heard["transcript"], heard.get("english")
         words = transcribe_fallback(audio)
         return words, to_english(client, words, language)
+    if language == "English":
+        return text, text            # already English: no translation call
     return text, to_english(client, text, language)
 
 

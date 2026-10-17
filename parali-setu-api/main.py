@@ -15,7 +15,9 @@ Layers, and who owns which output:
 from __future__ import annotations
 
 import base64
+import logging
 import os
+import time
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -50,6 +52,7 @@ from phrases import confirm_summary, window_words
 from speech import synthesize_speech, transcribe_audio
 from trust import score_no_burn_submission
 
+log = logging.getLogger("parali.api")
 app = FastAPI(title="Parali Setu API")
 
 # Only our own Firebase Hosting site (and local development) may call the
@@ -499,22 +502,32 @@ async def agent_turn(
             raise HTTPException(status_code=422, detail="Could not hear that clearly -- please try again or type it")
         return words
 
-    words, english = agent.understand(client, language, (text or "").strip() or None, audio_bytes,
-                                      (audio.content_type or "").split(";")[0] if audio else None, stt)
+    # The model, speech and Firestore calls block, so they run in worker threads:
+    # one farmer's slow turn must not hold up everyone else's requests.
+    started = time.perf_counter()
+    words, english = await run_in_threadpool(
+        agent.understand, client, language, (text or "").strip() or None, audio_bytes,
+        (audio.content_type or "").split(";")[0] if audio else None, stt)
+    heard_at = time.perf_counter()
     quality = None
     if photo is not None:
-        read = read_stubble_quality(client, await photo.read(), mime_type=photo.content_type or "image/jpeg")
+        read = await run_in_threadpool(read_stubble_quality, client, await photo.read(),
+                                       mime_type=photo.content_type or "image/jpeg")
         if read and read.get("quality_grade"):
             quality = {"grade": read["quality_grade"], "note": read.get("note")}
     try:
-        result = agent.take_turn(db, client, farmer_id, language, words, english, conversation_id, quality)
+        result = await run_in_threadpool(agent.take_turn, db, client, farmer_id, language, words, english,
+                                         conversation_id, quality)
     except PermissionError:
         raise HTTPException(status_code=404, detail="Conversation not found")
     except OverflowError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    result["reply"] = _spoken(result["reply"], language) if speak else {"text": result["reply"], "audio_base64": None}
+    turn_done = time.perf_counter()
+    result["reply"] = (await run_in_threadpool(_spoken, result["reply"], language)) if speak         else {"text": result["reply"], "audio_base64": None}
     if quality:
         result["quality"] = quality
+    log.info("agent turn: understand %.1fs, agent %.1fs, speech %.1fs", heard_at - started, turn_done - heard_at,
+             time.perf_counter() - turn_done)
     return result
 
 

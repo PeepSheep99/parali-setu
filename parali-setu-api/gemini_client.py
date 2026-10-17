@@ -37,8 +37,14 @@ def reset_quota_cooldown() -> None:
     _quota_cooldown_until = 0.0
 
 
+# A model call that has not answered in 20 s is abandoned (the agent then tries
+# its fallback) instead of leaving a farmer waiting a minute or more; the SDK's own
+# retries are off because callers decide how to retry.
+REQUEST_HTTP_OPTIONS = genai.types.HttpOptions(timeout=20_000, retry_options=genai.types.HttpRetryOptions(attempts=1))
+
+
 def get_gemini_client() -> genai.Client:
-    return genai.Client(vertexai=True, project=PROJECT_ID, location=VERTEX_LOCATION)
+    return genai.Client(vertexai=True, project=PROJECT_ID, location=VERTEX_LOCATION, http_options=REQUEST_HTTP_OPTIONS)
 
 
 def call_gemini(client: genai.Client, contents, json_mode: bool = False) -> str | None:
@@ -61,7 +67,9 @@ def call_gemini(client: genai.Client, contents, json_mode: bool = False) -> str 
     if quota_cooling_down():
         return None
 
-    config = {"response_mime_type": "application/json"} if json_mode else {}
+    config = {"thinking_config": {"thinking_budget": 0}}   # short extraction tasks: no hidden reasoning time
+    if json_mode:
+        config["response_mime_type"] = "application/json"
 
     for attempt in range(3):
         try:

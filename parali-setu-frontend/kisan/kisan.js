@@ -191,7 +191,11 @@
     $("kbd-input").placeholder = t("type_placeholder");
     $("lang-gate").hidden = true;
     $("app").hidden = false;
-    if (changed || !$("log").children.length) { resetTalk(); if (!changed) restoreTalk(); }
+    if (changed || !$("log").children.length) {
+      const keep = saved.get("parali_conv");      // resetTalk forgets it; a reload should bring the chat back
+      resetTalk();
+      if (!changed && keep) { saved.set("parali_conv", keep); restoreTalk(); }
+    }
     if (state.draft) renderConfirm();
     if (state.offer) renderOffer();
     renderDistrictSelect();
