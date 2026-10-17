@@ -3,191 +3,101 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2f6b3b">
-<title>Parali Setu · Kisan</title>
+<meta name="theme-color" content="#8e1f33">
+<title>Parali Setu · Book a pickup</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;600&family=Noto+Sans+Gurmukhi:wght@400;600&display=swap">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Baloo+Paaji+2:wght@500;600;700&family=Hind:wght@400;500;600&family=Mukta+Mahee:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/tokens.css">
 <link rel="stylesheet" href="kisan.css">
 </head>
-<body class="view-phone">
+<body>
 
-<header class="appbar">
+<header class="bar">
   <a class="brand" href="../">
-    <img src="icon.svg" alt="" width="34" height="34">
-    <span><span class="name">Parali Setu</span><span class="tag" data-t="tagline"></span></span>
+    <img src="icon.svg" alt="" width="32" height="32">
+    <span class="brand-name">Parali Setu</span>
   </a>
-  <div class="switches">
-    <div class="segmented" role="group" aria-label="View">
-      <button type="button" data-view="phone" aria-pressed="true" aria-label="Phone view">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm0 3v13h10V5H7zm5 14.2a1 1 0 1 0 0 1.6 1 1 0 0 0 0-1.6z"/></svg>
-        <span data-t="phone_view"></span>
-      </button>
-      <button type="button" data-view="laptop" aria-pressed="false" aria-label="Laptop view">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10H4V5zm2 0v8h12V5H6zM1 17h22v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1z"/></svg>
-        <span data-t="laptop_view"></span>
-      </button>
+  <div class="bar-right">
+    <div class="langs" role="group" aria-label="Language (optional: we follow the language you speak)">
+      <button type="button" data-lang="pa" lang="pa">ਪੰਜਾਬੀ</button>
+      <button type="button" data-lang="hi" lang="hi">हिंदी</button>
+      <button type="button" data-lang="en" lang="en">English</button>
     </div>
-    <div class="langs" role="group" aria-label="Language">
-      <button type="button" data-lang="pa">ਪੰਜਾਬੀ</button>
-      <button type="button" data-lang="hi">हिंदी</button>
-      <button type="button" data-lang="en">English</button>
-    </div>
+    <button type="button" id="open-pickups" class="btn quiet small"><span data-t="my_pickups"></span><span id="pickup-count" class="count" hidden></span></button>
   </div>
 </header>
+<div class="bagh-band" aria-hidden="true"></div>
 <p class="demo-strip" data-t="demo_banner"></p>
 
-<section id="lang-gate" class="gate" hidden>
-  <h1 data-t="choose_lang"></h1>
-  <div class="gate-buttons">
-    <button type="button" class="big" data-lang="pa">ਪੰਜਾਬੀ</button>
-    <button type="button" class="big" data-lang="hi">हिंदी</button>
-    <button type="button" class="big" data-lang="en">English</button>
-  </div>
-</section>
+<main class="page">
+  <section class="talk" aria-label="Talk to Parali Setu">
+    <div id="log" class="log" aria-live="polite"></div>
 
-<main id="app" hidden>
-
-  <!-- Phone view: one conversation with the agent -->
-  <section id="talk" class="talk" aria-label="Talk to Parali Setu">
-    <div class="device">
-      <div class="device-top">
-        <span class="agent-dot" aria-hidden="true"></span>
-        <span class="agent-title" data-t="agent_name"></span>
-        <label class="live-switch" title="Live listening: words appear as you speak">
+    <div class="dock">
+      <form id="kbd" class="kbd" hidden>
+        <label class="sr" for="kbd-input" data-t="type_label"></label>
+        <input id="kbd-input" type="text" maxlength="600" autocomplete="off">
+        <button type="submit" class="btn" data-t="send"></button>
+      </form>
+      <div class="dock-row">
+        <label class="round" for="talk-photo" title="Photo">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
+          <span class="sr" data-t="add_photo"></span>
+          <input type="file" id="talk-photo" accept="image/*" capture="environment" hidden>
+        </label>
+        <button type="button" id="talk-locate" class="round" title="Location">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+          <span class="sr" data-t="detect_location"></span>
+        </button>
+        <button type="button" id="talk-mic" class="mic" aria-describedby="talk-label">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12z"/></svg>
+        </button>
+        <button type="button" id="kbd-toggle" class="round" title="Keyboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm2 3v2h2V9H5zm4 0v2h2V9H9zm4 0v2h2V9h-2zm4 0v2h2V9h-2zM7 13v2h10v-2H7z"/></svg>
+          <span class="sr" data-t="type_instead"></span>
+        </button>
+        <label class="live-switch" title="Words appear as you speak">
           <input type="checkbox" id="live-toggle"> <span data-t="live_mode"></span>
         </label>
-        <button type="button" id="talk-pickups" class="chip-btn" data-t="my_pickups"></button>
       </div>
-      <div id="log" class="log" aria-live="polite"></div>
-      <div id="sheet" class="sheet" hidden>
-        <div class="sheet-head"><h2 data-t="my_pickups"></h2><button type="button" id="sheet-close" class="icon-btn" aria-label="Close">×</button></div>
-        <div id="sheet-list" class="pickups"></div>
-        <label class="ghost proof-phone"><span data-t="send_proof"></span>
-          <input type="file" id="sheet-proof" accept="image/*" capture="environment" hidden></label>
-      </div>
-      <div class="dock">
-        <form id="kbd" class="kbd" hidden>
-          <input id="kbd-input" type="text" maxlength="600" autocomplete="off">
-          <button type="submit" class="primary" data-t="send"></button>
-        </form>
-        <div class="dock-row">
-          <label class="round-btn" for="talk-photo" title="Photo">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
-            <span class="sr" data-t="add_photo"></span>
-            <input type="file" id="talk-photo" accept="image/*" capture="environment" hidden>
-          </label>
-          <button type="button" id="talk-mic" class="mic" aria-describedby="talk-label">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12z"/></svg>
-          </button>
-          <button type="button" id="talk-locate" class="round-btn" title="Location">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
-            <span class="sr" data-t="detect_location"></span>
-          </button>
-          <button type="button" id="kbd-toggle" class="round-btn" title="Keyboard">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm2 3v2h2V9H5zm4 0v2h2V9H9zm4 0v2h2V9h-2zm4 0v2h2V9h-2zM7 13v2h10v-2H7z"/></svg>
-            <span class="sr" data-t="type_instead"></span>
-          </button>
-        </div>
-        <p id="talk-label" class="mic-label" data-t="speak"></p>
-      </div>
+      <p id="talk-label" class="mic-label" data-t="speak"></p>
     </div>
   </section>
 
-  <!-- Laptop view: the same booking as a step-by-step page with fuller text -->
-  <section id="desk" class="desk" aria-label="Book a pickup">
-    <div class="desk-main">
-      <header class="desk-head">
-        <h1 data-t="desk_title"></h1>
-        <p class="lede" data-t="desk_intro"></p>
-        <ol class="stepper" aria-label="Steps">
-          <li id="step-tell" class="on"><span data-t="step_tell"></span></li>
-          <li id="step-check"><span data-t="step_check"></span></li>
-          <li id="step-book"><span data-t="step_book"></span></li>
-        </ol>
-      </header>
-
-      <section id="compose" class="card compose">
-        <div class="compose-voice">
-          <button type="button" id="desk-mic" class="mic" aria-describedby="desk-mic-label">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12z"/></svg>
-          </button>
-          <p id="desk-mic-label" class="mic-label" data-t="hold_to_speak"></p>
-        </div>
-        <div class="compose-text">
-          <label for="typed" class="label" data-t="or_type"></label>
-          <textarea id="typed" rows="3"></textarea>
-          <div class="row">
-            <label class="tool" for="desk-photo">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
-              <span id="desk-photo-label" data-t="add_photo"></span>
-              <input type="file" id="desk-photo" accept="image/*" capture="environment" hidden>
-            </label>
-            <button type="button" class="tool" id="locate">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
-              <span id="locate-label" data-t="share_location"></span>
-            </button>
-            <button type="button" id="send-typed" class="primary" data-t="send"></button>
-          </div>
-        </div>
-      </section>
-
-      <section id="working" class="card working" hidden aria-live="polite">
-        <span class="spinner" aria-hidden="true"></span>
-        <p id="working-text"></p>
-      </section>
-
-      <section id="confirm" class="card" hidden>
-        <div id="question" class="question" hidden>
-          <p class="eyebrow" data-t="one_question"></p>
-          <p id="question-text" class="question-text"></p>
-        </div>
-        <h2 data-t="check_details"></h2>
-        <p class="hint" data-t="tap_to_fix"></p>
-        <div id="chips" class="chips"></div>
-        <p id="transcript" class="transcript"></p>
-        <div class="row">
-          <button type="button" class="ghost" id="listen-confirm" data-t="listen"></button>
-          <button type="button" class="primary wide" id="confirm-btn" data-t="confirm"></button>
-        </div>
-      </section>
-
-      <section id="offer" class="card" hidden></section>
+  <aside id="rail" class="rail" aria-label="Your pickups and today's prices">
+    <div class="rail-head">
+      <h2 data-t="my_pickups"></h2>
+      <button type="button" id="close-rail" class="close" aria-label="Close">×</button>
     </div>
-
-    <aside class="desk-side">
-      <section class="card">
-        <h2 data-t="prices_title"></h2>
-        <div id="prices" class="prices"></div>
-        <p class="hint" data-t="prices_note"></p>
-      </section>
-      <section class="card">
-        <h2 data-t="how_title"></h2>
-        <ol class="how">
-          <li data-t="how_1"></li><li data-t="how_2"></li><li data-t="how_3"></li><li data-t="how_4"></li>
-        </ol>
-      </section>
-      <section class="card">
-        <h2 data-t="my_pickups"></h2>
-        <div id="desk-pickups" class="pickups"></div>
-      </section>
-      <section class="card">
-        <h2 data-t="prove"></h2>
-        <p class="hint" data-t="prove_help"></p>
-        <div class="row">
-          <label class="tool" for="proof-photo">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
-            <span id="proof-label" data-t="add_photo"></span>
-            <input type="file" id="proof-photo" accept="image/*" capture="environment" hidden>
-          </label>
-          <select id="proof-district" aria-label="District"></select>
-          <button type="button" id="proof-send" class="primary" data-t="prove_send" disabled></button>
-        </div>
-        <p id="proof-result" class="result" aria-live="polite"></p>
-      </section>
-      <p class="footnote" data-t="simulated_payment"></p>
-    </aside>
-  </section>
+    <section class="rail-block">
+      <div id="pickups" class="pickups"></div>
+    </section>
+    <section class="rail-block skip">
+      <h3 data-t="skip_title"></h3>
+      <ul>
+        <li data-t="skip_1"></li><li data-t="skip_2"></li><li data-t="skip_3"></li><li data-t="skip_4"></li><li data-t="skip_5"></li>
+      </ul>
+    </section>
+    <section class="rail-block">
+      <h3 data-t="prices_title"></h3>
+      <div id="prices" class="prices"></div>
+      <p class="hint" data-t="prices_note"></p>
+    </section>
+    <section class="rail-block">
+      <h3 data-t="how_title"></h3>
+      <ol class="how"><li data-t="how_1"></li><li data-t="how_2"></li><li data-t="how_3"></li><li data-t="how_4"></li></ol>
+    </section>
+    <section class="rail-block">
+      <h3 data-t="prove"></h3>
+      <p class="hint" data-t="prove_help"></p>
+      <label class="btn quiet small" for="proof-photo"><span data-t="prove_send"></span>
+        <input type="file" id="proof-photo" accept="image/*" capture="environment" hidden></label>
+      <p id="proof-result" class="result" aria-live="polite"></p>
+    </section>
+    <p class="footnote" data-t="simulated_payment"></p>
+  </aside>
 </main>
 
 <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>

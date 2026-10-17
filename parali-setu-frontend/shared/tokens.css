@@ -1,0 +1,85 @@
+/* Parali Setu design tokens: the phulkari system.
+   Drawn from the embroidered Punjabi shawl: madder red cloth, silk-gold
+   thread, khaddar cotton. Shared by the landing page, the farmer's pickup
+   page, the ops console and the company portal.
+
+   Fonts (load in each page's <head>):
+   https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Baloo+Paaji+2:wght@500;600;700&family=Hind:wght@400;500;600&family=Mukta+Mahee:wght@400;500;600&display=swap
+*/
+:root {
+  /* colour */
+  --madder: #8e1f33;          /* the cloth: primary actions, headings that matter */
+  --madder-deep: #6f1626;     /* pressed / hover */
+  --madder-soft: #f4e3e3;
+  --silk: #e08a1e;            /* the thread: highlights, on-call crews, attention */
+  --silk-pale: #f6dfb8;
+  --khaddar: #f6f1ec;         /* page ground */
+  --surface: #fffdfb;         /* cards, panels */
+  --thread: #2a1a1f;          /* text */
+  --thread-soft: #6d5a5d;     /* secondary text */
+  --line: #e3d6cf;
+  --line-strong: #cdb9ae;
+  /* states (kept apart from the brand colours) */
+  --ok: #2f6b3b;              /* confirmed, collected, paid */
+  --ok-soft: #e3eee2;
+  --warn: #b4530f;            /* needs a person */
+  --warn-soft: #fbe7d3;
+  --fire: #c2410c;            /* burning, satellite fires */
+
+  /* type */
+  --font-display: "Baloo Paaji 2", "Baloo 2", "Mukta Mahee", system-ui, sans-serif;
+  --font-body: "Hind", "Mukta Mahee", "Noto Sans Gurmukhi", "Noto Sans Devanagari", system-ui, sans-serif;
+  --step--1: .84rem;
+  --step-0: 1rem;
+  --step-1: 1.2rem;
+  --step-2: 1.5rem;
+  --step-3: 2.05rem;
+  --step-4: clamp(2.3rem, 5vw, 3.6rem);
+
+  /* shape */
+  --r-sm: 8px;
+  --r: 12px;
+  --r-lg: 18px;
+  --shadow: 0 1px 0 rgba(42, 26, 31, .04), 0 8px 24px -14px rgba(42, 26, 31, .28);
+
+  /* the bagh: one stitched-diamond motif, used sparingly as a band */
+  --bagh: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Crect width='28' height='14' fill='%238e1f33'/%3E%3Cpath d='M7 1 13 7 7 13 1 7Z' fill='%23e08a1e'/%3E%3Cpath d='M21 1 27 7 21 13 15 7Z' fill='%23f6dfb8'/%3E%3Crect x='5.5' y='5.5' width='3' height='3' fill='%238e1f33'/%3E%3Crect x='19.5' y='5.5' width='3' height='3' fill='%238e1f33'/%3E%3C/svg%3E");
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--khaddar); color: var(--thread); font: 400 var(--step-0)/1.55 var(--font-body); }
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 700; line-height: 1.15; margin: 0; text-wrap: balance; }
+a { color: var(--madder); }
+:focus-visible { outline: 3px solid var(--silk); outline-offset: 2px; border-radius: 4px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: var(--r); padding: 11px 18px;
+       font-weight: 600; cursor: pointer; text-decoration: none; background: var(--madder); color: #fff6ef; min-height: 44px; }
+.btn:hover { background: var(--madder-deep); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.quiet { background: transparent; color: var(--thread); box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+.btn.quiet:hover { background: var(--surface); box-shadow: inset 0 0 0 1.5px var(--thread-soft); }
+.btn.silk { background: var(--silk); color: var(--thread); }
+.btn.small { min-height: 34px; padding: 6px 12px; font-size: var(--step--1); border-radius: var(--r-sm); }
+
+/* status pills: shape + word, never colour alone */
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: var(--step--1); font-weight: 600; border-radius: 999px; padding: 2px 10px;
+        background: var(--line); color: var(--thread); white-space: nowrap; }
+.pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: .8; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.brand { background: var(--madder-soft); color: var(--madder); }
+.pill.silk { background: var(--silk-pale); color: #7a4708; }
+
+.bagh-band { height: 10px; background: var(--bagh); background-size: 28px 10px; }
+.demo-strip { margin: 0; padding: 5px max(16px, env(safe-area-inset-right, 0px)) 5px max(16px, env(safe-area-inset-left, 0px));
+              text-align: center; font-size: var(--step--1); background: var(--silk-pale); color: #5e3a0c; }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 60;
+         max-width: min(92vw, 520px); background: var(--thread); color: #fff6ef; padding: 10px 16px; border-radius: var(--r); box-shadow: var(--shadow); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

@@ -56,7 +56,8 @@ Parali Setu buys paddy straw (parali): our crew clears the field for free before
 the farmer sows wheat, and pays today's posted price the same day it collects.
 
 Rules you must follow:
-1. Reply only in {language}. Use one to three short sentences and the plain words a
+1. Reply only in {language}, even if earlier messages were in another language: the farmer
+   may switch, and you follow. Use one to three short sentences and the plain words a
    farmer uses. Be warm and respectful. No lists, no markdown.
 2. Never state a price, weight, area, date, time, money amount or pickup slot unless
    it came from a tool result or the farmer said it. Never estimate or calculate.
@@ -230,6 +231,15 @@ _FORBIDDEN_CLAIMS = {
 def forbidden_claims(reply: str, farmer_texts: list[str]) -> list[str]:
     said = " ".join(farmer_texts)
     return [name for name, pattern in _FORBIDDEN_CLAIMS.items() if pattern.search(reply) and not pattern.search(said)]
+
+
+# ---- guardrail: the reply is in the farmer's language --------------------------
+
+def wrong_language(reply: str, language: str) -> bool:
+    """True when a reply is mostly in another script than the farmer's
+    language (a Punjabi answer to a Hindi question, say)."""
+    said = lang_detect.detect(reply)
+    return said in lang_detect.SUPPORTED and said != language
 
 
 # ---- guardrail: an explicit yes ------------------------------------------------
@@ -572,7 +582,10 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
         thinking_config=types.ThinkingConfig(thinking_budget=0),   # ~2 s per call instead of 5+; the guardrails live in code
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
-    contents = _history(conv) + [types.Content(role="user", parts=[types.Part.from_text(text=user_text)])]
+    # The language goes in the turn itself too: a long history in another
+    # language otherwise outweighs the system instruction.
+    framed = f"[The farmer is speaking {conv['language']}. Reply in {conv['language']}.]\n{user_text}"
+    contents = _history(conv) + [types.Content(role="user", parts=[types.Part.from_text(text=framed)])]
     report = {"tool_calls": [], "regenerated": False, "fallback": False, "blocked_numbers": [],
               "blocked_claims": []}
     text = None
@@ -595,21 +608,26 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
                    pickups.now_ist().date().isoformat()]
     bad = unsupported_numbers(text or "", farmer_texts, tool_values)
     claims = forbidden_claims(text or "", farmer_texts)
-    if text and (bad or claims):
+    wrong_script = bool(text) and wrong_language(text, conv["language"])
+    if text and (bad or claims or wrong_script):
         report["blocked_numbers"] = sorted(bad)
         report["blocked_claims"] = claims
         report["regenerated"] = True
+        report["wrong_language"] = wrong_script
         problems = []
         if bad:
             problems.append(f"these numbers, which no tool returned and the farmer did not say: {sorted(bad)}")
         if claims:
             problems.append("any talk of government, schemes, subsidies or asking to be trusted "
                             f"({', '.join(claims)}); we are a private company and payments are simulated")
+        if wrong_script:
+            problems.append(f"any language other than {conv['language']}")
         contents.append(types.Content(role="user", parts=[types.Part.from_text(text=(
             "Rewrite your last reply without " + " and without ".join(problems) +
-            ". Use only numbers from the tool results."))]))
+            f". Use only numbers from the tool results. Write it in {conv['language']}."))]))
         _, text, _ = _generate(client, contents, config)
-        if text and (unsupported_numbers(text, farmer_texts, tool_values) or forbidden_claims(text, farmer_texts)):
+        if text and (unsupported_numbers(text, farmer_texts, tool_values) or forbidden_claims(text, farmer_texts)
+                     or wrong_language(text, conv["language"])):
             text = None
     if not text:
         report["fallback"] = True

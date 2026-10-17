@@ -251,9 +251,12 @@ def test_a_very_close_sowing_date_is_flagged_and_unserved_places_list_the_distri
 def test_the_reply_follows_the_language_the_farmer_speaks(world, monkeypatch):
     seen = []
 
+    replies = {"Punjabi": "ਠੀਕ ਹੈ ਜੀ", "Hindi": "ठीक है जी", "English": "All right"}
+
     def model(client, contents, config):
-        seen.append(config.system_instruction.split("Reply only in ")[1].split(".")[0])
-        return [], "ok", None
+        lang = config.system_instruction.split("Reply only in ")[1].split(",")[0].split(".")[0]
+        seen.append(lang)
+        return [], replies[lang], None
     monkeypatch.setattr(agent, "_generate", model)
     first = agent.take_turn(world, None, "farmer_lang", None, "ਮੇਰੇ ਕੋਲ ਦਸ ਕਿੱਲੇ ਹਨ", "(en)")
     second = agent.take_turn(world, None, "farmer_lang", None, "मेरे पास दस एकड़ हैं", "(en)", first["conversation_id"])
@@ -290,3 +293,12 @@ def test_complete_details_bring_the_offer_back_in_one_step_and_it_stays_the_same
     assert len(offers) == 1, "update_listing made the offer; the explicit call returned the same one"
     open_offers = [b for b in store.get_bookings_for_farmer(world, "farmer_a") if b["status"] == "offered"]
     assert len(open_offers) == 1 and open_offers[0]["id"] == offers[0]["booking_id"]
+
+
+
+def test_a_reply_in_the_wrong_language_is_rewritten(chat):
+    assert agent.wrong_language("ਭੁਗਤਾਨ ਉਸੇ ਦਿਨ ਹੋਵੇਗਾ", "Hindi")
+    assert not agent.wrong_language("भुगतान उसी दिन होगा", "Hindi")
+    assert not agent.wrong_language("₹10500", "Punjabi"), "numbers alone carry no language"
+    result = chat([lambda r: "भुगतान उसी दिन होगा", lambda r: "ਭੁਗਤਾਨ ਉਸੇ ਦਿਨ ਹੋਵੇਗਾ"], "ਪੈਸੇ ਕਦੋਂ ਮਿਲਣਗੇ?")
+    assert result["guardrails"]["wrong_language"] and result["reply"] == "ਭੁਗਤਾਨ ਉਸੇ ਦਿਨ ਹੋਵੇਗਾ"
