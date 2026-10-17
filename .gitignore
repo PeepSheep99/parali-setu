@@ -8,3 +8,6 @@ node_modules/
 *.log
 .firebase/
 .pytest_cache/
+
+# Third-party raw downloads (Kaggle); only derived tables are committed
+parali-setu-api/forecast/data/raw/
