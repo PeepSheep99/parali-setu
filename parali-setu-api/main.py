@@ -884,6 +884,7 @@ class OrderRequest(BaseModel):
     tonnes_per_month: float = Field(gt=0, le=20_000)
     months: int = Field(ge=1, le=12)
     start_month: date
+    allow_partial: bool = False     # accept a smaller delivery plan when we cannot fill the whole order
 
 
 def _order_months(req: OrderRequest) -> dict[str, float]:
@@ -906,7 +907,8 @@ def quote_customer(customer_id: str, req: OrderRequest):
     start = date(req.start_month.year, req.start_month.month, 1)
     q = operations.quote_order(db, (customer["lat"], customer["lon"]), start, req.months)
     total_t = req.tonnes_per_month * req.months
-    return {"quote": q, "total_t": total_t, "total_inr": round(total_t * q["price_per_t"], 2)}
+    can = operations.committable(db, (customer["lat"], customer["lon"]), _order_months(req), q["price_per_t"])
+    return {"quote": q, "total_t": total_t, "total_inr": round(total_t * q["price_per_t"], 2), "commit": can}
 
 
 @app.post("/customers/{customer_id}/orders")
@@ -917,15 +919,36 @@ def place_order(customer_id: str, req: OrderRequest):
     customer = _customer_or_404(db, customer_id)
     start = date(req.start_month.year, req.start_month.month, 1)
     q = operations.quote_order(db, (customer["lat"], customer["lon"]), start, req.months)
+    can = operations.committable(db, (customer["lat"], customer["lon"]), _order_months(req), q["price_per_t"])
+    if not can["can_fill"] and not req.allow_partial:
+        raise HTTPException(status_code=409, detail={
+            "message": "We cannot fill this whole order. Order what we can commit, or accept a partial plan.",
+            "commit": can})
     order = store.save_order(db, {
         "customer_id": customer_id, "product": "baled paddy straw", "tonnes_by_month": _order_months(req),
         "site": {"lat": customer["lat"], "lon": customer["lon"], "district": customer.get("district")},
         "quote": q, "total_t": req.tonnes_per_month * req.months,
     })
+    order = store.save_order(db, {**order, "order_code": operations.order_code(order["id"])})
     operations.run_procurement(db)
     deliveries = operations.run_deliveries(db)
     return {"order": order, "delivery_plan": deliveries,
             "deliveries": store.get_deliveries(db, order["id"])}
+
+
+@app.post("/customers/{customer_id}/orders/{order_id}/cancel")
+def cancel_order(customer_id: str, order_id: str):
+    """Cancels a forward order and re-plans so its stock goes to the next in the queue."""
+    db = store.get_firestore_client()
+    _customer_or_404(db, customer_id)
+    order = next((o for o in store.get_orders(db, customer_id) if o["id"] == order_id), None)
+    if order is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+    if order.get("status") == "cancelled":
+        raise HTTPException(status_code=409, detail="This order is already cancelled")
+    order = store.update_order_status(db, order_id, "cancelled")
+    operations.run_procurement(db)
+    return {"order": order, "delivery_plan": operations.run_deliveries(db)}
 
 
 @app.get("/customers/{customer_id}/orders")
@@ -937,5 +960,6 @@ def customer_orders(customer_id: str):
     out = []
     for o in orders:
         short = [s for s in plan.get("shortfall", []) if s["order_id"] == o["id"]]
-        out.append({**o, "deliveries": store.get_deliveries(db, o["id"]), "shortfall": short})
+        out.append({**o, "order_code": o.get("order_code") or operations.order_code(o["id"]),
+                    "deliveries": store.get_deliveries(db, o["id"]), "shortfall": short})
     return {"customer_id": customer_id, "orders": out}

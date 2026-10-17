@@ -22,6 +22,7 @@ from ortools.linear_solver import pywraplp
 from costs import STORAGE_PER_T_MONTH_INR, haul_per_t
 
 SHORTFALL_PENALTY_PER_T = 50_000.0
+PRIORITY_STEP_PER_T = 1_000.0   # per place in the queue; larger than any haul or storage difference
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,7 @@ class OrderLine:
     lat: float
     lon: float
     tonnes_by_month: tuple[float, ...]
+    rank: int = 0        # 0 = signed first; earlier orders keep their stock
 
 
 @dataclass
@@ -89,8 +91,11 @@ def plan_deliveries(depots: list[DepotStock], orders: list[OrderLine], months: i
         obj.SetCoefficient(var, haul[(pid, oid)])
     for var in stock.values():
         obj.SetCoefficient(var, STORAGE_PER_T_MONTH_INR)
-    for var in short.values():
-        obj.SetCoefficient(var, SHORTFALL_PENALTY_PER_T)
+    queue = len(orders)
+    for (oid, _), var in short.items():
+        # An earlier order costs more to leave short, so a later order absorbs any shortage.
+        rank = next(o.rank for o in orders if o.id == oid)
+        obj.SetCoefficient(var, SHORTFALL_PENALTY_PER_T + (queue - rank) * PRIORITY_STEP_PER_T)
     obj.SetMinimization()
 
     if solver.Solve() != pywraplp.Solver.OPTIMAL:

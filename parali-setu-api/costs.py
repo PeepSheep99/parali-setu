@@ -93,9 +93,9 @@ def quote(
         raise ValueError("partner_share must be in [0, 1]")
     if months_in_storage < 0 or margin_pct < 0:
         raise ValueError("months_in_storage and margin_pct must not be negative")
-    farm_gate = round(farm_gate_per_kg * 1000, 2)
-    collection = round((1 - partner_share) * OWN_COLLECTION_PER_T_INR + partner_share * PARTNER_COLLECTION_PER_T_INR, 2)
-    storage = round(months_in_storage * STORAGE_PER_T_MONTH_INR, 2)
-    haul = round(haul_per_t(*depot, *site), 2)
+    farm_gate = round(farm_gate_per_kg * 1000)
+    collection = round((1 - partner_share) * OWN_COLLECTION_PER_T_INR + partner_share * PARTNER_COLLECTION_PER_T_INR)
+    storage = round(months_in_storage * STORAGE_PER_T_MONTH_INR)
+    haul = round(haul_per_t(*depot, *site))
     cost = farm_gate + collection + storage + haul
-    return Quote(farm_gate, collection, storage, haul, round(cost * margin_pct / 100, 2))
+    return Quote(farm_gate, collection, storage, haul, round(cost * margin_pct / 100))

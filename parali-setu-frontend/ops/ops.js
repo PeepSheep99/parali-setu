@@ -94,6 +94,8 @@
       stat(`${fmt(summary.delivery_shortfall_t || 0, 1)} t`, "shortfall in the delivery plan", summary.delivery_shortfall_t > 0));
     const attention = [];
     if (by.unschedulable) attention.push(h("p", {}, `${by.unschedulable} farm(s) have no slot yet. `, h("a", { href: "#pickups", onclick: (e) => { e.preventDefault(); showTab("pickups"); } }, "See Pickups")));
+    if (summary.procurement_shortfall_t > 0) attention.push(h("p", {}, `Signed orders need ${fmt(summary.procurement_shortfall_t, 1)} t more straw than the buying plan can source. `, h("a", { href: "#orders", onclick: (e) => { e.preventDefault(); showTab("orders"); } }, "See Orders")));
+    if (summary.delivery_shortfall_t > 0) attention.push(h("p", {}, `${fmt(summary.delivery_shortfall_t, 1)} t of customer orders are short in the delivery plan; call the affected customers.`));
     if (summary.needs_attention.length) attention.push(h("p", {}, `${summary.needs_attention.length} booked pickup(s) could not be kept in the latest re-plan.`));
     $("today-attention").replaceChildren(...(attention.length ? attention : [h("p", { class: "empty" }, "Nothing needs a person right now.")]));
     const schedules = await Promise.all(state.depots.map((d) => api(`/depots/${d.id}/schedule`)));

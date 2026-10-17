@@ -46,10 +46,12 @@ def test_quote_adds_up_and_shows_the_benchmark():
     q = quote(0.6, partner_share=0.25, months_in_storage=6, depot=SANGRUR, site=PATIALA, margin_pct=10)
     d = q.as_dict()
     assert d["farm_gate_per_t"] == 600
-    assert d["collection_per_t"] == pytest.approx(0.75 * OWN_COLLECTION_PER_T_INR + 0.25 * PARTNER_COLLECTION_PER_T_INR)
+    assert d["collection_per_t"] == round(0.75 * OWN_COLLECTION_PER_T_INR + 0.25 * PARTNER_COLLECTION_PER_T_INR)
     assert d["storage_per_t"] == 6 * STORAGE_PER_T_MONTH_INR
-    assert d["cost_per_t"] == pytest.approx(d["farm_gate_per_t"] + d["collection_per_t"] + d["storage_per_t"] + d["haul_per_t"], abs=0.02)
-    assert d["price_per_t"] == pytest.approx(d["cost_per_t"] * 1.10, abs=0.05)
+    parts = [d[k] for k in ("farm_gate_per_t", "collection_per_t", "storage_per_t", "haul_per_t", "margin_per_t")]
+    assert all(float(x).is_integer() for x in parts), "whole rupees, so the lines a customer reads add up"
+    assert d["price_per_t"] == sum(parts)
+    assert d["margin_per_t"] == round(d["cost_per_t"] * 0.10)
     assert d["in_season_benchmark_per_t"] == IN_SEASON_DELIVERED_PER_T_INR
 
 
@@ -146,3 +148,13 @@ def test_margin_is_real_money_and_leaves_out_the_shortfall_penalty():
     # 400 t sold at 2,600 can't lose crores: the penalty only steers the solver.
     assert abs(plan.margin_inr) < 400 * 2600
     assert plan.margin_inr > 0
+
+
+def test_an_earlier_order_keeps_its_stock_when_a_later_one_competes():
+    stock = [DepotStock("d", *SANGRUR, 10_000, 100.0, (0.0, 0.0))]
+    first = OrderLine("first", "c1", *SANGRUR, (100.0, 0.0), rank=0)
+    later = OrderLine("later", "c2", *SANGRUR, (100.0, 0.0), rank=1)
+    for orders in ([first, later], [later, first]):       # input order must not matter
+        plan = plan_deliveries(stock, orders, 2)
+        assert plan.shortfall.get(("first", 0), 0) == 0
+        assert plan.shortfall[("later", 0)] == pytest.approx(100.0)

@@ -293,6 +293,15 @@ def save_order(db: firestore.Client, order: dict) -> dict:
     return _save(db, "orders", "order", {"status": "confirmed", **order})
 
 
+def update_order_status(db: firestore.Client, order_id: str, status: str) -> dict | None:
+    order = _get(db, "orders", order_id)
+    if order is None:
+        return None
+    order = {**order, "status": status, "status_at": _now()}
+    db.collection("orders").document(order_id).set(order)
+    return order
+
+
 def get_orders(db: firestore.Client, customer_id: str | None = None) -> list[dict]:
     rows = _where(db, "orders", "customer_id", customer_id) if customer_id else _all(db, "orders")
     return sorted(rows, key=lambda o: o.get("created_at", ""))

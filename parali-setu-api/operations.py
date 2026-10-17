@@ -83,9 +83,18 @@ def depot_capacity_t_per_week(crews: list[dict], partner: bool) -> float:
                for c in crews if bool(c.get("partner")) == partner)
 
 
+def active_orders(orders: list[dict]) -> list[dict]:
+    return [o for o in orders if o.get("status") != "cancelled"]
+
+
+def order_code(order_id: str) -> str:
+    """A short reference a customer can quote, e.g. PO-4F2KQ."""
+    return "PO-" + "".join(ch for ch in order_id if ch.isalnum())[-5:].upper()
+
+
 def _orders_tonnes_and_price(orders: list[dict], months: int, start: date) -> tuple[float, float]:
     total = value = 0.0
-    for o in orders:
+    for o in active_orders(orders):
         for month, tonnes in (o.get("tonnes_by_month") or {}).items():
             m = date.fromisoformat(month)
             if start <= m < add_months(start, months):
@@ -99,10 +108,13 @@ def add_months(d: date, n: int) -> date:
     return date(d.year + y, m + 1, 1)
 
 
-def run_procurement(db, today: date | None = None, repost_today: bool = False) -> dict:
+def run_procurement(db, today: date | None = None, repost_today: bool = False,
+                    extra_order: tuple[float, float] | None = None, dry_run: bool = False) -> dict:
     """Plans procurement. A price already posted for today is never changed
     mid-day (farmers were seeing 0.60 then 0.74 within minutes); a re-plan
-    only fills in missing districts unless repost_today is set (demo reset)."""
+    only fills in missing districts unless repost_today is set (demo reset).
+    `extra_order` = (tonnes, price per tonne) adds a candidate order to the book;
+    with dry_run nothing is saved and only the plan's totals come back."""
     today = today or pickups.now_ist().date()
     forecast = store.get_forecast(db, f"supply_live_{today.year}")
     weeks = sorted({date.fromisoformat(w["week"]) for ws in (forecast or {}).get("districts", {}).values() for w in ws})
@@ -130,12 +142,19 @@ def run_procurement(db, today: date | None = None, repost_today: bool = False) -
     month0 = date(today.year, today.month, 1)
     committed_t, committed_price = _orders_tonnes_and_price(store.get_orders(db), DELIVERY_MONTHS, month0)
     low, _ = segment_totals()
+    if extra_order:
+        value = committed_t * committed_price + extra_order[0] * extra_order[1]
+        committed_t += extra_order[0]
+        committed_price = value / committed_t
     sales = SalesBook(committed_t=committed_t, committed_price_per_t=committed_price,
                       forecast_t=low * FORECAST_MARKET_SHARE,
                       forecast_price_per_t=(committed_price or IN_SEASON_DELIVERED_PER_T_INR) * SPOT_DISCOUNT)
     plan = plan_procurement(supply, depots, sales)
     if plan.status != "optimal":
         return {"status": plan.status}
+
+    if dry_run:
+        return {"status": plan.status, "committed_t": round(committed_t, 1), "shortfall_t": plan.shortfall_t}
 
     week_index = max(0, min(len(weeks) - 1, next((i for i, w in enumerate(weeks) if w <= today < w + timedelta(weeks=1)), 0)))
     rows = []
@@ -191,12 +210,12 @@ def depot_stock_t(db, depot_id: str) -> float:
     return round(sum(m["tonnes"] if m["kind"] == "inbound" else -m["tonnes"] for m in moves), 3)
 
 
-def run_deliveries(db, today: date | None = None) -> dict:
-    today = today or pickups.now_ist().date()
+def _delivery_inputs(db, today: date):
+    """Depot stock and active orders as the delivery LP sees them. Orders are
+    ranked by when they were signed (earliest first)."""
     month0 = date(today.year, today.month, 1)
     months = [add_months(month0, i) for i in range(DELIVERY_MONTHS)]
     procurement = store.get_plan(db, "procurement_current") or {}
-    weeks = [date.fromisoformat(w) for w in procurement.get("weeks", [])]
 
     depots = []
     for d in store.get_depots(db):
@@ -214,12 +233,19 @@ def run_deliveries(db, today: date | None = None) -> dict:
                                  tuple(round(x, 2) for x in inbound)))
 
     customers = {c["id"]: c for c in store.get_customers(db)}
+    docs = active_orders(store.get_orders(db))
     lines = []
-    for o in store.get_orders(db):
+    for rank, o in enumerate(docs):
         site = o.get("site") or customers.get(o["customer_id"], {})
         by_month = o.get("tonnes_by_month") or {}
         lines.append(OrderLine(o["id"], o["customer_id"], site["lat"], site["lon"],
-                               tuple(float(by_month.get(m.isoformat(), 0.0)) for m in months)))
+                               tuple(float(by_month.get(m.isoformat(), 0.0)) for m in months), rank))
+    return depots, lines, months
+
+
+def run_deliveries(db, today: date | None = None) -> dict:
+    today = today or pickups.now_ist().date()
+    depots, lines, months = _delivery_inputs(db, today)
     plan = plan_deliveries(depots, lines, DELIVERY_MONTHS)
     rows = [{"id": f"del_{oid}_{pid}_{m}", "order_id": oid, "depot_id": pid, "month": months[m].isoformat(),
              "tonnes": t, "customer_id": next((l.customer_id for l in lines if l.id == oid), None)}
@@ -232,6 +258,29 @@ def run_deliveries(db, today: date | None = None) -> dict:
                "stock": {f"{p}|{months[m].isoformat()}": t for (p, m), t in plan.stock.items()}}
     store.save_plan(db, "deliveries_current", summary)
     return summary
+
+
+def committable(db, site: tuple[float, float], by_month: dict[str, float], price_per_t: float,
+                today: date | None = None) -> dict:
+    """How much of a candidate order we could supply if it were signed now.
+    The procurement plan is re-run with the order on the book; whatever it
+    cannot source on top of today's shortfall is what we cannot commit. Signed
+    orders are served first (see deliveries.PRIORITY_STEP_PER_T), so a new
+    order never shortens one of them. The monthly split is proportional.
+    Saves nothing."""
+    today = today or pickups.now_ist().date()
+    asked = round(sum(by_month.values()), 2)
+    base = run_procurement(db, today, dry_run=True)
+    trial = run_procurement(db, today, extra_order=(asked, price_per_t), dry_run=True)
+    if trial.get("status") != "optimal" or base.get("status") != "optimal":
+        return {"asked_t": asked, "committable_t": 0.0, "shortfall_t": asked, "can_fill": False,
+                "by_month": {m: 0.0 for m in by_month}, "max_t_per_month": 0.0}
+    extra_short = max(0.0, trial["shortfall_t"] - base["shortfall_t"])
+    ok = round(max(0.0, asked - extra_short), 2)
+    ratio = ok / asked if asked else 0.0
+    per_month = {m: round(t * ratio, 2) for m, t in by_month.items()}
+    return {"asked_t": asked, "committable_t": ok, "shortfall_t": round(asked - ok, 2), "can_fill": asked - ok < 0.5,
+            "by_month": per_month, "max_t_per_month": round(min(per_month.values()), 1) if per_month else 0.0}
 
 
 def months_in_storage(start_month: date, months: int) -> float:

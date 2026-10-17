@@ -223,3 +223,29 @@ def test_demo_locate_never_uses_the_device_and_sets_the_farm(api):
     fields = store.get_conversation(api["db"], conv["id"])["fields"]
     assert fields["lat"] == body["lat"] and fields["location_source"] == "demo"
     assert client.post("/demo/locate", json={"farmer_id": "someone_else", "conversation_id": conv["id"]}).status_code == 403
+
+
+def test_a_quote_says_what_we_can_commit_and_a_huge_order_is_refused(api):
+    small = client.post("/customers/cust_board/quote", json={"tonnes_per_month": 50, "months": 3,
+                                                             "start_month": "2026-12-01"}).json()["commit"]
+    assert small["can_fill"] and small["committable_t"] == small["asked_t"] == 150
+    huge_body = {"tonnes_per_month": 20_000, "months": 12, "start_month": "2026-12-01"}
+    huge = client.post("/customers/cust_board/quote", json=huge_body).json()["commit"]
+    assert not huge["can_fill"] and 0 <= huge["committable_t"] < huge["asked_t"] and huge["shortfall_t"] > 0
+    before = len(store.get_orders(api["db"], "cust_board"))
+    refused = client.post("/customers/cust_board/orders", json=huge_body)
+    assert refused.status_code == 409 and refused.json()["detail"]["commit"]["shortfall_t"] > 0
+    assert len(store.get_orders(api["db"], "cust_board")) == before, "a refused order saves nothing"
+
+
+def test_orders_get_a_code_and_can_be_cancelled(api):
+    body = client.post("/customers/cust_board/orders", json={"tonnes_per_month": 50, "months": 2,
+                                                             "start_month": "2026-12-01"}).json()
+    code = body["order"]["order_code"]
+    assert code.startswith("PO-") and len(code) == 8
+    done = client.post(f"/customers/cust_board/orders/{body['order']['id']}/cancel").json()
+    assert done["order"]["status"] == "cancelled"
+    assert not any(d["order_id"] == body["order"]["id"] for d in store.get_deliveries(api["db"]))
+    assert client.post(f"/customers/cust_board/orders/{body['order']['id']}/cancel").status_code == 409
+    listed = client.get("/customers/cust_board/orders").json()["orders"]
+    assert any(o["id"] == body["order"]["id"] and o["status"] == "cancelled" for o in listed)
