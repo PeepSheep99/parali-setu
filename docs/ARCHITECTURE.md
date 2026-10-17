@@ -22,7 +22,7 @@ exported to `parali-setu-frontend/img/`.
 
 ```mermaid
 flowchart LR
-  subgraph Apps[Firebase Hosting: parali-setu.web.app]
+  subgraph Apps[Firebase Hosting: parali-setu-aibuildercup-2026.web.app]
     L["/ landing"]
     K["/kisan one conversation, any of 3 languages"]
     O["/ops dispatch, routes, forecast"]

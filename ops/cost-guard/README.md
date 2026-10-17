@@ -11,11 +11,11 @@ runaway can't turn into a real bill for the account owner.
 | Budget B, "Parali Setu - REAL money (net)" | ₹100 of spend **after** credits, i.e. real money. It emails at 100% **and** publishes to the Pub/Sub topic `billing-alerts`. |
 | `cost-guard` (this folder) | A Cloud Run function (gen2) triggered by `billing-alerts`. If the message comes from Budget B and `costAmount >= budgetAmount`, it throttles. |
 
-Alert emails go to `chvms7712@gmail.com` and `navneet.kumar6266@gmail.com` (Cloud Monitoring email channels), as well as to the billing account's admins.
+Alert emails go to `saichvms@gmail.com` and `navneet.kumar6266@gmail.com` (Cloud Monitoring email channels), as well as to the billing account's admins.
 
 ## What "throttle" does (reversible; nothing is deleted)
 
-1. Sets `ingress=internal` on `parali-setu-api` and `aidatlas-api`, so public traffic stops and so does the cost it drives.
+1. Sets `ingress=internal` on `parali-setu-api`, so public traffic stops and so does the cost it drives.
 2. Disables `aiplatform`, `speech` and `texttospeech`.
 
 To undo it, run `bash ops/cost-guard/restore.sh`.
@@ -29,9 +29,9 @@ data lags by a few hours, so this is a backstop. The first line of defence is th
 ```bash
 gcloud functions deploy cost-guard --gen2 --runtime=python312 --region=asia-southeast1 \
   --source=ops/cost-guard --entry-point=handle_budget_alert --trigger-topic=billing-alerts \
-  --service-account=cost-guard@ai-builder-cup-aidatlas.iam.gserviceaccount.com \
+  --service-account=cost-guard@parali-setu-aibuildercup-2026.iam.gserviceaccount.com \
   --set-env-vars=DRY_RUN=true --max-instances=1 --memory=256Mi --no-allow-unauthenticated \
-  --project=ai-builder-cup-aidatlas
+  --project=parali-setu-aibuildercup-2026
 ```
 
 The `cost-guard` service account needs `roles/run.admin` and
@@ -41,9 +41,9 @@ on the runtime service account of the throttled Cloud Run services.
 ## Test without spending anything
 
 ```bash
-gcloud pubsub topics publish billing-alerts --project=ai-builder-cup-aidatlas \
+gcloud pubsub topics publish billing-alerts --project=parali-setu-aibuildercup-2026 \
   --message='{"budgetDisplayName":"Parali Setu - REAL money (net)","costAmount":150,"budgetAmount":100,"currencyCode":"INR"}'
-gcloud functions logs read cost-guard --gen2 --region=asia-southeast1 --project=ai-builder-cup-aidatlas --limit=10
+gcloud functions logs read cost-guard --gen2 --region=asia-southeast1 --project=parali-setu-aibuildercup-2026 --limit=10
 ```
 
 With `DRY_RUN=true`, the log reads "DRY RUN: would throttle Parali Setu". Unit tests:

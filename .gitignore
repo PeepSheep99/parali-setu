@@ -11,3 +11,7 @@ node_modules/
 
 # Third-party raw downloads (Kaggle); only derived tables are committed
 parali-setu-api/forecast/data/raw/
+
+# Local deploy settings (Maps key, Cloud Run URL)
+.env.local
+parali-setu-frontend/.env.local

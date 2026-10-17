@@ -37,6 +37,7 @@ import firestore_store as store
 import live
 import operations
 import pickups
+import ratelimit
 from extraction import read_no_burn_proof, read_stubble_quality
 from forecast.demand_segments import EX_SITU_SOURCE, EX_SITU_TOTAL_T, SEGMENTS, segment_totals
 from geo import demo_farm_location, district_from_text
@@ -58,11 +59,12 @@ ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
         "ALLOWED_ORIGINS",
-        "https://parali-setu.web.app,https://parali-setu.firebaseapp.com,http://localhost:8000,http://127.0.0.1:8000",
+        "https://parali-setu-aibuildercup-2026.web.app,https://parali-setu-aibuildercup-2026.firebaseapp.com,http://localhost:8000,http://127.0.0.1:8000",
     ).split(",")
     if o.strip()
 ]
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"], allow_headers=["*"])
+app.middleware("http")(ratelimit.limit_middleware)   # caps on the endpoints that call Gemini or speech
 
 Language = Literal["Hindi", "Punjabi", "English"]
 MAX_QUANTITY_KG = 10_000_000.0
@@ -354,6 +356,10 @@ async def agent_live(ws: WebSocket):
     origin = ws.headers.get("origin")
     if origin and origin not in ALLOWED_ORIGINS:
         await ws.close(code=1008)
+        return
+    forwarded = ws.headers.get("x-forwarded-for", "")
+    if ratelimit.check(forwarded.split(",")[0].strip() if forwarded else (ws.client.host if ws.client else "unknown")):
+        await ws.close(code=1013)          # try again later
         return
     await ws.accept()
     try:

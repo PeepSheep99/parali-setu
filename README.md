@@ -11,10 +11,10 @@ Google Cloud AI Builder Cup 2026 · Sustainability & Social Impact · Team Ctrl 
 
 | | |
 |---|---|
-| Live site | https://parali-setu.web.app |
-| Pickup page (farmers) | https://parali-setu.web.app/kisan/ (one page for phone and laptop) |
-| Operations console | https://parali-setu.web.app/ops/ (Dispatch, Routes, Forecast, Depots, Prices, Orders, Impact) |
-| Customer portal | https://parali-setu.web.app/company/ |
+| Live site | https://parali-setu-aibuildercup-2026.web.app |
+| Pickup page (farmers) | https://parali-setu-aibuildercup-2026.web.app/kisan/ (one page for phone and laptop) |
+| Operations console | https://parali-setu-aibuildercup-2026.web.app/ops/ (Dispatch, Routes, Forecast, Depots, Prices, Orders, Impact) |
+| Customer portal | https://parali-setu-aibuildercup-2026.web.app/company/ |
 | Architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
 *Parali* is Punjabi for paddy straw; *setu* means bridge.

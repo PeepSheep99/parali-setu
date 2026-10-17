@@ -2,7 +2,7 @@
 12) -- Cloud Speech-to-Text in, Cloud Text-to-Speech out. Both confirmed
 live in this project for Hindi (hi-IN) and Punjabi (pa-IN) before this
 was wired into main.py, same discipline as everything else so far:
-Text-to-Speech was already enabled on ai-builder-cup-aidatlas; Speech-
+Text-to-Speech was already enabled on parali-setu-aibuildercup-2026; Speech-
 to-Text was enabled for this project on 2026-10-15 and round-trip
 tested (synthesize a known sentence, transcribe it back) in both
 languages before any farmer-facing code was written against it.
@@ -16,7 +16,7 @@ import os
 
 from google.cloud import speech, texttospeech
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "ai-builder-cup-aidatlas")
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "parali-setu-aibuildercup-2026")
 
 # One confirmed-working Chirp3-HD voice per language (PRD Section 12).
 # Chirp3-HD was chosen over Standard/Wavenet after confirming live that

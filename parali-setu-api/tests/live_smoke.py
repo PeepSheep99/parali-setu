@@ -1,5 +1,5 @@
 """Live smoke test against the real Gemini, Speech, Text-to-Speech and
-Firestore in ai-builder-cup-aidatlas. Not named test_*.py, so plain `pytest`
+Firestore in parali-setu-aibuildercup-2026. Not named test_*.py, so plain `pytest`
 never runs it against real credentials and billing; run it by hand, after
 `python reset_demo.py --yes` has seeded depots, customers and prices:
 
