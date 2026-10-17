@@ -1,0 +1,50 @@
+{
+ "n": 80,
+ "summary": {
+  "row_count": 80.0,
+  "groundedness/mean": 0.963,
+  "groundedness/std": 0.191,
+  "instruction_following/mean": 4.625,
+  "instruction_following/std": 0.769,
+  "fluency/mean": 4.963,
+  "fluency/std": 0.191,
+  "safety/mean": 1.0,
+  "safety/std": 0.0
+ },
+ "by_language": {
+  "English": {
+   "groundedness": 1.0,
+   "instruction_following": 4.69,
+   "fluency": 4.9,
+   "safety": 1.0
+  },
+  "Hindi": {
+   "groundedness": 1.0,
+   "instruction_following": 4.71,
+   "fluency": 5.0,
+   "safety": 1.0
+  },
+  "Punjabi": {
+   "groundedness": 0.92,
+   "instruction_following": 4.54,
+   "fluency": 5.0,
+   "safety": 1.0
+  }
+ },
+ "seconds": 228.5,
+ "low_scores": [
+  {
+   "response": "ਸੁਖਦੇਵ ਸਿੰਘ ਜੀ, ਤੁਹਾਡਾ ਪਿੰਡ ਮੁੱਲਾਂਪੁਰ, ਲੁਧਿਆਣਾ ਹੈ। ਅਸੀਂ ਤੁਹਾਨੂੰ 0.6 ਰੁਪਏ ਪ੍ਰਤੀ ਕਿੱਲੋ ਦੇ ਹਿਸਾਬ ਨਾਲ ਕੁੱਲ 10500 ਰੁਪਏ ਦੇਵਾਂਗੇ ਅਤੇ ਪਰਾਲੀ ਚੁੱਕਣ ਦਾ ਸਮਾਂ ਮੰਗਲਵਾਰ, 20 ਅਕਤੂਬਰ, ਦੁਪਹਿਰ 12 ਤੋਂ ਦੁਪਹਿਰ 3 ਵਜੇ ਦਾ ਹੈ। ਕੀ ਤੁਹਾਨੂੰ ਇਹ ਮਨਜ਼ੂਰ ਹੈ ਅਤੇ ਤੁਹਾਡਾ ਨਾਮ ਤੇ ਪਿੰਡ ਸਹੀ ਹੈ?",
+   "groundedness/explanation": "The AI response asks for confirmation of the farmer's name and village ('ਕੀ ਤੁਹਾਨੂੰ ਇਹ ਮਨਜ਼ੂਰ ਹੈ ਅਤੇ ਤੁਹਾਡਾ ਨਾਮ ਤੇ ਪਿੰਡ ਸਹੀ ਹੈ?'), but the prompt explicitly states 'Ask only for details that are still missing.' According to the 'FACTS' and 'FARMER' input, the farmer's name and village are already known and not missing, making this question ungrounded to the instruction."
+  },
+  {
+   "response": "ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ ਜੀ, ਤੁਹਾਡਾ ਨਾਮ ਤੇ ਫ਼ੋਨ ਨੰਬਰ ਕੀ ਹੈ ਅਤੇ ਤੁਸੀਂ ਕਦੋਂ ਤੱਕ ਕਣਕ ਬੀਜਣੀ ਹੈ?",
+   "groundedness/explanation": "The AI response asks about sowing 'wheat' (ਕਣਕ), which is not explicitly mentioned in the FACTS or the farmer's input. The FACTS only mention 'rice_stubble' and 'sowing_deadline' as a missing field, without specifying the type of next crop."
+  },
+  {
+   "response": "ਰਾਜਿੰਦਰ ਸਿੰਘ ਜੀ, ਪਿਹੋਵਾ ਕੁਰੂਕਸ਼ੇਤਰ ਵਿੱਚ ਤੁਹਾਡੀ 11 ਕਿੱਲੇ ਦੀ ਪਰਾਲੀ ਲਈ ਸਾਡਾ ਰੇਟ 0.6 ਰੁਪਏ ਪ੍ਰਤੀ ਕਿੱਲੋ ਹੈ ਅਤੇ ਕੁੱਲ 11550 ਰੁਪਏ ਦਾ ਭੁਗਤਾਨ ਕੀਤਾ ਜਾਵੇਗਾ। ਪਰਾਲੀ ਚੁੱਕਣ ਦਾ ਸਮਾਂ ਸੋਮਵਾਰ, 19 ਅਕਤੂਬਰ, ਸਵੇਰੇ 8 ਤੋਂ ਸਵੇਰੇ 11 ਵਜੇ ਦਾ ਤੈਅ ਹੋਇਆ ਹੈ। ਕੀ ਤੁਹਾਡਾ ਨਾਮ ਅਤੇ ਪਿੰਡ ਸਹੀ ਹੈ, ਅਤੇ ਕੀ ਤੁਹਾਨੂੰ ਇਹ ਮਨਜ਼ੂਰ ਹੈ?",
+   "groundedness/explanation": "The response asks for details that are not missing ('ਕੀ ਤੁਹਾਡਾ ਨਾਮ ਅਤੇ ਪਿੰਡ ਸਹੀ ਹੈ'), which contradicts the prompt's instruction to 'Ask only for details that are still missing'. The name and village were already provided by the farmer and confirmed in the FACTS."
+  }
+ ],
+ "ran_at": "2026-10-17 22:48"
+}
