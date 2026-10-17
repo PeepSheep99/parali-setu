@@ -86,7 +86,7 @@ def seed_depots(db) -> None:
     for depot_id, name, district, capacity, radius, own_crews in DEPOTS:
         lat, lon = DISTRICT_COORDS[district]
         store.save_depot(db, {"id": depot_id, "name": name, "district": district, "lat": lat, "lon": lon,
-                              "capacity_t": capacity, "radius_km": radius})
+                              "capacity_t": capacity, "radius_km": radius, "stock_t": 0.0})
         crews = [(f"{depot_id}_crew{k + 1}", f"Crew {k + 1}", False) for k in range(own_crews)]
         crews += [(f"{depot_id}_oncall{k + 1}", f"On-call crew {ONCALL_NAMES[k]}", True) for k in range(ONCALL_CREWS_PER_DEPOT)]
         for crew_id, crew_name, partner in crews:
@@ -140,17 +140,22 @@ def seed_listings(db, today: date, seed: int = 17) -> list[dict]:
 def demo_run(db) -> dict:
     """Accepts a few offers and collects some of them, through the same
     functions the API calls, so the counters start from real activity."""
-    offered = [b for b in store.get_bookings(db, ("offered",)) if store.get_slots_for_booking(db, b["id"])]
-    offered.sort(key=lambda b: (b["depot_id"], b["id"]))
+    today = pickups.now_ist().date().isoformat()
+    first_day = {b["id"]: min(s["date"] for s in slots) for b in store.get_bookings(db, ("offered",))
+                 if (slots := store.get_slots_for_booking(db, b["id"]))}
+    offered = [b for b in store.get_bookings(db, ("offered",)) if b["id"] in first_day]
+    # Today's pickups first: only a farm whose slot day has come can be collected.
+    offered.sort(key=lambda b: (first_day[b["id"]], b["depot_id"], b["id"]))
     accepted = []
     for booking in offered[:DEMO_ACCEPTED]:
         store.update_booking_status(db, booking["id"], "booked",
                                     {"slot_accepted_at": pickups.now_ist().isoformat(), "accepted_by": "demo seed"})
         store.set_slots_status(db, booking["id"], "locked", locked=True)
         accepted.append(booking["id"])
-    for bid in accepted[:DEMO_COLLECTED]:   # collected pickups were called and confirmed first
+    due = [bid for bid in accepted if first_day[bid] <= today][:DEMO_COLLECTED]
+    for bid in due:   # collected pickups were called and confirmed first
         pickups.verify_booking(db, store.get_booking(db, bid), by="demo seed")
-    collected = [pickups.complete_pickup(db, bid)["purchase"]["amount_inr"] for bid in accepted[:DEMO_COLLECTED]]
+    collected = [pickups.complete_pickup(db, bid)["purchase"]["amount_inr"] for bid in due]
     return {"accepted": len(accepted), "collected": len(collected), "paid_inr": round(sum(collected), 2)}
 
 

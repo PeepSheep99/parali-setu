@@ -2,9 +2,10 @@
 uses, so whole flows (book -> plan -> accept -> collect -> pay -> deliver)
 run in tests without credentials.
 
-`use_fake_firestore(monkeypatch)` installs it and returns the fake. Real
-transactions are replaced by direct read-then-write, which is equivalent in
-a single-threaded test.
+`use_fake_firestore(monkeypatch)` installs it and returns the fake. The
+booking-status transaction is replaced by direct read-then-write, which is
+equivalent in a single-threaded test; ledger transactions buffer their writes
+and apply them only if the whole function succeeds.
 """
 from __future__ import annotations
 
@@ -103,6 +104,14 @@ class Batch:
         self._ops = []
 
 
+class Transaction(Batch):
+    """Buffers writes until commit, so a function that raises halfway
+    through leaves nothing behind -- the property real transactions give."""
+
+    def rollback(self):
+        self._ops = []
+
+
 class FakeFirestore:
     def __init__(self):
         self._collections: dict[str, Collection] = {}
@@ -114,7 +123,7 @@ class FakeFirestore:
         return Batch()
 
     def transaction(self):
-        return None
+        return Transaction()
 
     def docs(self, name) -> list[dict]:
         return [copy.deepcopy(d) for d in self.collection(name).docs.values()]

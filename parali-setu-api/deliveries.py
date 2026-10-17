@@ -12,6 +12,11 @@ objective minimises haulage + storage + a heavy shortfall penalty, so a
 shortfall appears only when there is genuinely not enough straw. A shortfall
 is reported, never hidden: it is the signal to buy more next season or to
 book partner supply.
+
+The reverse problem is reported too: straw arriving at a full depot that no
+order can take that month is `overflow` (sold at spot, or not bought). Without
+it the stock balance has no solution and the plan used to come back
+"infeasible" with a silent 0 t shortfall.
 """
 from __future__ import annotations
 
@@ -23,6 +28,9 @@ from costs import STORAGE_PER_T_MONTH_INR, haul_per_t
 
 SHORTFALL_PENALTY_PER_T = 50_000.0
 PRIORITY_STEP_PER_T = 1_000.0   # per place in the queue; larger than any haul or storage difference
+# Above any haul + storage cost, so straw is shipped or stored before it is
+# written off as overflow; far below the shortfall penalty.
+OVERFLOW_PENALTY_PER_T = 5_000.0
 
 
 @dataclass(frozen=True)
@@ -51,12 +59,18 @@ class DeliveryPlan:
     shipments: dict[tuple[str, str, int], float] = field(default_factory=dict)   # (depot, order, month) -> t
     stock: dict[tuple[str, int], float] = field(default_factory=dict)
     shortfall: dict[tuple[str, int], float] = field(default_factory=dict)
+    overflow: dict[tuple[str, int], float] = field(default_factory=dict)   # (depot, month) -> t with no room
     haul_cost_inr: float = 0.0
     storage_cost_inr: float = 0.0
 
     @property
-    def total_shortfall_t(self) -> float:
-        return round(sum(self.shortfall.values()), 2)
+    def total_shortfall_t(self) -> float | None:
+        """None when there is no plan: "unknown" must never read as "0 t short"."""
+        return round(sum(self.shortfall.values()), 2) if self.status == "optimal" else None
+
+    @property
+    def total_overflow_t(self) -> float | None:
+        return round(sum(self.overflow.values()), 2) if self.status == "optimal" else None
 
 
 def plan_deliveries(depots: list[DepotStock], orders: list[OrderLine], months: int) -> DeliveryPlan:
@@ -66,6 +80,7 @@ def plan_deliveries(depots: list[DepotStock], orders: list[OrderLine], months: i
             for p in depots for o in orders for m in range(months)}
     stock = {(p.id, m): solver.NumVar(0, p.capacity_t, f"stock_{p.id}_{m}") for p in depots for m in range(months)}
     short = {(o.id, m): solver.NumVar(0, inf, f"short_{o.id}_{m}") for o in orders for m in range(months)}
+    over = {(p.id, m): solver.NumVar(0, inf, f"over_{p.id}_{m}") for p in depots for m in range(months)}
 
     for p in depots:
         for m in range(months):
@@ -73,6 +88,7 @@ def plan_deliveries(depots: list[DepotStock], orders: list[OrderLine], months: i
             row = solver.Constraint(inbound + (p.opening_t if m == 0 else 0.0),
                                     inbound + (p.opening_t if m == 0 else 0.0), f"stock_{p.id}_{m}")
             row.SetCoefficient(stock[(p.id, m)], 1)
+            row.SetCoefficient(over[(p.id, m)], 1)
             if m > 0:
                 row.SetCoefficient(stock[(p.id, m - 1)], -1)
             for o in orders:
@@ -96,6 +112,8 @@ def plan_deliveries(depots: list[DepotStock], orders: list[OrderLine], months: i
         # An earlier order costs more to leave short, so a later order absorbs any shortage.
         rank = next(o.rank for o in orders if o.id == oid)
         obj.SetCoefficient(var, SHORTFALL_PENALTY_PER_T + (queue - rank) * PRIORITY_STEP_PER_T)
+    for var in over.values():
+        obj.SetCoefficient(var, OVERFLOW_PENALTY_PER_T)
     obj.SetMinimization()
 
     if solver.Solve() != pywraplp.Solver.OPTIMAL:
@@ -106,6 +124,7 @@ def plan_deliveries(depots: list[DepotStock], orders: list[OrderLine], months: i
         shipments=shipments,
         stock={k: round(v.solution_value(), 2) for k, v in stock.items()},
         shortfall={k: round(v.solution_value(), 2) for k, v in short.items() if v.solution_value() > 1e-6},
+        overflow={k: round(v.solution_value(), 2) for k, v in over.items() if v.solution_value() > 1e-6},
         haul_cost_inr=round(sum(t * haul[(p, o)] for (p, o, _), t in shipments.items()), 2),
         storage_cost_inr=round(sum(v.solution_value() for v in stock.values()) * STORAGE_PER_T_MONTH_INR, 2),
     )

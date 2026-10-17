@@ -890,6 +890,11 @@ def dispatch(day: date | None = None):
     if deliveries.get("shortfall_t"):
         exceptions.append({"kind": "deliveries_short", "tonnes": deliveries["shortfall_t"],
                            "orders": sorted({s["order_id"] for s in deliveries.get("shortfall", [])})})
+    if deliveries.get("overflow_t"):
+        exceptions.append({"kind": "depot_overflow", "tonnes": deliveries["overflow_t"],
+                           "depots": sorted({s["depot_id"] for s in deliveries.get("overflow", [])})})
+    if deliveries and deliveries.get("status") != "optimal":
+        exceptions.append({"kind": "delivery_plan_failed", "status": deliveries.get("status")})
     return {"date": day.isoformat(), "today": today.isoformat(), "depots": depots_out, "verify_queue": queue,
             "readiness": operations.readiness(db, today, 21), "exceptions": exceptions}
 
@@ -910,7 +915,7 @@ def stop_collected(booking_id: str, req: CollectedRequest):
         raise HTTPException(status_code=422, detail="Collected weight is more than 20% above the booked quantity")
     try:
         return pickups.complete_pickup(db, booking_id, req.collected_kg)
-    except store.InvalidTransition as exc:
+    except (store.InvalidTransition, pickups.BookingError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
 
@@ -956,6 +961,23 @@ def get_delivery_plan():
     db = store.get_firestore_client()
     return {"plan": store.get_plan(db, "deliveries_current") or operations.run_deliveries(db),
             "deliveries": store.get_deliveries(db)}
+
+
+class ShippedRequest(BaseModel):
+    tonnes: float | None = Field(default=None, gt=0, le=10_000)
+
+
+@app.post("/deliveries/{delivery_id}/shipped")
+def delivery_shipped(delivery_id: str, req: ShippedRequest):
+    """A planned delivery has left its depot: the straw comes out of stock
+    (an outbound move), and the next plan counts it as delivered."""
+    db = store.get_firestore_client()
+    try:
+        return operations.ship_delivery(db, delivery_id, req.tonnes)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    except pickups.BookingError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
 
 
 @lru_cache(maxsize=1)

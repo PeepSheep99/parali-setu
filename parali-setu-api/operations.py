@@ -249,16 +249,24 @@ def run_procurement(db, today: date | None = None, repost_today: bool = False,
 
 
 def depot_stock_t(db, depot_id: str) -> float:
-    moves = store.get_inventory_moves(db, depot_id)
-    return round(sum(m["tonnes"] if m["kind"] == "inbound" else -m["tonnes"] for m in moves), 3)
+    return store.stock_from_moves(store.get_inventory_moves(db, depot_id))
 
 
 def _delivery_inputs(db, today: date):
     """Depot stock and active orders as the delivery LP sees them. Orders are
-    ranked by when they were signed (earliest first)."""
+    ranked by when they were signed (earliest first).
+
+    Straw already collected is in the opening stock, so it is taken off the
+    planned intake of the month it arrived in -- otherwise every collected
+    tonne was counted twice, once as stock and again as planned intake.
+    Shipped deliveries are taken off what each order still needs."""
     month0 = date(today.year, today.month, 1)
     months = [add_months(month0, i) for i in range(DELIVERY_MONTHS)]
     procurement = store.get_plan(db, "procurement_current") or {}
+    plan_start = min(procurement.get("weeks") or [today.isoformat()])
+
+    def month_index(day: date) -> int:
+        return (day.year - month0.year) * 12 + day.month - month0.month
 
     depots = []
     for d in store.get_depots(db):
@@ -268,21 +276,32 @@ def _delivery_inputs(db, today: date):
             total = sum(share.values())
             if not total or not row["planned_t"]:
                 continue
-            w = date.fromisoformat(row["week"])
-            idx = (w.year - month0.year) * 12 + w.month - month0.month
+            idx = month_index(date.fromisoformat(row["week"]))
             if 0 <= idx < DELIVERY_MONTHS:
                 inbound[idx] += row["planned_t"] * share.get(d["id"], 0.0) / total
-        depots.append(DepotStock(d["id"], d["lat"], d["lon"], d["capacity_t"], max(0.0, depot_stock_t(db, d["id"])),
+        moves = store.get_inventory_moves(db, d["id"])
+        for m in moves:
+            if m["kind"] == "inbound" and m["date"] >= plan_start:
+                idx = month_index(date.fromisoformat(m["date"]))
+                if 0 <= idx < DELIVERY_MONTHS:
+                    inbound[idx] = max(0.0, inbound[idx] - m["tonnes"])
+        depots.append(DepotStock(d["id"], d["lat"], d["lon"], d["capacity_t"], max(0.0, store.stock_from_moves(moves)),
                                  tuple(round(x, 2) for x in inbound)))
 
+    shipped: dict[tuple[str, str], float] = {}
+    for row in store.get_deliveries(db):
+        if row.get("status") == "shipped":
+            key = (row["order_id"], row["month"])
+            shipped[key] = shipped.get(key, 0.0) + row.get("shipped_t", row["tonnes"])
     customers = {c["id"]: c for c in store.get_customers(db)}
     docs = active_orders(store.get_orders(db))
     lines = []
     for rank, o in enumerate(docs):
         site = o.get("site") or customers.get(o["customer_id"], {})
         by_month = o.get("tonnes_by_month") or {}
-        lines.append(OrderLine(o["id"], o["customer_id"], site["lat"], site["lon"],
-                               tuple(float(by_month.get(m.isoformat(), 0.0)) for m in months), rank))
+        need = [max(0.0, float(by_month.get(m.isoformat(), 0.0)) - shipped.get((o["id"], m.isoformat()), 0.0))
+                for m in months]
+        lines.append(OrderLine(o["id"], o["customer_id"], site["lat"], site["lon"], tuple(need), rank))
     return depots, lines, months
 
 
@@ -290,17 +309,37 @@ def run_deliveries(db, today: date | None = None) -> dict:
     today = today or pickups.now_ist().date()
     depots, lines, months = _delivery_inputs(db, today)
     plan = plan_deliveries(depots, lines, DELIVERY_MONTHS)
-    rows = [{"id": f"del_{oid}_{pid}_{m}", "order_id": oid, "depot_id": pid, "month": months[m].isoformat(),
-             "tonnes": t, "customer_id": next((l.customer_id for l in lines if l.id == oid), None)}
+    if plan.status != "optimal":
+        # Keep the last good plan's deliveries; say the new one failed.
+        summary = {"status": plan.status, "months": [m.isoformat() for m in months], "shortfall_t": None,
+                   "overflow_t": None, "shortfall": [], "overflow": []}
+        store.save_plan(db, "deliveries_current", summary)
+        return summary
+    # The id carries the calendar month, not the plan's month index, so next
+    # month's plan can never overwrite a delivery that has already shipped.
+    rows = [{"id": f"del_{oid}_{pid}_{months[m].isoformat()[:7]}", "order_id": oid, "depot_id": pid,
+             "month": months[m].isoformat(), "tonnes": t,
+             "customer_id": next((l.customer_id for l in lines if l.id == oid), None)}
             for (pid, oid, m), t in plan.shipments.items()]
     store.replace_deliveries(db, rows)
     summary = {"status": plan.status, "months": [m.isoformat() for m in months],
-               "shortfall_t": plan.total_shortfall_t,
+               "shortfall_t": plan.total_shortfall_t, "overflow_t": plan.total_overflow_t,
+               "overflow": [{"depot_id": p, "month": months[m].isoformat(), "tonnes": t} for (p, m), t in plan.overflow.items()],
                "shortfall": [{"order_id": o, "month": months[m].isoformat(), "tonnes": t} for (o, m), t in plan.shortfall.items()],
                "haul_cost_inr": plan.haul_cost_inr, "storage_cost_inr": plan.storage_cost_inr,
                "stock": {f"{p}|{months[m].isoformat()}": t for (p, m), t in plan.stock.items()}}
     store.save_plan(db, "deliveries_current", summary)
     return summary
+
+
+def ship_delivery(db, delivery_id: str, tonnes: float | None = None, today: date | None = None) -> dict:
+    """A planned delivery leaves its depot: an outbound stock move, written
+    atomically with the depot's stock (see store.record_shipment)."""
+    today = today or pickups.now_ist().date()
+    try:
+        return store.record_shipment(db, delivery_id, tonnes, today.isoformat())
+    except store.LedgerError as exc:
+        raise pickups.BookingError(str(exc)) from exc
 
 
 def committable(db, site: tuple[float, float], by_month: dict[str, float], price_per_t: float,

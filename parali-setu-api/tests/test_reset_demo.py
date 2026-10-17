@@ -18,7 +18,11 @@ def test_full_demo_season(world):
     assert patiala["on_partner_crews"] > 0, "Patiala's single crew is topped up by partners"
 
     run = reset_demo.demo_run(world)
-    assert run == {**run, "accepted": reset_demo.DEMO_ACCEPTED, "collected": reset_demo.DEMO_COLLECTED}
+    assert run["accepted"] == reset_demo.DEMO_ACCEPTED
+    assert 1 <= run["collected"] <= reset_demo.DEMO_COLLECTED, "only farms whose slot day has come are collected"
+    today = operations.pickups.now_ist().date().isoformat()
+    for b in store.get_bookings(world, ("paid",)):
+        assert min(s["date"] for s in store.get_slots_for_booking(world, b["id"])) <= today
     assert run["paid_inr"] > 0
     assert sum(operations.depot_stock_t(world, d["id"]) for d in store.get_depots(world)) > 0
 
