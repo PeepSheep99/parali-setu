@@ -741,6 +741,12 @@
       kpi(`${fmt(c.pm25_avoided_kg)} kg`, "PM2.5 not released"),
       kpi(rs(impact.paid_to_farmers_inr), `paid to ${impact.farmers_paid} farmers (simulated)`),
       kpi(`${fmt(b.tonnes_diverted, 1)} t`, "more booked for pickup"));
+    const fc = impact.field_checks;
+    if (fc) $("field-checks").replaceChildren(
+      kpi(fmt(fc.checked_clear), "fields checked: no burn scar"),
+      kpi(fmt(fc.burn_scar), "burn scars found, for a person to look at"),
+      kpi(fmt(fc.waiting_for_images), "waiting for after-pickup images"),
+      kpi(fmt(fc.no_clear_image), "too cloudy to tell"));
     $("payouts").replaceChildren(payouts.purchases.length ? table(["Paid on", "District", { label: "Straw", n: 1 }, { label: "Price", n: 1 }, { label: "Amount", n: 1 }, "Method"],
       payouts.purchases.slice(0, 15).map((p) => h("tr", {}, h("td", {}, day(p.paid_on)), h("td", {}, p.district || "—"), h("td", { class: "n" }, t(p.kg)),
         h("td", { class: "n" }, perKg(p.price_per_kg)), h("td", { class: "n" }, rs(p.amount_inr)), h("td", {}, `${p.method}${p.simulated ? " (simulated)" : ""}`)))) :
