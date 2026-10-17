@@ -1,13 +1,15 @@
 # Parali Setu: frontend
 
-Plain HTML, CSS and JavaScript with no build step, served by Firebase Hosting as one site:
+Plain HTML, CSS and JavaScript with no build step, served by Firebase Hosting as one site.
+All four apps share one design system, `shared/tokens.css` (the phulkari palette: madder,
+silk gold, khaddar; Baloo Paaji 2 and Hind):
 
 | Route | For |
 |---|---|
 | `/` | Landing page: the toll, the promise, how it works, the 25-season satellite record, who buys straw, the four apps, the Google Cloud build, the impact scenario |
-| `/kisan/` | Farmer app in Punjabi, Hindi and English. **Phone view:** talk to the Gemini agent (tap to speak, recorded as 16 kHz WAV), with cards for price, offer and booking. **Laptop view:** the same booking step by step, plus today's prices, my pickups and the no-burn proof. A header toggle switches views; `?view=phone\|laptop` and `?lang=pa\|hi\|en` help demos. |
-| `/ops/` | Operations console: Today, Pickups (crew routes on Google Maps, partner crews dashed, mark collected), Depots & stock, Forecast (TimesFM chart and backtests), Prices & plan, Orders, Impact |
-| `/company/` | Customer portal: quote built from costs, forward orders, monthly delivery plan |
+| `/kisan/` | The pickup page: one conversation for every screen, with no language step. The farmer speaks (tap to record, or "Live words" for captions as they speak) or types in Punjabi, Hindi or English, and the page and the agent follow that language. Offer and booked cards with the savings nudge and booking ID. From 960 px a side rail shows my pickups (Booked, Confirmed, Collected, Paid), what you don't have to do, today's prices, how it works and the no-burn photo; on a phone it opens as a sheet. `?lang=pa\|hi\|en` sets the starting labels. |
+| `/ops/` | Operations console: **Dispatch** (who goes out today or tomorrow on a 7 am to 6 pm ruler, the calls to make before dispatch, "Are we ready for the forecast?", exceptions), Routes (Google Maps, on-call crews dashed, confirm and mark collected), **Forecast** (this season against the last three, district heat strip, accuracy dot plot, buyers), Depots, Prices & plan, Orders, Impact |
+| `/company/` | Customer portal: price an order in one sentence, the price built up against the in-season spot price, what we can commit month by month, orders as strips of months with cancel |
 
 `/buyer/`, `/farmer.html` and `/company.html` redirect to the new routes (`firebase.json`).
 
@@ -34,8 +36,9 @@ firebase deploy --only hosting:parali-setu --project ai-builder-cup-aidatlas
 ## Testing
 
 Each app is checked end to end with Playwright (Chromium) against the dev server, at 390×844 and 1366×900:
-- **Kisan, phone view:** a Punjabi conversation that ends in a booked pickup.
-- **Kisan, laptop view:** a Hindi listing that ends in a booked pickup.
-- **Ops:** accept on the farmer's behalf, mark collected, add a crew, re-plan, every tab.
-- **Company:** quote, then order.
-- **Landing:** the counters, chart and slider.
+- **Kisan:** no language step; Punjabi, then Bengali (trilingual reply), then Hindi in one chat, each answered in that language; a booking that shows "awaiting our call", then "Confirmed" after ops verifies; the chat and language restored after a reload; Live words with Chromium's fake microphone.
+- **Ops:** the dispatch board, verify and needs-change, every tab, no console errors.
+- **Company:** a priced example on load, a commit-limited quote, order, cancel.
+- **Landing:** the counters, chart and slider, at phone width.
+
+Chart colours are checked with the dataviz palette validator (madder #a8304a and silk #d9821a pass colour-blind separation; silk marks always carry a label or a table view).
