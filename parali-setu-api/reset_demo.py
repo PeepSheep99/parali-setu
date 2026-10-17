@@ -155,7 +155,7 @@ def run(include_listings: bool) -> None:
     seed_depots(db)
     operations.run_procurement(db, today)          # base prices for quoting
     seed_customers_and_orders(db, today)
-    plan = operations.run_procurement(db, today)   # now with the order book
+    plan = operations.run_procurement(db, today, repost_today=True)   # now with the order book
     print(f"seeded {len(DEPOTS)} depots, {len(CUSTOMERS)} customers; plan: committed {plan['committed_t']} t, "
           f"shortfall {plan['shortfall_t']} t, partner share {plan['partner_share']}")
     print("posted prices:", {r["district"]: r["price_per_kg"] for r in store.get_posted_prices_for_day(db, today.isoformat())})

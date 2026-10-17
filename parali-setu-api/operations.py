@@ -99,7 +99,10 @@ def add_months(d: date, n: int) -> date:
     return date(d.year + y, m + 1, 1)
 
 
-def run_procurement(db, today: date | None = None) -> dict:
+def run_procurement(db, today: date | None = None, repost_today: bool = False) -> dict:
+    """Plans procurement. A price already posted for today is never changed
+    mid-day (farmers were seeing 0.60 then 0.74 within minutes); a re-plan
+    only fills in missing districts unless repost_today is set (demo reset)."""
     today = today or pickups.now_ist().date()
     forecast = store.get_forecast(db, f"supply_live_{today.year}")
     weeks = sorted({date.fromisoformat(w["week"]) for ws in (forecast or {}).get("districts", {}).values() for w in ws})
@@ -149,6 +152,9 @@ def run_procurement(db, today: date | None = None) -> dict:
             code = "base"
         rows.append({"date": today.isoformat(), "district": s.district, "price_per_kg": price,
                      "shadow_price_per_t": shadow, "reason": reason, "reason_code": code})
+    if not repost_today:
+        posted = {r["district"] for r in store.get_posted_prices_for_day(db, today.isoformat())}
+        rows = [r for r in rows if r["district"] not in posted]
     store.save_posted_prices(db, rows)
 
     weekly = []

@@ -67,6 +67,9 @@ Rules you must follow:
    decline anything else (politics, loans, medicine, other businesses) in one sentence
    and bring the talk back to their straw.
 9. Never promise anything a tool did not return: no subsidies, no other prices.
+10. Parali Setu is a private company, not the government and not a government scheme. Never
+    call the price "government" or "official". Payments in this prototype are simulated: never
+    ask the farmer to trust us, never say "without worry", and never guarantee anything.
 
 Today's date is {today}. What we already know in this conversation:
 {facts}"""
@@ -175,6 +178,25 @@ def unsupported_numbers(reply: str, farmer_texts: list[str], tool_values: list) 
     for v in tool_values:
         allowed |= numbers_in_values(v)
     return {n for n in numbers_in(reply) if n not in allowed}
+
+
+# ---- guardrail: claims we must never make ----------------------------------------
+
+# Parali Setu is a private prototype with simulated payments. A reply must not
+# pass the rate off as government's, offer subsidies or ask to be trusted. A term
+# the farmer used themselves is let through so the agent can answer "is this a
+# government scheme?" (it may say no).
+_FORBIDDEN_CLAIMS = {
+    "government": re.compile(r"(government|govt|official rate|सरकारी|सरकार|ਸਰਕਾਰੀ|ਸਰਕਾਰ)", re.IGNORECASE),
+    "scheme": re.compile(r"(scheme|subsid\w*|योजना|सब्सिडी|ਯੋਜਨਾ|ਸਬਸਿਡੀ)", re.IGNORECASE),
+    "trust": re.compile(r"(\btrust\b|without (any )?(worry|doubt)|भरोसा|बिना चिंता|चिंता मत|ਭਰੋਸਾ|ਬਿਨਾਂ ਚਿੰਤਾ|ਚਿੰਤਾ ਨਾ)",
+                        re.IGNORECASE),
+}
+
+
+def forbidden_claims(reply: str, farmer_texts: list[str]) -> list[str]:
+    said = " ".join(farmer_texts)
+    return [name for name, pattern in _FORBIDDEN_CLAIMS.items() if pattern.search(reply) and not pattern.search(said)]
 
 
 # ---- guardrail: an explicit yes ------------------------------------------------
@@ -302,10 +324,7 @@ class Turn:
         blocking = [w for w in warnings if w["code"] in ("sowing_date_passed", "ready_after_sowing", "acres_weight_mismatch")]
         if blocking:
             return {"error": "resolve_with_farmer_first", "warnings": blocking}
-        previous = self.conv.get("booking_id") and store.get_booking(self.db, self.conv["booking_id"])
-        if previous and previous.get("status") in ("offered", "unschedulable"):
-            store.update_booking_status(self.db, previous["id"], "cancelled", {"status_reason_code": "replaced"})
-            store.delete_tentative_slots(self.db, previous["id"])
+        replaced = pickups.replace_open_offers(self.db, self.conv["farmer_id"])
         district = pickups.listing_district(fields)
         listing = store.save_listing(self.db, self.conv["farmer_id"], {
             **fields, "district": district, "quality_grade": (self.conv.get("quality") or {}).get("grade", "unknown"),
@@ -313,7 +332,7 @@ class Turn:
         booking, price = operations.book_listing(self.db, listing)
         if booking is None:
             return {"error": "out_of_area", "district": district}
-        pickups.plan_depot(self.db, booking["depot_id"])
+        pickups.plan_depots(self.db, {*replaced, booking["depot_id"]})
         view = pickups.booking_view(self.db, store.get_booking(self.db, booking["id"]))
         self.conv["booking_id"], self.conv["offer_turn"] = view["id"], self.index
         if view["status"] != "offered" or not view["pickup_window"]:
@@ -421,7 +440,8 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
     contents = _history(conv) + [types.Content(role="user", parts=[types.Part.from_text(text=user_text)])]
-    report = {"tool_calls": [], "regenerated": False, "fallback": False, "blocked_numbers": []}
+    report = {"tool_calls": [], "regenerated": False, "fallback": False, "blocked_numbers": [],
+              "blocked_claims": []}
     text = None
     for _ in range(MAX_TOOL_STEPS):
         calls, text, model_content = _generate(client, contents, config)
@@ -441,14 +461,22 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
     tool_values = [*turn.tool_results, conv.get("facts") or {}, conv.get("fields") or {},
                    pickups.now_ist().date().isoformat()]
     bad = unsupported_numbers(text or "", farmer_texts, tool_values)
-    if text and bad:
+    claims = forbidden_claims(text or "", farmer_texts)
+    if text and (bad or claims):
         report["blocked_numbers"] = sorted(bad)
+        report["blocked_claims"] = claims
         report["regenerated"] = True
+        problems = []
+        if bad:
+            problems.append(f"these numbers, which no tool returned and the farmer did not say: {sorted(bad)}")
+        if claims:
+            problems.append("any talk of government, schemes, subsidies or asking to be trusted "
+                            f"({', '.join(claims)}); we are a private company and payments are simulated")
         contents.append(types.Content(role="user", parts=[types.Part.from_text(text=(
-            "Rewrite your last reply without these numbers, which no tool returned and the farmer did not say: "
-            f"{sorted(bad)}. Use only numbers from the tool results."))]))
+            "Rewrite your last reply without " + " and without ".join(problems) +
+            ". Use only numbers from the tool results."))]))
         _, text, _ = _generate(client, contents, config)
-        if text and unsupported_numbers(text, farmer_texts, tool_values):
+        if text and (unsupported_numbers(text, farmer_texts, tool_values) or forbidden_claims(text, farmer_texts)):
             text = None
     if not text:
         report["fallback"] = True

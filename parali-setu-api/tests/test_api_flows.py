@@ -65,7 +65,7 @@ def test_confirm_books_at_the_posted_price_with_a_slot(api):
     assert booking["price_per_kg"] == posted["price_per_kg"] == body["price"]["price_per_kg"]
     assert booking["pickup_window"] and booking["slots"]
     assert booking["payout_estimate_inr"] == round(17500 * booking["price_per_kg"], 2)
-    assert booking["offer_expires_at"].startswith("2026-10-17T13:00")
+    assert booking["offer_expires_at"].startswith("2026-10-17T10:00")
     spoken = body["explanation"]["text"]
     assert spoken.startswith(str(booking["price_per_kg"])) and booking["pickup_window"] not in spoken,         "the offer is narrated with a spoken window, not the raw ISO label"
     assert body["impact_if_collected"]["acres_cleared"] == 10.0
@@ -195,3 +195,22 @@ def test_customer_quote_then_order_lands_in_the_delivery_plan(api):
                                                       "start_month": "2026-12-01"}).status_code == 404
     assert client.post("/customers/cust_board/orders", json={"tonnes_per_month": 0, "months": 1,
                                                              "start_month": "2026-12-01"}).status_code == 422
+
+
+def test_a_new_listing_replaces_the_farmers_open_offer(api):
+    first = _offer(api)["booking"]
+    draft = _draft(api, {**SANGRUR_FIELDS, "sowing_deadline": "2026-10-25"})
+    second = client.post(f"/listings/{draft['draft_id']}/confirm", json={"farmer_id": "f1"}).json()["booking"]
+    states = {b["id"]: b["status"] for b in store.get_bookings_for_farmer(api["db"], "f1")}
+    assert states[first["id"]] == "cancelled" and states[second["id"]] == "offered"
+    assert sum(s == "offered" for s in states.values()) == 1
+    assert second["price_per_kg"] == first["price_per_kg"], "the posted price does not move within the day"
+    assert not store.get_slots_for_booking(api["db"], first["id"])
+
+
+def test_an_offer_never_outlives_the_hour_before_its_slot():
+    created = pickups.datetime.fromisoformat("2026-10-17T09:00:00+05:30")
+    booking = {"status": "offered", "created_at": created.isoformat()}
+    slot = {"date": "2026-10-17", "window_start_min": 11 * 60 + 30}
+    assert pickups.offer_expires_at(booking, [slot]).isoformat().startswith("2026-10-17T10:30")
+    assert pickups.offer_expires_at(booking, [{**slot, "date": "2026-10-19"}]).isoformat().startswith("2026-10-17T13:00")

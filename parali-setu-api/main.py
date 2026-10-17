@@ -308,11 +308,13 @@ def confirm_listing(draft_id: str, req: ConfirmDraftRequest):
     }, language)
     store.save_draft(db, {**draft, "listing_id": listing["id"], "fields": fields})
 
+    replaced = pickups.replace_open_offers(db, req.farmer_id)
     booking, price = operations.book_listing(db, listing)
     if booking is None:
+        pickups.plan_depots(db, replaced)
         return {"listing": listing, "status": "out_of_area", "district": district, "price": price}
     pickups.expire_stale_offers(db)
-    pickups.plan_depot(db, booking["depot_id"])
+    pickups.plan_depots(db, {*replaced, booking["depot_id"]})
     view = pickups.booking_view(db, store.get_booking(db, booking["id"]))
 
     explanation = None

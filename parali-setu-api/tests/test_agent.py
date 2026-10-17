@@ -118,16 +118,16 @@ def test_confirming_in_the_same_turn_as_the_offer_is_refused(chat, world):
 
 
 def test_an_invented_number_is_blocked_then_replaced_by_the_template(chat):
-    result = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], lambda r: "ਭਾਅ ₹2 ਪ੍ਰਤੀ ਕਿਲੋ ਹੈ",
-                   lambda r: "ਭਾਅ ₹3 ਪ੍ਰਤੀ ਕਿਲੋ ਹੈ"], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    result = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], lambda r: "ਭਾਅ ₹77 ਪ੍ਰਤੀ ਕਿਲੋ ਹੈ",
+                   lambda r: "ਭਾਅ ₹78 ਪ੍ਰਤੀ ਕਿਲੋ ਹੈ"], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
     g = result["guardrails"]
-    assert g["blocked_numbers"] == [2.0] and g["regenerated"] and g["fallback"]
+    assert g["blocked_numbers"] == [77.0] and g["regenerated"] and g["fallback"]
     offer = next(c for c in result["cards"] if c["type"] == "offer")
     assert f"₹{offer['price_per_kg']:g}" in result["reply"] and offer["pickup_window_spoken"] in result["reply"]
 
 
 def test_a_corrected_reply_passes_after_one_regeneration(chat):
-    result = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], lambda r: "ਭਾਅ ₹2 ਹੈ", _offer_text],
+    result = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], lambda r: "ਭਾਅ ₹77 ਹੈ", _offer_text],
                   "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
     assert result["guardrails"]["regenerated"] and not result["guardrails"]["fallback"]
 
@@ -190,3 +190,21 @@ def test_a_withdrawn_weight_is_cleared_and_a_mismatch_blocks_booking(chat, world
     offer = next(c for c in second["cards"] if c["type"] == "offer")
     assert offer["kg"] == 14000.0, "weight re-derived from 8 acres at 1.75 t/acre"
     assert not offer["pickup_window_spoken"][0].isdigit(), "the window is said as a day and time, not an ISO date"
+
+
+@pytest.mark.parametrize("reply, farmer, expected", [
+    ("आज का तय सरकारी भाव 0.6 रुपये है", ["10 एकड़ धान"], ["government"]),
+    ("You can trust our same-day payment without worry", ["10 acres"], ["trust"]),
+    ("ਇਹ ਸਰਕਾਰੀ ਯੋਜਨਾ ਹੈ", ["ਦਸ ਕਿੱਲੇ"], ["government", "scheme"]),
+    ("No, we are a private company, not a government scheme", ["Is this a government scheme?"], []),
+    ("ਭਾਅ ਪ੍ਰਤੀ ਕਿੱਲੋ ਹੈ", ["ਦਸ ਕਿੱਲੇ"], []),
+])
+def test_forbidden_claims(reply, farmer, expected):
+    assert agent.forbidden_claims(reply, farmer) == expected
+
+
+def test_a_reply_that_calls_the_rate_government_is_regenerated(chat):
+    result = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], lambda r: "ਸਰਕਾਰੀ ਭਾਅ ਹੈ", _offer_text],
+                  "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    g = result["guardrails"]
+    assert g["blocked_claims"] == ["government"] and g["regenerated"] and not g["fallback"]

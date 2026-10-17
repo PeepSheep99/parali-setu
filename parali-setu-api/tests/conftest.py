@@ -38,5 +38,5 @@ def world(fake_db):
     reset_demo.seed_depots(fake_db)
     operations.run_procurement(fake_db, today)
     reset_demo.seed_customers_and_orders(fake_db, today)
-    operations.run_procurement(fake_db, today)
+    operations.run_procurement(fake_db, today, repost_today=True)
     return fake_db

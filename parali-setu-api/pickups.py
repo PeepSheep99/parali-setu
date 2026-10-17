@@ -33,7 +33,8 @@ OFFER_HOLD_HOURS = 4
 # Farms and crews are in India; Cloud Run's clock is UTC. Planning uses IST
 # so "today" and today's earliest slot are right for the farmer.
 IST = timezone(timedelta(hours=5, minutes=30))
-SAME_DAY_LEAD_MIN = 60
+SAME_DAY_LEAD_MIN = 120      # no slot starts within 2 h of the offer
+OFFER_BEFORE_SLOT_MIN = 60  # an offer lapses at least 1 h before its slot starts
 
 
 def now_ist() -> datetime:
@@ -82,15 +83,25 @@ def listing_window(listing: dict, today: date) -> tuple[date, date, bool]:
     return earliest, sowing - timedelta(days=1), False
 
 
-def offer_expires_at(booking: dict) -> datetime | None:
+def slot_start(slot: dict) -> datetime:
+    day = datetime.fromisoformat(slot["date"]).replace(tzinfo=None)
+    return (day + timedelta(minutes=slot["window_start_min"])).replace(tzinfo=now_ist().tzinfo)
+
+
+def offer_expires_at(booking: dict, slots: list[dict] | None = None) -> datetime | None:
+    """The offer holds for OFFER_HOLD_HOURS, but never past an hour before the
+    pickup slot it offers: a farmer is not shown a slot that has begun."""
     created = booking.get("created_at")
     if not created:
         return None
-    return datetime.fromisoformat(created) + timedelta(hours=OFFER_HOLD_HOURS)
+    expires = datetime.fromisoformat(created) + timedelta(hours=OFFER_HOLD_HOURS)
+    if slots:
+        expires = min(expires, min(slot_start(s) for s in slots) - timedelta(minutes=OFFER_BEFORE_SLOT_MIN))
+    return expires
 
 
-def offer_expired(booking: dict, now: datetime) -> bool:
-    expires = offer_expires_at(booking)
+def offer_expired(booking: dict, now: datetime, slots: list[dict] | None = None) -> bool:
+    expires = offer_expires_at(booking, slots)
     return booking.get("status") in ("offered", "unschedulable") and expires is not None and now >= expires
 
 
@@ -185,7 +196,7 @@ def expire_stale_offers(db, now: datetime | None = None) -> list[str]:
     now = now or now_ist()
     expired = []
     for booking in store.get_bookings(db, ("offered", "unschedulable")):
-        if offer_expired(booking, now):
+        if offer_expired(booking, now, store.get_slots_for_booking(db, booking["id"])):
             try:
                 store.update_booking_status(db, booking["id"], "expired", {"status_reason_code": "expired"})
             except store.InvalidTransition:
@@ -290,13 +301,30 @@ def complete_pickup(db, booking_id: str, collected_kg: float | None = None) -> d
     return {"booking": paid, "purchase": purchase, "inventory_move": move}
 
 
+def replace_open_offers(db, farmer_id: str) -> list[str]:
+    """A farmer holds one open offer at a time: a new listing replaces any
+    offer they have not accepted (accepted pickups are untouched). Returns the
+    depots whose plans changed so the caller can re-plan them."""
+    depots = []
+    for booking in store.get_bookings_for_farmer(db, farmer_id):
+        if booking.get("status") not in ("offered", "unschedulable"):
+            continue
+        try:
+            store.update_booking_status(db, booking["id"], "cancelled", {"status_reason_code": "replaced"})
+        except store.InvalidTransition:
+            continue
+        store.delete_tentative_slots(db, booking["id"])
+        depots.append(booking["depot_id"])
+    return depots
+
+
 def booking_view(db, booking: dict, depots: dict[str, dict] | None = None) -> dict:
     """A booking as the apps show it: depot name, slots, arrival window,
     payout estimate and when an unaccepted offer lapses."""
     depots = depots if depots is not None else {}
     depot = depots.get(booking["depot_id"]) or store.get_depot(db, booking["depot_id"]) or {}
     slots = store.get_slots_for_booking(db, booking["id"])
-    expires = offer_expires_at(booking)
+    expires = offer_expires_at(booking, slots)
     return {
         **booking,
         "depot_name": depot.get("name", booking["depot_id"]),
@@ -318,7 +346,7 @@ def accept_booking(db, booking: dict, accepted_by: str) -> dict:
     offer has lapsed, or the booking is not in a state that can be accepted."""
     if not store.get_slots_for_booking(db, booking["id"]):
         raise BookingError("There is no pickup slot to accept yet")
-    if offer_expired(booking, now_ist()):
+    if offer_expired(booking, now_ist(), store.get_slots_for_booking(db, booking["id"])):
         raise BookingError("This offer has expired -- please list again for a new slot")
     try:
         updated = store.update_booking_status(db, booking["id"], "booked",

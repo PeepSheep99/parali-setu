@@ -82,3 +82,12 @@ def test_storage_months_count_from_the_november_peak():
     assert operations.months_in_storage(date(2026, 12, 1), 1) == pytest.approx(1.18, abs=0.01)
     assert operations.months_in_storage(date(2027, 5, 1), 1) == pytest.approx(6.15, abs=0.01)
     assert operations.months_in_storage(date(2026, 10, 1), 1) == pytest.approx(11.18, abs=0.01), "October draws on last season's stock"
+
+
+def test_a_replan_never_changes_a_price_already_posted_today(world):
+    before = {p["district"]: p["price_per_kg"] for p in store.get_posted_prices_for_day(world, TODAY.isoformat())}
+    store.save_order(world, {"customer_id": "cust_power", "tonnes_by_month": {"2026-11-01": 400_000.0},
+                             "site": {"lat": 30.27, "lon": 74.9}, "quote": {"price_per_t": 2400}})
+    operations.run_procurement(world, TODAY)
+    after = {p["district"]: p["price_per_kg"] for p in store.get_posted_prices_for_day(world, TODAY.isoformat())}
+    assert after == before
