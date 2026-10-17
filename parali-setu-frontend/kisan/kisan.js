@@ -125,7 +125,7 @@
     return new Blob([view], { type: "audio/wav" });
   }
 
-  function makeRecorder(button, labelEl, idleKey, onAudio) {
+  function makeRecorder(button, labelEl, idleKey, onAudio, isDisabled = () => false) {
     let recorder = null, pressedAt = 0, tapMode = false;
     async function start() {
       if (!navigator.mediaDevices || !window.MediaRecorder) { toast(t("mic_unavailable")); return; }
@@ -152,6 +152,7 @@
     }
     const stop = () => { if (recorder && recorder.state === "recording") recorder.stop(); };
     button.addEventListener("pointerdown", (e) => {
+      if (isDisabled()) return;
       e.preventDefault();
       if (recorder) { stop(); tapMode = false; return; }
       pressedAt = Date.now();
@@ -159,11 +160,11 @@
       start();
     });
     button.addEventListener("pointerup", () => {
-      if (!recorder) return;
+      if (isDisabled() || !recorder) return;
       if (Date.now() - pressedAt > 450) stop(); else tapMode = true;
     });
     button.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
+      if (isDisabled() || (e.key !== "Enter" && e.key !== " ")) return;
       e.preventDefault();
       if (recorder) stop(); else start();
     });
@@ -321,6 +322,104 @@
   }
 
   function openSheet() { loadPickups(); $("sheet").hidden = false; }
+
+  // ---- live listening: stream 16 kHz PCM over a WebSocket; captions come
+  // back while the farmer speaks; the final words are one guarded agent turn.
+  const WORKLET = `class Tap extends AudioWorkletProcessor {
+    process(inputs) { const ch = inputs[0][0]; if (ch) this.port.postMessage(ch.slice(0)); return true; }
+  }
+  registerProcessor("tap", Tap);`;
+  const live = { ws: null, ctx: null, stream: null, bubble: null };
+
+  function liveUrl() { return `${API_BASE.replace(/^http/, "ws")}/agent/live`; }
+
+  async function startLive() {
+    if (state.busy) return;
+    if (!navigator.mediaDevices || !window.AudioWorkletNode || !window.WebSocket) { toast(t("live_failed")); return; }
+    state.busy = true;
+    try {
+      live.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+      live.ctx = new AudioContext({ sampleRate: 16000 });
+      await live.ctx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "text/javascript" })));
+      const source = live.ctx.createMediaStreamSource(live.stream);
+      const tap = new AudioWorkletNode(live.ctx, "tap");
+      live.ws = new WebSocket(liveUrl());
+      live.ws.binaryType = "arraybuffer";
+      let pending = [];
+      tap.port.onmessage = (e) => {
+        pending.push(e.data);
+        const total = pending.reduce((n, a) => n + a.length, 0);
+        if (total >= 1600 && live.ws && live.ws.readyState === 1) {   // about 100 ms per frame
+          const pcm = new Int16Array(total);
+          let o = 0;
+          for (const a of pending) for (let k = 0; k < a.length; k++) pcm[o++] = Math.max(-1, Math.min(1, a[k])) * 0x7fff;
+          live.ws.send(pcm.buffer);
+          pending = [];
+        }
+      };
+      live.ws.onopen = () => {
+        live.ws.send(JSON.stringify({ farmer_id: state.farmerId, language: LANG_API[state.lang], conversation_id: state.conversationId }));
+        source.connect(tap);
+      };
+      live.ws.onmessage = (e) => onLiveEvent(JSON.parse(e.data));
+      live.ws.onerror = () => { toast(t("live_failed")); stopLive(true); };
+      live.ws.onclose = () => {
+        stopAudio();
+        thinking(false);
+        state.busy = false;
+        $("talk-mic").classList.remove("streaming");
+        setLabel($("talk-label"), "speak");
+      };
+      live.bubble = h("div", { class: "bubble farmer live" }, "…");
+      $("log").append(live.bubble);
+      scrollLog();
+      $("talk-mic").classList.add("streaming");
+      setLabel($("talk-label"), "live_listening");
+    } catch {
+      toast(t("live_failed"));
+      stopLive(true);
+    }
+  }
+
+  function stopAudio() {
+    if (live.stream) live.stream.getTracks().forEach((tr) => tr.stop());
+    if (live.ctx) live.ctx.close().catch(() => {});
+    live.stream = null;
+    live.ctx = null;
+  }
+
+  function stopLive(abort) {
+    stopAudio();
+    if (live.ws && live.ws.readyState === 1 && !abort) {
+      live.ws.send(JSON.stringify({ type: "end" }));
+      thinking(true);
+    } else if (live.ws) {
+      live.ws.close();
+    }
+    $("talk-mic").classList.remove("streaming");
+    setLabel($("talk-label"), "speak");
+    if (abort) state.busy = false;
+  }
+
+  function onLiveEvent(event) {
+    if (event.type === "caption" && live.bubble) {
+      live.bubble.textContent = event.text;
+      live.bubble.classList.toggle("live", !event.final);
+      scrollLog();
+    } else if (event.type === "reply") {
+      thinking(false);
+      state.conversationId = event.conversation_id;
+      if (live.bubble && event.heard.english && state.lang !== "en") live.bubble.append(h("span", { class: "en", lang: "en" }, event.heard.english));
+      agentBubble(event.reply);
+      renderCards(event.cards);
+      playAudio(event.reply);
+      if ((event.cards || []).some((c) => c.type === "offer" || c.type === "booked")) loadPickups();
+    } else if (event.type === "error") {
+      thinking(false);
+      if (live.bubble && live.bubble.textContent === "…") live.bubble.remove();
+      toast(event.detail);
+    }
+  }
 
   // =========================================================================
   // Laptop view: the step-by-step booking
@@ -586,7 +685,14 @@
     document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => setView(b.dataset.view)));
 
     // phone view
-    makeRecorder($("talk-mic"), $("talk-label"), "speak", (wav) => sendTurn({ audio: wav }));
+    makeRecorder($("talk-mic"), $("talk-label"), "speak", (wav) => sendTurn({ audio: wav }), () => $("live-toggle").checked);
+    // Live mode takes over the mic button: tap to start streaming, tap to send.
+    $("talk-mic").addEventListener("click", () => {
+      if (!$("live-toggle").checked) return;
+      if (live.ws && live.ws.readyState <= 1 && live.stream) stopLive(false); else startLive();
+    });
+    $("live-toggle").checked = saved.get("parali_live") === "1";
+    $("live-toggle").addEventListener("change", () => saved.set("parali_live", $("live-toggle").checked ? "1" : "0"));
     $("kbd-toggle").addEventListener("click", () => { $("kbd").hidden = !$("kbd").hidden; if (!$("kbd").hidden) $("kbd-input").focus(); });
     $("kbd").addEventListener("submit", (e) => {
       e.preventDefault();

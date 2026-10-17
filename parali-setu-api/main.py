@@ -21,12 +21,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+import asyncio
+import json
+
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
+from starlette.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import agent
 import firestore_store as store
+import live
 import operations
 import pickups
 from extraction import (
@@ -479,6 +484,88 @@ async def agent_turn(
     if quality:
         result["quality"] = quality
     return result
+
+
+@app.websocket("/agent/live")
+async def agent_live(ws: WebSocket):
+    """Live mode: the phone streams 16 kHz PCM; captions come back as the
+    farmer speaks; the final transcript is one guarded agent turn.
+
+    Protocol: client sends {"farmer_id", "language", "conversation_id"?} as
+    text, then binary audio frames, then {"type": "end"}. Server sends
+    {"type": "caption", "text", "final"} events, then {"type": "reply", ...}
+    (the same body as /agent/turn) or {"type": "error", "detail"}, and closes."""
+    origin = ws.headers.get("origin")
+    if origin and origin not in ALLOWED_ORIGINS:
+        await ws.close(code=1008)
+        return
+    await ws.accept()
+    try:
+        start = json.loads(await asyncio.wait_for(ws.receive_text(), timeout=10))
+        farmer_id = str(start.get("farmer_id", ""))[:64]
+        language = start.get("language") if start.get("language") in live.LANGUAGE_CODES else "Punjabi"
+        conversation_id = (str(start["conversation_id"])[:64] if start.get("conversation_id") else None)
+        if not farmer_id:
+            raise ValueError("farmer_id is required")
+    except (asyncio.TimeoutError, ValueError, json.JSONDecodeError, WebSocketDisconnect):
+        await ws.close(code=1008)
+        return
+
+    final_parts: list[str] = []
+    try:
+        async with live.open_session(language) as session:
+            async def pump_audio():
+                received = 0
+                while True:
+                    msg = await ws.receive()
+                    if msg.get("type") == "websocket.disconnect":
+                        raise WebSocketDisconnect()
+                    if msg.get("bytes"):
+                        received += len(msg["bytes"])
+                        if received > live.MAX_AUDIO_SECONDS * live.SAMPLE_RATE * 2:
+                            break
+                        await session.send_realtime_input(audio=live.audio_blob(msg["bytes"]))
+                    elif msg.get("text") and json.loads(msg["text"]).get("type") == "end":
+                        break
+                await session.send_realtime_input(audio_stream_end=True)
+
+            async def pump_captions():
+                async for message in session.receive():
+                    for event in live.caption_events(message):
+                        if event["type"] == "caption":
+                            if event["final"]:
+                                final_parts.append(event["text"])
+                            await ws.send_json(event)
+                        elif event["type"] == "done":
+                            return
+
+            sender = asyncio.create_task(pump_audio())
+            await asyncio.wait_for(pump_captions(), timeout=live.MAX_SESSION_SECONDS)
+            sender.cancel()
+    except WebSocketDisconnect:
+        return
+    except Exception as exc:   # the live service failed: tell the phone so it can fall back to recording
+        await ws.send_json({"type": "error", "detail": f"Live listening is unavailable right now ({type(exc).__name__}). Please tap to record instead."})
+        await ws.close()
+        return
+
+    words = " ".join(final_parts).strip()
+    if not words:
+        await ws.send_json({"type": "error", "detail": "Could not hear that clearly -- please try again or type it"})
+        await ws.close()
+        return
+    db = store.get_firestore_client()
+    client = get_gemini_client()
+    try:
+        english = await run_in_threadpool(agent.to_english, client, words, language)
+        result = await run_in_threadpool(agent.take_turn, db, client, farmer_id, language, words, english, conversation_id)
+        result["reply"] = await run_in_threadpool(_spoken, result["reply"], language)
+        await ws.send_json({"type": "reply", **result})
+    except PermissionError:
+        await ws.send_json({"type": "error", "detail": "Conversation not found"})
+    except OverflowError as exc:
+        await ws.send_json({"type": "error", "detail": str(exc)})
+    await ws.close()
 
 
 @app.get("/agent/conversations/{conversation_id}")
