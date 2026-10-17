@@ -132,8 +132,40 @@
     $("map-lede").textContent = `Every red square is a NASA satellite fire pixel in Punjab or Haryana between 1 October and 30 November 2024; the worst day was ${FireMap.dayLabel(map.start, map.peakDay).replace(/ \d{4}$/, "")}, with ${fmt(map.byDay[map.peakDay])}. Press play to watch the burning move across the districts. The diamonds are our five depots; the dashed rings are how far their crews reach.`;
   }
 
+  // One farm cleared three ways, at today's posted price (economics.py via the API).
+  async function loadFarmCalc() {
+    const select = $("fc-district");
+    if (!select) return;
+    const prices = await getJson("/prices/today").catch(() => null);
+    const rows = (prices && (prices.prices || prices.districts)) || [];
+    select.replaceChildren(...rows.map((r) => Object.assign(document.createElement("option"), { value: r.district, textContent: r.district })));
+    const render = async () => {
+      const acres = Math.max(1, Math.min(200, Number($("fc-acres").value) || 10));
+      const f = await getJson(`/economics/farmer?acres=${acres}&district=${encodeURIComponent(select.value)}`).catch(() => null);
+      if (!f) return;
+      const way = (cls, title, money, lines) => {
+        const el = document.createElement("div");
+        el.className = `fc-way ${cls}`;
+        const h = document.createElement("h3"); h.textContent = title;
+        const v = document.createElement("p"); v.className = "v"; v.textContent = money;
+        el.append(h, v, ...lines.map((t) => Object.assign(document.createElement("p"), { className: "k", textContent: t })));
+        return el;
+      };
+      $("fc-ways").replaceChildren(
+        way("us", "Book Parali Setu", `+₹${fmt(f.parali_setu.farmer_gets)}`, [`paid the same day for ${fmt(f.straw_t, 1)} t at ₹${f.price_per_kg}/kg`, "field cleared before sowing, free"]),
+        way("baler", "Hire a baler", `−₹${fmt(f.hire_baler.farmer_pays[0])}–${fmt(f.hire_baler.farmer_pays[1])}`, ["you pay for baling and hauling", "and chase the baler before sowing"]),
+        way("burn", "Burn it", `−₹${fmt(f.burn.farmer_pays)}`, [`and a fine of ₹${fmt(f.burn.fine_if_caught)} if caught`, "plus the smoke your village breathes"]));
+      $("fc-src").textContent = `Booking us leaves you ₹${fmt(f.better_than_baler[0])}–${fmt(f.better_than_baler[1])} better off than hiring a baler. Sources: ${f.sources.baler}; ${f.sources.fine}; ${f.sources.straw}. Prices are today's posted prices; payments in this prototype are simulated.`;
+    };
+    $("fc-acres").addEventListener("input", render);
+    select.addEventListener("change", render);
+    $("fc-form").addEventListener("submit", (e) => e.preventDefault());
+    render();
+  }
+
   loadLive();
   loadRecord();
   loadScenario();
   loadFireMap();
+  loadFarmCalc();
 })();

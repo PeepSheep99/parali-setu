@@ -131,6 +131,14 @@
       </div>
       <p class="thesis">Selling straw nets a farmer roughly nothing, and a baler that arrives after the sowing date is worthless. We take the whole job off the farmer: free clearing before sowing and a small payment the same day. We make it pay by planning collection better than anyone else and selling the straw year-round.</p>
     </div>
+    <div class="inner farm-calc card" id="farm-calc">
+      <form id="fc-form" class="fc-form">
+        <label>My farm: <input id="fc-acres" type="number" min="1" max="200" step="1" value="10" aria-label="Acres"> acres in
+          <select id="fc-district" aria-label="District"></select></label>
+      </form>
+      <div class="fc-ways" id="fc-ways" aria-live="polite"></div>
+      <p class="small muted" id="fc-src"></p>
+    </div>
   </section>
 
   <section class="inner" id="industry">

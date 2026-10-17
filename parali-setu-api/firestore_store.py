@@ -468,6 +468,11 @@ def get_conversation(db: firestore.Client, conversation_id: str) -> dict | None:
     return _get(db, "conversations", conversation_id)
 
 
+def get_recent_conversations(db: firestore.Client, limit: int = 100) -> list[dict]:
+    query = db.collection("conversations").order_by("updated_at", direction="DESCENDING").limit(limit)
+    return [d.to_dict() for d in query.stream()]
+
+
 # ---- trust and satellite data
 
 def get_farmer(db: firestore.Client, farmer_id: str) -> dict | None:

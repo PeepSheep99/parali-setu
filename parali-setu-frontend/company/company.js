@@ -60,7 +60,35 @@
       h("div", { class: "chart" }, buildUp(q)),
       h("p", { class: "compare" }, `In the harvest weeks, plants pay about ${rs(q.in_season_benchmark_per_t)} a tonne for straw delivered on the spot and must store it themselves. `,
         diff > 0 ? `Ours is ${rs(diff)} more because it includes storage and a delivery every month.` : `Ours is ${rs(-diff)} less.`),
+      body.vs_buying_at_harvest ? versusBlock(body.vs_buying_at_harvest) : null,
       commitBlock(body.commit, req));
+  }
+
+  // Our contract against buying the year's straw at harvest and storing it
+  // yourself, per usable tonne (economics.py). Shown even when ours costs more.
+  const lakh = (n) => (Math.abs(n) >= 1e5 ? `₹${fmt(n / 1e5, 1)} lakh` : rs(n));
+  function versusBlock(v) {
+    const lo = v.buy_at_harvest.low_loss, hi = v.buy_at_harvest.high_loss;
+    const row = (label, perT, contract, upfront, note, cls) => h("tr", { class: cls || "" },
+      h("th", { scope: "row" }, label, note ? h("span", { class: "fine" }, note) : null),
+      h("td", { class: "n" }, perT), h("td", { class: "n" }, contract), h("td", { class: "n" }, upfront));
+    const save = v.saving_per_t, saveC = v.saving_contract_inr;
+    const verdict = save.low >= 0
+      ? `Buying from us saves ${rs(save.low)}–${rs(save.high)} a tonne, ${lakh(saveC.low)}–${lakh(saveC.high)} over this order.`
+      : save.high <= 0
+        ? `On price alone, buying at harvest is ${rs(-save.high)}–${rs(-save.low)} a tonne cheaper for this order.`
+        : `On price alone it is about even: buying at harvest works out ${rs(-save.low)} a tonne cheaper or ${rs(save.high)} dearer, depending on how much straw your stacks lose.`;
+    return h("div", { class: "versus" },
+      h("h3", {}, "Or buy it all at harvest and store it yourself?"),
+      h("div", { class: "table-wrap" }, h("table", {},
+        h("thead", {}, h("tr", {}, h("th", {}, ""), h("th", { class: "num" }, "Per usable tonne"), h("th", { class: "num" }, "This order"), h("th", { class: "num" }, "Paid at harvest"))),
+        h("tbody", {},
+          row("Parali Setu", rs(v.ours.per_t), lakh(v.ours.contract_inr), "₹0", "paid monthly, on delivery", "us"),
+          row("Buy at harvest, store it", `${rs(lo.per_usable_t)}–${rs(hi.per_usable_t)}`, `${lakh(lo.contract_inr)}–${lakh(hi.contract_inr)}`, lakh(v.buy_at_harvest.upfront_inr),
+            `${fmt(lo.loss_pct, 1)}–${fmt(hi.loss_pct, 1)}% lost in storage over ${fmt(v.months_in_storage, 1)} months, your yard, interest on cash`),
+          row("What plants say straw really costs them", rs(v.plant_stated_cost_per_t), lakh(v.plant_stated_cost_per_t * v.total_t), "", "a plant executive, Tribune 2024")))),
+      h("p", { class: "compare" }, verdict, ` Either way, with us you pay ${lakh(v.buy_at_harvest.upfront_inr)} less at harvest, keep no stacks to guard (${v.buy_at_harvest.fires_in_storage} had a fire in storage) and get straw every month.`),
+      h("p", { class: "fine" }, `Sources: ${v.sources.in_season_price}; ${v.sources.storage_loss}; ${v.sources.plant_stated_cost}. Assumptions: ${v.sources.assumptions}.`));
   }
 
   // The price built up step by step, with the in-season spot price for comparison.

@@ -956,6 +956,16 @@ def rerun_procurement():
     return {"plan": plan, "deliveries": operations.run_deliveries(db)}
 
 
+@app.get("/ops/agent-health")
+def agent_health_view(limit: int = Query(100, ge=1, le=500)):
+    """The farmer agent's speed and what its guardrails caught, counted from
+    the last conversations' stored reports, next to the measured benchmark."""
+    import agent_health
+    db = store.get_firestore_client()
+    convs = [c for c in store.get_recent_conversations(db, limit) if not str(c.get("farmer_id", "")).startswith("bench_")]
+    return {"live": agent_health.summarise(convs), "benchmark": agent_health.benchmark()}
+
+
 @app.get("/plan/deliveries")
 def get_delivery_plan():
     db = store.get_firestore_client()
@@ -1146,7 +1156,25 @@ def quote_customer(customer_id: str, req: OrderRequest):
     q = operations.quote_order(db, (customer["lat"], customer["lon"]), start, req.months)
     total_t = req.tonnes_per_month * req.months
     can = operations.committable(db, (customer["lat"], customer["lon"]), _order_months(req), q["price_per_t"])
-    return {"quote": q, "total_t": total_t, "total_inr": round(total_t * q["price_per_t"], 2), "commit": can}
+    import economics
+    versus = economics.company_case(q, req.tonnes_per_month, req.months, operations.months_in_storage(start, req.months))
+    return {"quote": q, "total_t": total_t, "total_inr": round(total_t * q["price_per_t"], 2), "commit": can,
+            "vs_buying_at_harvest": versus}
+
+
+@app.get("/economics/farmer")
+def farmer_economics(acres: float = Query(..., gt=0, le=500), district: str | None = Query(None, max_length=60)):
+    """One farm cleared three ways: booking us, hiring a baler, or burning,
+    at today's posted price for the district (the lowest posted, if none given)."""
+    import economics
+    db = store.get_firestore_client()
+    today = pickups.now_ist().date().isoformat()
+    prices = {p["district"]: p["price_per_kg"] for p in store.get_posted_prices_for_day(db, today)}
+    named = district_from_text(district) if district else None
+    price = prices.get(named) if named else (min(prices.values()) if prices else None)
+    if price is None:
+        price = operations.FARM_GATE_BASE_PER_KG
+    return {**economics.farmer_case(acres, price), "district": named, "date": today}
 
 
 @app.post("/customers/{customer_id}/orders")
