@@ -40,17 +40,6 @@ select, input { border: 1px solid var(--line-strong); border-radius: var(--r-sm)
 .price-line .per { color: var(--thread-soft); }
 .price-line .total { font-weight: 600; }
 .compare { margin: 0; border-radius: var(--r); background: var(--khaddar); padding: 10px 12px; font-size: .92rem; }
-.versus { display: grid; gap: 10px; }
-.versus h3 { font-size: 1.1rem; }
-.versus .table-wrap { overflow-x: auto; }
-.versus table { width: 100%; border-collapse: collapse; font-size: .92rem; }
-.versus th, .versus td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-.versus thead th { font-size: .78rem; color: var(--thread-soft); font-weight: 600; }
-.versus .num, .versus td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.versus tbody th { font-weight: 600; }
-.versus tbody th .fine { display: block; font-weight: 400; }
-.versus tr.us th, .versus tr.us td { color: var(--madder); font-weight: 700; }
-.fine { font-size: .8rem; color: var(--thread-soft); margin: 0; }
 .chart svg { display: block; width: 100%; height: auto; }
 .chart .axis text, .chart .lbl { font-family: var(--font-body); font-size: 13px; fill: var(--thread-soft); }
 .chart .lbl.dark { fill: var(--thread); font-weight: 600; }

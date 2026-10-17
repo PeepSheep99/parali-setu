@@ -1160,10 +1160,7 @@ def quote_customer(customer_id: str, req: OrderRequest):
     q = operations.quote_order(db, (customer["lat"], customer["lon"]), start, req.months)
     total_t = req.tonnes_per_month * req.months
     can = operations.committable(db, (customer["lat"], customer["lon"]), _order_months(req), q["price_per_t"])
-    import economics
-    versus = economics.company_case(q, req.tonnes_per_month, req.months, operations.months_in_storage(start, req.months))
-    return {"quote": q, "total_t": total_t, "total_inr": round(total_t * q["price_per_t"], 2), "commit": can,
-            "vs_buying_at_harvest": versus}
+    return {"quote": q, "total_t": total_t, "total_inr": round(total_t * q["price_per_t"], 2), "commit": can}
 
 
 @app.get("/economics/farmer")
