@@ -13,6 +13,7 @@ from costs import road_km
 from geo import DISTRICT_COORDS, district_from_text
 from scheduler import (
     HORIZON_DAYS,
+    STRAW_T_PER_ACRE,
     Crew,
     LockedSlot,
     PickupJob,
@@ -283,3 +284,66 @@ def complete_pickup(db, booking_id: str, collected_kg: float | None = None) -> d
     })
     paid = store.update_booking_status(db, booking_id, "paid", {"purchase_id": purchase["id"], "payout_inr": purchase["amount_inr"]})
     return {"booking": paid, "purchase": purchase, "inventory_move": move}
+
+
+def booking_view(db, booking: dict, depots: dict[str, dict] | None = None) -> dict:
+    """A booking as the apps show it: depot name, slots, arrival window,
+    payout estimate and when an unaccepted offer lapses."""
+    depots = depots if depots is not None else {}
+    depot = depots.get(booking["depot_id"]) or store.get_depot(db, booking["depot_id"]) or {}
+    slots = store.get_slots_for_booking(db, booking["id"])
+    expires = offer_expires_at(booking)
+    return {
+        **booking,
+        "depot_name": depot.get("name", booking["depot_id"]),
+        "slots": slots,
+        "pickup_window": window_label(slots[0]) if slots else None,
+        "payout_estimate_inr": round(booking["kg"] * booking["price_per_kg"], 2),
+        "offer_expires_at": expires.isoformat() if expires and booking.get("status") in ("offered", "unschedulable") else None,
+        "partner_crew": any(s.get("partner") for s in slots),
+    }
+
+
+class BookingError(ValueError):
+    """A booking action the farmer or ops can't take right now."""
+
+
+def accept_booking(db, booking: dict, accepted_by: str) -> dict:
+    """Locks an offered slot: the booking becomes `booked` and later re-plans
+    fit new work around it. Raises BookingError if there is no slot, the
+    offer has lapsed, or the booking is not in a state that can be accepted."""
+    if not store.get_slots_for_booking(db, booking["id"]):
+        raise BookingError("There is no pickup slot to accept yet")
+    if offer_expired(booking, now_ist()):
+        raise BookingError("This offer has expired -- please list again for a new slot")
+    try:
+        updated = store.update_booking_status(db, booking["id"], "booked",
+                                              {"slot_accepted_at": now_ist().isoformat(), "accepted_by": accepted_by})
+    except store.InvalidTransition as exc:
+        raise BookingError(str(exc)) from exc
+    locked = store.set_slots_status(db, booking["id"], "locked", locked=True)
+    return {"booking": booking_view(db, updated), "slots": locked, "pickup_window": window_label(locked[0])}
+
+
+def complete_quantities(fields: dict) -> dict:
+    """Area and weight are derived from each other in code (1.75 t/acre),
+    never by Gemini, so the planners always have both."""
+    fields = dict(fields)
+    if fields.get("acres") and not fields.get("quantity_kg"):
+        fields["quantity_kg"] = round(fields["acres"] * STRAW_T_PER_ACRE * 1000, 1)
+    elif fields.get("quantity_kg") and not fields.get("acres"):
+        fields["acres"] = acres_from_kg(fields["quantity_kg"])
+    return fields
+
+
+def missing_fields(fields: dict) -> list[str]:
+    missing = []
+    if not fields.get("quantity_kg") and not fields.get("acres"):
+        missing.append("quantity")
+    if not fields.get("crop_type"):
+        missing.append("crop_type")
+    if listing_location(fields) is None:
+        missing.append("location")
+    if not fields.get("sowing_deadline"):
+        missing.append("sowing_deadline")
+    return missing

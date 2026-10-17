@@ -24,6 +24,7 @@ PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "ai-builder-cup-aidatlas")
 VOICE_BY_LANGUAGE = {
     "Hindi": ("hi-IN", "hi-IN-Chirp3-HD-Achernar"),
     "Punjabi": ("pa-IN", "pa-IN-Chirp3-HD-Achernar"),
+    "English": ("en-IN", "en-IN-Chirp3-HD-Achernar"),
 }
 
 

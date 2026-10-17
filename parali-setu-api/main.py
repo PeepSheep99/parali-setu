@@ -23,6 +23,7 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+import agent
 import firestore_store as store
 import operations
 import pickups
@@ -39,7 +40,6 @@ from geo import district_from_text
 from gemini_client import get_gemini_client
 from impact import impact_for_kg, punjab_scenario
 from phrases import confirm_summary
-from scheduler import STRAW_T_PER_ACRE, acres_from_kg
 from speech import synthesize_speech, transcribe_audio
 from trust import score_no_burn_submission
 
@@ -74,30 +74,6 @@ def _today() -> date:
     return pickups.now_ist().date()
 
 
-def _complete_quantities(fields: dict) -> dict:
-    """Area and weight are derived from each other in code (1.75 t/acre),
-    never by Gemini, so the planners always have both."""
-    fields = dict(fields)
-    if fields.get("acres") and not fields.get("quantity_kg"):
-        fields["quantity_kg"] = round(fields["acres"] * STRAW_T_PER_ACRE * 1000, 1)
-    elif fields.get("quantity_kg") and not fields.get("acres"):
-        fields["acres"] = acres_from_kg(fields["quantity_kg"])
-    return fields
-
-
-def _missing_fields(fields: dict) -> list[str]:
-    missing = []
-    if not fields.get("quantity_kg") and not fields.get("acres"):
-        missing.append("quantity")
-    if not fields.get("crop_type"):
-        missing.append("crop_type")
-    if pickups.listing_location(fields) is None:
-        missing.append("location")
-    if not fields.get("sowing_deadline"):
-        missing.append("sowing_deadline")
-    return missing
-
-
 def _spoken(text: str | None, language: str) -> dict | None:
     if not text:
         return None
@@ -128,24 +104,6 @@ def _posted_price(db, district: str) -> dict:
     if row is None:
         raise HTTPException(status_code=503, detail="Today's prices are not available yet -- please try again shortly")
     return row
-
-
-def _booking_view(db, booking: dict, depots: dict[str, dict] | None = None) -> dict:
-    """A booking as the apps show it: depot name, slots, arrival window,
-    payout estimate and when an unaccepted offer lapses."""
-    depots = depots if depots is not None else {}
-    depot = depots.get(booking["depot_id"]) or store.get_depot(db, booking["depot_id"]) or {}
-    slots = store.get_slots_for_booking(db, booking["id"])
-    expires = pickups.offer_expires_at(booking)
-    return {
-        **booking,
-        "depot_name": depot.get("name", booking["depot_id"]),
-        "slots": slots,
-        "pickup_window": pickups.window_label(slots[0]) if slots else None,
-        "payout_estimate_inr": round(booking["kg"] * booking["price_per_kg"], 2),
-        "offer_expires_at": expires.isoformat() if expires and booking.get("status") in ("offered", "unschedulable") else None,
-        "partner_crew": any(s.get("partner") for s in slots),
-    }
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +216,7 @@ async def listing_draft(
                 fields[key] = extracted[key]
     if lat is not None and lon is not None:
         fields["lat"], fields["lon"] = lat, lon
-    fields = _complete_quantities(fields)
+    fields = pickups.complete_quantities(fields)
 
     quality = (draft or {}).get("quality") or {"grade": "unknown", "note": None}
     if photo is not None:
@@ -266,7 +224,7 @@ async def listing_draft(
         if result and result.get("quality_grade"):
             quality = {"grade": result["quality_grade"], "note": result.get("note")}
 
-    missing = _missing_fields(fields)
+    missing = pickups.missing_fields(fields)
     asked_before = bool((draft or {}).get("asked_follow_up"))
     follow_up = None
     if missing and not asked_before:
@@ -327,7 +285,7 @@ def confirm_listing(draft_id: str, req: ConfirmDraftRequest):
             fields.pop("quantity_kg", None)   # re-derive weight from the corrected area
         for key, value in edits.items():
             fields[key] = value.isoformat() if isinstance(value, date) else value
-    fields = _complete_quantities(fields)
+    fields = pickups.complete_quantities(fields)
     if not fields.get("quantity_kg") or not fields.get("crop_type"):
         raise HTTPException(status_code=422, detail="Tell us how much stubble and which crop before confirming")
     location = pickups.listing_location(fields)
@@ -348,7 +306,7 @@ def confirm_listing(draft_id: str, req: ConfirmDraftRequest):
         return {"listing": listing, "status": "out_of_area", "district": district, "price": price}
     pickups.expire_stale_offers(db)
     pickups.plan_depot(db, booking["depot_id"])
-    view = _booking_view(db, store.get_booking(db, booking["id"]))
+    view = pickups.booking_view(db, store.get_booking(db, booking["id"]))
 
     explanation = None
     if view["status"] == "offered" and view["pickup_window"]:
@@ -373,17 +331,10 @@ class FarmerRequest(BaseModel):
 
 
 def _accept(db, booking: dict, accepted_by: str) -> dict:
-    if not store.get_slots_for_booking(db, booking["id"]):
-        raise HTTPException(status_code=409, detail="There is no pickup slot to accept yet")
-    if pickups.offer_expired(booking, pickups.now_ist()):
-        raise HTTPException(status_code=409, detail="This offer has expired -- please list again for a new slot")
     try:
-        updated = store.update_booking_status(db, booking["id"], "booked",
-                                              {"slot_accepted_at": pickups.now_ist().isoformat(), "accepted_by": accepted_by})
-    except store.InvalidTransition as exc:
+        return pickups.accept_booking(db, booking, accepted_by)
+    except pickups.BookingError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    locked = store.set_slots_status(db, booking["id"], "locked", locked=True)
-    return {"booking": _booking_view(db, updated), "slots": locked, "pickup_window": pickups.window_label(locked[0])}
 
 
 @app.post("/bookings/{booking_id}/accept")
@@ -409,7 +360,7 @@ def cancel_booking(booking_id: str, req: FarmerRequest):
         raise HTTPException(status_code=409, detail=str(exc))
     store.set_slots_status(db, booking_id, "cancelled", locked=False)
     pickups.plan_depot(db, booking["depot_id"])
-    return {"booking": _booking_view(db, updated)}
+    return {"booking": pickups.booking_view(db, updated)}
 
 
 @app.get("/farmers/{farmer_id}/bookings")
@@ -417,7 +368,7 @@ def farmer_bookings(farmer_id: str):
     """Everything the farmer's status cards need. Read-only."""
     db = store.get_firestore_client()
     depots = {d["id"]: d for d in store.get_depots(db)}
-    bookings = [_booking_view(db, b, depots) for b in store.get_bookings_for_farmer(db, farmer_id)
+    bookings = [pickups.booking_view(db, b, depots) for b in store.get_bookings_for_farmer(db, farmer_id)
                 if b.get("status") not in ("cancelled",)]
     return {"farmer_id": farmer_id, "bookings": bookings}
 
@@ -468,6 +419,73 @@ async def submit_no_burn_proof(farmer_id: str, district: str, claimed_date: str 
     })
     return {"trust_score": scoring["new_score"], "disputed": scoring["disputed"], "field_condition": field_condition,
             "satellite_corroboration": satellite, "note": photo_result.get("note")}
+
+
+# ---------------------------------------------------------------------------
+# Farmer: the talking agent (Gemini function calling, guardrails in code)
+# ---------------------------------------------------------------------------
+
+AUDIO_TYPES = {"audio/wav", "audio/x-wav", "audio/wave", "audio/webm", "audio/ogg", "audio/mpeg", "audio/mp3"}
+
+
+@app.post("/agent/turn")
+async def agent_turn(
+    farmer_id: str = Form(..., min_length=1, max_length=64),
+    language: Language = Form("Punjabi"),
+    conversation_id: str | None = Form(None, max_length=64),
+    text: str | None = Form(None, max_length=600),
+    audio: UploadFile | None = File(None),
+    photo: UploadFile | None = File(None),
+    speak: bool = Form(True),
+):
+    """One turn of the farmer's conversation: voice or text in, the agent's
+    spoken reply and any cards (price, offer, booking) out. Every number on a
+    card comes from a tool; the reply is checked so it says no others."""
+    db = store.get_firestore_client()
+    client = get_gemini_client()
+    audio_bytes = await audio.read() if audio is not None else None
+    if audio_bytes is not None:
+        mime = (audio.content_type or "audio/wav").split(";")[0]
+        if mime not in AUDIO_TYPES or len(audio_bytes) > 5_000_000:
+            raise HTTPException(status_code=422, detail="Send a short recording (WAV, WebM, OGG or MP3)")
+    elif not (text and text.strip()):
+        raise HTTPException(status_code=422, detail="Say or type something")
+
+    def stt(data: bytes) -> str:
+        fmt, rate = ("linear16", 16000) if "wav" in (audio.content_type or "") else ("webm_opus", 48000)
+        words = transcribe_audio(data, language, sample_rate_hertz=rate, audio_format=fmt)
+        if words is None:
+            raise HTTPException(status_code=422, detail="Could not hear that clearly -- please try again or type it")
+        return words
+
+    words, english = agent.understand(client, language, (text or "").strip() or None, audio_bytes,
+                                      (audio.content_type or "").split(";")[0] if audio else None, stt)
+    quality = None
+    if photo is not None:
+        read = read_stubble_quality(client, await photo.read(), mime_type=photo.content_type or "image/jpeg")
+        if read and read.get("quality_grade"):
+            quality = {"grade": read["quality_grade"], "note": read.get("note")}
+    try:
+        result = agent.take_turn(db, client, farmer_id, language, words, english, conversation_id, quality)
+    except PermissionError:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    except OverflowError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    result["reply"] = _spoken(result["reply"], language) if speak else {"text": result["reply"], "audio_base64": None}
+    if quality:
+        result["quality"] = quality
+    return result
+
+
+@app.get("/agent/conversations/{conversation_id}")
+def agent_conversation(conversation_id: str):
+    """A conversation as ops sees it: each turn in the farmer's words and in
+    English, the structured listing, and what the guardrails did."""
+    db = store.get_firestore_client()
+    conv = store.get_conversation(db, conversation_id)
+    if conv is None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conv
 
 
 # ---------------------------------------------------------------------------

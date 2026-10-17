@@ -11,6 +11,7 @@ Collections
 - inventory_moves             straw in (pickups) and out (deliveries) per depot
 - customers, orders, deliveries   companies, their forward orders, the plan
 - plans, forecasts            planner and forecaster outputs
+- conversations               the farmer agent's turns, tool facts and draft
 - farmers, no_burn_proofs, fire_detections   trust and satellite data
 
 Shares the ai-builder-cup-aidatlas project with AidAtlas, whose only
@@ -323,6 +324,16 @@ def get_plan(db: firestore.Client, plan_id: str) -> dict | None:
 
 def get_forecast(db: firestore.Client, forecast_id: str) -> dict | None:
     return _get(db, "forecasts", forecast_id)
+
+
+# ---- farmer agent conversations
+
+def save_conversation(db: firestore.Client, conversation: dict) -> dict:
+    return _save(db, "conversations", "conv", {**conversation, "updated_at": _now()})
+
+
+def get_conversation(db: firestore.Client, conversation_id: str) -> dict | None:
+    return _get(db, "conversations", conversation_id)
 
 
 # ---- trust and satellite data

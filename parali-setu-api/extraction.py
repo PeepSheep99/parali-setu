@@ -235,3 +235,37 @@ Plain prose only, no markdown, no asterisks.
 """
     return call_gemini(client, prompt, json_mode=False)
 
+
+
+def understand_audio(client: genai.Client, audio_bytes: bytes, mime_type: str, language: str) -> dict | None:
+    """Gemini listens to the farmer directly (no separate speech-to-text) and
+    returns {"transcript": exactly what was said, in its own script,
+    "english": a faithful English rendering for ops and inventory}. None if
+    Gemini is unavailable or hears nothing, so the caller can fall back to
+    Cloud Speech-to-Text."""
+    prompt = types.Part.from_text(text=f"""This is a farmer in Punjab or Haryana speaking,
+probably in {language} (they may mix in Hindi, Punjabi or English words).
+Respond with ONLY a JSON object:
+{{"transcript": <exactly what they said, in the script of the language they spoke>,
+  "english": <a faithful English translation; keep every number, place and date exactly>}}
+If there is no intelligible speech, respond {{"transcript": null, "english": null}}.""")
+    text = call_gemini(client, [prompt, types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)], json_mode=True)
+    if text is None:
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return parsed if parsed.get("transcript") else None
+
+
+def to_english(client: genai.Client, text: str, language: str) -> str | None:
+    """A faithful English rendering of a farmer's message for ops and
+    inventory records. Numbers, places and dates are kept exactly."""
+    if language == "English":
+        return text
+    prompt = f"""Translate this {language} message from a farmer into plain English.
+Keep every number, place name and date exactly as given. Reply with the translation only.
+
+{text}"""
+    return call_gemini(client, prompt, json_mode=False)
