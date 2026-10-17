@@ -120,3 +120,17 @@ input[type=range] { width: 100%; accent-color: var(--paddy); min-height: 32px; }
 .footer { padding-block: 28px 44px; border-top: 1px solid var(--line); }
 
 .demo-flag { display: inline-block; margin: 0 0 12px; padding: 4px 12px; border-radius: 999px; font-size: .8rem; font-weight: 600; background: var(--ember-soft, #fde8d8); color: var(--ink, #222); }
+
+/* loading placeholders: a soft shimmer instead of a dash */
+.loading { color: transparent !important; background: linear-gradient(90deg, var(--line) 25%, transparent 50%, var(--line) 75%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; border-radius: 6px; min-width: 3ch; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .loading { animation: none; } }
+
+/* phones: one compact nav row that scrolls away with the page */
+@media (max-width: 640px) {
+  .nav { position: static; }
+  .nav-inner { flex-wrap: nowrap; }
+  .nav nav a:not(.pill-link) { display: none; }
+}
+.chart-hint { display: none; font-size: .78rem; color: var(--smoke); margin: 4px 0 0; }
+@media (max-width: 640px) { .chart-hint { display: block; } }

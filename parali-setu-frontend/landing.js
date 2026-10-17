@@ -21,12 +21,28 @@
     return resp.json();
   }
 
+  // The satellite record only changes with the season, so show the last copy at once
+  // and refresh it for the next visit.
+  async function getJsonCached(path) {
+    const key = `ps_cache_${path}`;
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(key)); } catch { /* blocked or corrupt storage */ }
+    const fresh = getJson(path).then((body) => { try { localStorage.setItem(key, JSON.stringify(body)); } catch { /* ignore */ } return body; });
+    if (cached) { fresh.catch(() => {}); return cached; }
+    return fresh;
+  }
+
+  const PLACEHOLDERS = ["live-tonnes", "live-paid", "live-ghg", "sc-tonnes", "sc-ghg", "sc-pm", "sc-cost"];
+  PLACEHOLDERS.forEach((id) => { const el = $(id); if (el) el.classList.add("loading"); });
+  const loaded = (...ids) => ids.forEach((id) => $(id) && $(id).classList.remove("loading"));
+
   async function loadLive() {
     try {
       const { collected, paid_to_farmers_inr } = await getJson("/impact");
       $("live-tonnes").textContent = tonnesLabel(collected.tonnes_diverted);
       $("live-paid").textContent = rupeesLabel(paid_to_farmers_inr);
       $("live-ghg").textContent = ghgLabel(collected.ghg_avoided_t_co2e);
+      loaded("live-tonnes", "live-paid", "live-ghg");
     } catch {
       $("live").replaceChildren(Object.assign(document.createElement("p"), { className: "small muted", textContent: "Live figures are unavailable right now." }));
     }
@@ -42,7 +58,7 @@
 
   async function loadRecord() {
     try {
-      const { seasons } = await getJson("/fires/history");
+      const { seasons } = await getJsonCached("/fires/history");
       const W = 980, H = 300, m = { l: 56, r: 12, t: 26, b: 30 };
       const raw = Math.max(...seasons.map((s) => s.total));
       const mag = 10 ** Math.floor(Math.log10(raw / 4));
@@ -74,6 +90,7 @@
         if (i === seasons.length - 2) chart.append(svg("text", { class: "label", x: x0 + bw / 2, y: top - 6, "text-anchor": "middle" }, fmt(s.total)));
       });
       $("record-chart").replaceChildren(chart);
+      $("record-chart").scrollLeft = $("record-chart").scrollWidth;   // phones open on the latest seasons
       const last = seasons[seasons.length - 1];
       $("record-note").textContent = `Bars: satellite fire pixels per season (Sep–Dec). ${last.partial ? `${last.year} so far, to ${last.last_date}: ${fmt(last.total)}. ` : ""}Source: NASA FIRMS via Google Earth Engine, counted per district with FAO GAUL 2025 boundaries.`;
     } catch {
@@ -92,6 +109,7 @@
       $("sc-pm").textContent = `${pmLabel(s.pm25_avoided_kg_range[0])}–${pmLabel(s.pm25_avoided_kg_range[1])}`;
       const [lo, hi] = s.farmer_clearing_cost_avoided_inr_range;
       $("sc-cost").textContent = `${rupeesLabel(lo)}–${rupeesLabel(hi)}`;
+      loaded("sc-tonnes", "sc-ghg", "sc-pm", "sc-cost");
       $("sc-method").textContent = `A scenario, not a measurement. ${s.basis} ${s.method} PM2.5 is shown as a range because field studies report 4.7–20 kg per tonne burned.`;
     } catch {
       $("sc-method").textContent = "The scenario model is unavailable right now.";

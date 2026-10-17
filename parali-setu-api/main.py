@@ -376,8 +376,9 @@ def cancel_booking(booking_id: str, req: FarmerRequest):
 
 @app.get("/farmers/{farmer_id}/bookings")
 def farmer_bookings(farmer_id: str):
-    """Everything the farmer's status cards need. Read-only."""
+    """Everything the farmer's status cards need. Offers nobody accepted in time lapse first."""
     db = store.get_firestore_client()
+    pickups.expire_stale_offers(db)
     depots = {d["id"]: d for d in store.get_depots(db)}
     bookings = [pickups.booking_view(db, b, depots) for b in store.get_bookings_for_farmer(db, farmer_id)
                 if b.get("status") not in ("cancelled",)]

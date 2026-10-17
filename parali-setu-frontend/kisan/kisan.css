@@ -127,8 +127,16 @@ textarea, input[type=text], input[type=tel], input[type=number], input[type=date
 .pill.booked { background: var(--paddy-soft); color: var(--paddy-dark); }
 .pill.collected, .pill.paid { background: var(--paddy); color: #fff; }
 .steps { display: flex; gap: 4px; margin-top: 4px; }
-.steps i { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
-.steps i.on { background: var(--paddy); }
+.steps > span { flex: 1; display: grid; gap: 2px; text-align: center; }
+.steps i { height: 6px; border-radius: 3px; background: var(--line); }
+.steps small { font-size: .68rem; color: var(--ink-soft); }
+.steps span.on i { background: var(--paddy); }
+.steps span.on small { color: var(--paddy); font-weight: 600; }
+.row-actions { display: flex; gap: 8px; margin-top: 6px; }
+.row-actions .primary { flex: 1; }
+.bubble.queued { opacity: .55; }
+.bubble .thumb { display: block; max-width: 140px; max-height: 140px; border-radius: 8px; margin-bottom: 4px; }
+.proof-phone { display: block; margin: 10px 12px; padding: 10px; text-align: center; border: 1px dashed var(--line); border-radius: 10px; cursor: pointer; }
 .empty { color: var(--smoke); font-size: .92rem; }
 
 .toast {

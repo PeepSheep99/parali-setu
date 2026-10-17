@@ -191,7 +191,7 @@
     $("kbd-input").placeholder = t("type_placeholder");
     $("lang-gate").hidden = true;
     $("app").hidden = false;
-    if (changed || !$("log").children.length) resetTalk();
+    if (changed || !$("log").children.length) { resetTalk(); if (!changed) restoreTalk(); }
     if (state.draft) renderConfirm();
     if (state.offer) renderOffer();
     renderDistrictSelect();
@@ -206,7 +206,24 @@
 
   function resetTalk() {
     state.conversationId = null;
+    saved.set("parali_conv", "");
     $("log").replaceChildren(h("div", { class: "bubble agent" }, t("greeting")));
+  }
+
+  // After a reload the chat comes back: the saved conversation's words are shown again.
+  async function restoreTalk() {
+    const id = saved.get("parali_conv");
+    if (!id || state.conversationId) return;
+    try {
+      const conv = await api(`/agent/conversations/${encodeURIComponent(id)}`);
+      if (conv.farmer_id !== state.farmerId || !(conv.turns || []).length || state.conversationId) return;
+      state.conversationId = id;
+      $("log").replaceChildren(...conv.turns.map((turn) => turn.role === "user"
+        ? h("div", { class: "bubble farmer" }, turn.text,
+            turn.english && state.lang !== "en" ? h("span", { class: "en", lang: "en" }, turn.english) : null)
+        : h("div", { class: "bubble agent" }, turn.text)));
+      scrollLog();
+    } catch { /* an old conversation that is gone just starts fresh */ }
   }
 
   function farmerBubble(text, english) {
@@ -297,9 +314,20 @@
   }
 
   async function sendTurn({ audio, text }) {
-    if (state.busy) return;
+    if (state.busy) {
+      if (text) {      // queue it: shown greyed now, sent as soon as the reply arrives
+        state.queued = text;
+        $("log").append(h("div", { class: "bubble farmer queued", "data-queued": "1" }, text));
+        scrollLog();
+      } else toast(t("wait_reply"));
+      return;
+    }
     state.busy = true;
-    if (text) farmerBubble(text);
+    if (text) {
+      const waiting = $("log").querySelector("[data-queued]");
+      if (waiting && waiting.textContent === text) { waiting.classList.remove("queued"); waiting.removeAttribute("data-queued"); }
+      else farmerBubble(text);
+    }
     thinking(true);
     const form = new FormData();
     form.append("farmer_id", state.farmerId);
@@ -312,6 +340,7 @@
       const body = await api("/agent/turn", { method: "POST", body: form });
       thinking(false);
       state.conversationId = body.conversation_id;
+      saved.set("parali_conv", state.conversationId);
       state.talkPhoto = null;
       document.querySelector("label[for=talk-photo]").classList.remove("done");
       if (audio) farmerBubble(body.heard.text, body.heard.english);
@@ -324,6 +353,7 @@
       toast(err.message);
     } finally {
       state.busy = false;
+      if (state.queued) { const next = state.queued; state.queued = null; sendTurn({ text: next }); }
     }
   }
 
@@ -624,33 +654,60 @@
     const rows = bookings.length ? bookings.map((b) => {
       const reached = STEP_ORDER.indexOf(b.status);
       const cancel = ["offered", "booked"].includes(b.status)
-        ? h("button", { type: "button", class: "ghost", onclick: () => cancelBooking(b.id) }, t("cancel")) : null;
+        ? h("button", { type: "button", class: "ghost", onclick: (e) => cancelBooking(b.id, e.currentTarget) }, t("cancel")) : null;
+      const book = b.status === "offered" && b.slots && b.slots.length
+        ? h("button", { type: "button", class: "primary", "data-book": b.id }, t("book_this")) : null;
       return h("div", { class: "pickup" },
         h("div", { class: "top-line" }, h("strong", {}, `${b.district} · ${kg(b.kg)}`), h("span", { class: `pill ${b.status}` }, t(`s_${b.status}`))),
         h("span", { class: "hint" }, `${perKg(b.price_per_kg)} · ${b.depot_name}`),
         b.slots && b.slots.length ? h("span", {}, formatSlot(b.slots[0])) : null,
         b.status === "paid" && b.payout_inr ? h("span", { class: "result ok" }, t("paid_line", { p: rupees(b.payout_inr) })) : null,
         b.status === "unschedulable" ? h("span", { class: "note" }, reasonText(b.status_reason_code)) : null,
-        reached >= 0 ? h("div", { class: "steps", "aria-hidden": "true" }, STEP_ORDER.map((_, i) => h("i", { class: i <= reached ? "on" : "" }))) : null,
-        cancel);
+        b.booking_code ? h("span", { class: "hint" }, `${t("booking_id")}: ${b.booking_code}`) : null,
+        reached >= 0 ? h("div", { class: "steps" }, STEP_ORDER.map((step, i) =>
+          h("span", { class: i <= reached ? "on" : "" }, h("i", {}), h("small", {}, t(`s_${step}_short`))))) : null,
+        h("div", { class: "row-actions" }, book, cancel));
     }) : [h("p", { class: "empty" }, t("no_pickups"))];
     $("desk-pickups").replaceChildren(...rows.map((r) => r.cloneNode(true)));
     $("sheet-list").replaceChildren(...rows);
-    // cloneNode drops listeners; rebind cancel buttons in the desk copy
+    // cloneNode drops listeners; rebind the buttons in the desk copy
     $("desk-pickups").querySelectorAll(".pickup").forEach((el, i) => {
-      const btn = el.querySelector("button");
-      if (btn && bookings[i]) btn.addEventListener("click", () => cancelBooking(bookings[i].id));
+      const b = bookings[i];
+      const bookBtn = el.querySelector("[data-book]");
+      if (bookBtn) bookBtn.addEventListener("click", () => acceptBooking(b.id, bookBtn, () => {}));
+      const cancelBtn = el.querySelector(".ghost");
+      if (cancelBtn && b) cancelBtn.addEventListener("click", () => cancelBooking(b.id, cancelBtn));
     });
+    $("sheet-list").querySelectorAll("[data-book]").forEach((btn) =>
+      btn.addEventListener("click", () => acceptBooking(btn.dataset.book, btn, () => {})));
+    state.latestDistrict = (bookings.find((b) => ["offered", "booked", "collected", "paid"].includes(b.status)) || {}).district || null;
   }
 
-  async function cancelBooking(bookingId) {
+  async function cancelBooking(bookingId, button) {
+    if (!window.confirm(t("cancel_sure"))) return;
+    if (button) button.disabled = true;
     try {
       await postJson(`/bookings/${encodeURIComponent(bookingId)}/cancel`, { farmer_id: state.farmerId });
       toast(t("cancelled"));
-      loadPickups();
+      document.querySelectorAll(".pickup").forEach((el) => {      // gone at once, in both lists
+        if (el.contains(button) || el.querySelector(`[data-book="${bookingId}"]`)) el.remove();
+      });
+      await loadPickups();
     } catch (err) {
       toast(err.message);
+      if (button) button.disabled = false;
     }
+  }
+
+  // Phone view: a field photo from the sheet goes to the no-burn proof, for the district of the latest pickup.
+  async function sendPhoneProof(file) {
+    if (!state.latestDistrict) { toast(t("proof_needs_booking")); return; }
+    const form = new FormData();
+    form.append("photo", file);
+    try {
+      const body = await api(`/farmers/${encodeURIComponent(state.farmerId)}/no-burn-proof?district=${encodeURIComponent(state.latestDistrict)}`, { method: "POST", body: form });
+      toast(body.disputed ? t("proof_disputed") : t("proof_ok", { sat: t(`sat_${body.satellite_corroboration}`) }));
+    } catch (err) { toast(err.message); }
   }
 
   function renderDistrictSelect() {
@@ -706,6 +763,11 @@
         toast(body.label);
       } catch (err) { toast(err.message); }
     });
+    $("sheet-proof").addEventListener("change", () => {
+      const file = $("sheet-proof").files[0];
+      $("sheet-proof").value = "";
+      if (file) sendPhoneProof(file);
+    });
     $("kbd-toggle").addEventListener("click", () => { $("kbd").hidden = !$("kbd").hidden; if (!$("kbd").hidden) $("kbd-input").focus(); });
     $("kbd").addEventListener("submit", (e) => {
       e.preventDefault();
@@ -714,6 +776,11 @@
     });
     $("talk-photo").addEventListener("change", () => {
       state.talkPhoto = $("talk-photo").files[0] || null;
+      if (state.talkPhoto) {
+        const img = h("img", { class: "thumb", alt: "", src: URL.createObjectURL(state.talkPhoto) });
+        $("log").append(h("div", { class: "bubble farmer" }, img, h("span", { class: "en" }, t("photo_sent_with_next"))));
+        scrollLog();
+      }
       document.querySelector("label[for=talk-photo]").classList.toggle("done", !!state.talkPhoto);
       if (state.talkPhoto) toast(t("photo_added"));
     });
@@ -731,13 +798,15 @@
       $("desk-photo").closest(".tool").classList.toggle("done", !!state.deskPhoto);
       setLabel($("desk-photo-label"), state.deskPhoto ? "photo_added" : "add_photo");
     });
-    $("locate").addEventListener("click", () => {
-      if (!navigator.geolocation) { toast(t("location_failed")); return; }
-      navigator.geolocation.getCurrentPosition((pos) => {
-        state.location = { lat: pos.coords.latitude.toFixed(5), lon: pos.coords.longitude.toFixed(5) };
+    $("locate").addEventListener("click", async () => {
+      // Prototype: a demo farm in Punjab, never the device location (a visitor outside Punjab would be out of area).
+      try {
+        const body = await postJson("/demo/locate", { farmer_id: state.farmerId });
+        state.location = { lat: String(body.lat), lon: String(body.lon) };
         $("locate").classList.add("done");
         setLabel($("locate-label"), "location_added");
-      }, () => toast(t("location_failed")), { enableHighAccuracy: true, timeout: 10000 });
+        toast(body.label);
+      } catch { toast(t("location_failed")); }
     });
     $("confirm-btn").addEventListener("click", confirmListing);
     $("listen-confirm").addEventListener("click", () => state.draft && playAudio(state.draft.follow_up || state.draft.confirm_summary));
