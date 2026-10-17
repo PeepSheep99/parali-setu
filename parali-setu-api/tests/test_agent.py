@@ -246,3 +246,47 @@ def test_a_very_close_sowing_date_is_flagged_and_unserved_places_list_the_distri
     w = agent.listing_warnings({"sowing_deadline": "2026-10-19", "village_or_district": "Amritsar"}, set(), TODAY)
     codes = {x["code"]: x for x in w}
     assert "sowing_very_soon" in codes and "Sangrur" in codes["place_not_recognised"]["served_districts"]
+
+
+def test_the_reply_follows_the_language_the_farmer_speaks(world, monkeypatch):
+    seen = []
+
+    def model(client, contents, config):
+        seen.append(config.system_instruction.split("Reply only in ")[1].split(".")[0])
+        return [], "ok", None
+    monkeypatch.setattr(agent, "_generate", model)
+    first = agent.take_turn(world, None, "farmer_lang", None, "ਮੇਰੇ ਕੋਲ ਦਸ ਕਿੱਲੇ ਹਨ", "(en)")
+    second = agent.take_turn(world, None, "farmer_lang", None, "मेरे पास दस एकड़ हैं", "(en)", first["conversation_id"])
+    third = agent.take_turn(world, None, "farmer_lang", "Hindi", "12345", "(en)", first["conversation_id"])
+    assert [first["language"], second["language"], third["language"]] == ["Punjabi", "Hindi", "Hindi"]
+    assert seen == ["Punjabi", "Hindi", "Hindi"]
+
+
+def test_a_language_we_dont_serve_gets_a_trilingual_answer_without_the_model(world, monkeypatch):
+    monkeypatch.setattr(agent, "_generate", lambda *a: pytest.fail("the model must not be called"))
+    result = agent.take_turn(world, None, "farmer_bn", None, "আমার দশ বিঘা ধান আছে", None)
+    assert "Punjabi, Hindi or English" in result["reply"] and result["speak_text"].startswith("I can talk")
+    assert result["cards"] == [] and result["guardrails"]["unsupported_language"]
+
+
+def test_typed_words_are_translated_for_the_record_in_the_background(world, monkeypatch):
+    monkeypatch.setattr(agent, "to_english", lambda c, text, lang: f"EN:{text}")
+    monkeypatch.setattr(agent, "_generate", lambda *a: ([], "ਠੀਕ ਹੈ ਜੀ", None))
+    result = agent.take_turn(world, None, "farmer_tr", None, "ਮੇਰੇ ਕੋਲ ਦਸ ਕਿੱਲੇ ਹਨ", None)
+    assert result["heard"]["english"] == "EN:ਮੇਰੇ ਕੋਲ ਦਸ ਕਿੱਲੇ ਹਨ"
+    turns = store.get_conversation(world, result["conversation_id"])["turns"]
+    assert turns[0]["english"] == "EN:ਮੇਰੇ ਕੋਲ ਦਸ ਕਿੱਲੇ ਹਨ"
+
+
+def test_speech_is_served_on_its_own(monkeypatch):
+    monkeypatch.setattr(main, "synthesize_speech", lambda text, lang: b"mp3")
+    body = TestClient(main.app).post("/speech", json={"text": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ", "language": "Punjabi"}).json()
+    assert body["audio_base64"] == "bXAz"
+
+
+def test_complete_details_bring_the_offer_back_in_one_step_and_it_stays_the_same(chat, world):
+    result = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], _offer_text], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    offers = [c for c in result["cards"] if c["type"] == "offer"]
+    assert len(offers) == 1, "update_listing made the offer; the explicit call returned the same one"
+    open_offers = [b for b in store.get_bookings_for_farmer(world, "farmer_a") if b["status"] == "offered"]
+    assert len(open_offers) == 1 and open_offers[0]["id"] == offers[0]["booking_id"]

@@ -24,6 +24,7 @@ inventory work from one normalised record whatever language was spoken.
 """
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import threading
 import time
@@ -37,6 +38,7 @@ from google.genai import types
 
 import firestore_store as store
 import operations
+import language as lang_detect
 import pickups
 from extraction import to_english, understand_audio
 from gemini_client import GEMINI_MODEL, PROJECT_ID, REQUEST_HTTP_OPTIONS
@@ -65,7 +67,8 @@ Rules you must follow:
 4. If update_listing returns warnings, ask one short question that resolves them.
 5. If details are missing, ask for all of them together in one short question. Besides the
    straw details we always need the farmer's name and mobile number (and a village or district).
-6. When nothing is missing, call find_pickup_slot. Then tell the farmer the price per
+6. When nothing is missing, update_listing returns an offer (call find_pickup_slot only if
+   it did not). Then tell the farmer the price per
    kg, what they will be paid, and the pickup time, and ask if they agree. Say the
    pickup time using pickup_window_spoken exactly as given, never the raw date. Also read back
    the farmer's name and village from the offer's farm details and ask if they are right.
@@ -283,16 +286,35 @@ def _valid_date(value) -> str | None:
 
 # ---- tools ------------------------------------------------------------------
 
+BLOCKING_WARNINGS = ("sowing_date_passed", "ready_after_sowing", "acres_weight_mismatch")
+_OFFER_KEYS = ("acres", "quantity_kg", "crop_type", "village_or_district", "sowing_deadline", "ready_by", "lat", "lon",
+               "farmer_name", "contact")
+
+
+def _offer_key(fields: dict) -> dict:
+    return {k: fields.get(k) for k in _OFFER_KEYS}
+
 class Turn:
     """One farmer turn: the conversation state, the tool results so far and
     the cards the app will show."""
 
-    def __init__(self, db, conversation: dict, words: str = "", english: str | None = None):
+    def __init__(self, db, conversation: dict, words: str = "", english=None):
         self.db, self.conv = db, conversation
-        self.words, self.english = words, english
+        self.words, self._english = words, english
         self.tool_results: list[dict] = []
         self.cards: list[dict] = []
         self.index = len([t for t in conversation.get("turns", []) if t["role"] == "user"])
+
+    @property
+    def english(self) -> str | None:
+        """The farmer's words in English. It may still be translating in the
+        background; only the yes/no checks wait for it."""
+        if isinstance(self._english, concurrent.futures.Future):
+            try:
+                self._english = self._english.result(timeout=10)
+            except Exception:
+                self._english = None
+        return self._english
 
     def run_tool(self, name: str, args: dict) -> dict:
         handler = getattr(self, f"tool_{name}", None)
@@ -353,6 +375,10 @@ class Turn:
         if rejected:
             result["not_a_valid_mobile_number"] = True
         self.cards.append({"type": "draft", **result})
+        blocking = [w for w in result["warnings"] if w["code"] in BLOCKING_WARNINGS]
+        if not result["missing_fields"] and not blocking:
+            # Saves the model a round trip: the offer comes back with the details.
+            result["offer"] = self.tool_find_pickup_slot()
         return result
 
     def tool_find_pickup_slot(self) -> dict:
@@ -360,8 +386,14 @@ class Turn:
         missing = pickups.agent_missing_fields(fields)
         if missing:
             return {"error": "missing_details", "missing_fields": missing}
+        same = self.conv.get("offer") and self.conv.get("offer_fields") == _offer_key(fields)
+        current = same and store.get_booking(self.db, self.conv["offer"]["booking_id"])
+        if current and current.get("status") == "offered":
+            if not any(c["type"] == "offer" for c in self.cards):
+                self.cards.append({"type": "offer", **self.conv["offer_card"]})
+            return self.conv["offer"]
         warnings = listing_warnings(fields, set(self.conv.get("stated") or []), pickups.now_ist().date())
-        blocking = [w for w in warnings if w["code"] in ("sowing_date_passed", "ready_after_sowing", "acres_weight_mismatch")]
+        blocking = [w for w in warnings if w["code"] in BLOCKING_WARNINGS]
         if blocking:
             return {"error": "resolve_with_farmer_first", "warnings": blocking}
         replaced = pickups.replace_open_offers(self.db, self.conv["farmer_id"])
@@ -376,7 +408,7 @@ class Turn:
         booking, price = operations.book_listing(self.db, listing)
         if booking is None:
             return {"error": "out_of_area", "district": district, "served_districts": sorted(DISTRICT_COORDS)}
-        pickups.plan_depots(self.db, {*replaced, booking["depot_id"]})
+        pickups.plan_depots(self.db, {*replaced, booking["depot_id"]}, time_limit_seconds=1)   # the farmer is waiting
         view = pickups.booking_view(self.db, store.get_booking(self.db, booking["id"]))
         self.conv["booking_id"], self.conv["offer_turn"] = view["id"], self.index
         if view["status"] != "offered" or not view["pickup_window"]:
@@ -391,8 +423,9 @@ class Turn:
                  "farm": {"name": fields.get("farmer_name"), "phone": pickups.mask_phone(fields.get("contact")),
                           "village": fields.get("village_or_district"), "acres": fields.get("acres"),
                           "location": "demo location" if fields.get("location_source") == "demo" else None}}
-        self.cards.append({"type": "offer", **offer, "impact": impact_for_kg(view["kg"]),
-                           "partner_crew": view["partner_crew"]})
+        card = {**offer, "impact": impact_for_kg(view["kg"]), "partner_crew": view["partner_crew"]}
+        self.cards.append({"type": "offer", **card})
+        self.conv["offer"], self.conv["offer_card"], self.conv["offer_fields"] = offer, card, _offer_key(fields)
         return offer
 
     def _farmer_replied_since_offer(self) -> bool:
@@ -454,6 +487,14 @@ class Turn:
 FALLBACK_MODEL = os.environ.get("AGENT_FALLBACK_MODEL", "gemini-2.5-flash")
 FALLBACK_LOCATION = os.environ.get("AGENT_FALLBACK_LOCATION", "asia-south1")
 _fallback_client = None
+# A step normally answers in about 1 s. One that has not answered in 5 s, or
+# is rate-limited, goes straight to the fallback model: no waiting and retrying.
+AGENT_STEP_TIMEOUT_MS = 5_000
+PRIMARY_COOLDOWN_SECONDS = 30
+_primary_cool_until = 0.0
+FALLBACK_STEP_TIMEOUT_MS = 10_000
+# English records are translated off the critical path (see take_turn).
+_TRANSLATOR = concurrent.futures.ThreadPoolExecutor(max_workers=4, thread_name_prefix="translate")
 # Once the fallback model answers a step, the rest of that turn stays on it: the
 # two models sign function calls differently, so mixing them mid-turn is rejected.
 _turn_model = threading.local()
@@ -471,17 +512,22 @@ def _generate(client, contents: list, config: types.GenerateContentConfig):
     """One model step. Returns (function_calls, text, model_content). A thin
     seam so tests can script the model."""
     log = logging.getLogger("parali.agent")
-    steps = (("fallback", 0),) if getattr(_turn_model, "fallback", False) else (("primary", 0), ("primary retry", 2.0), ("fallback", 0))
+    global _primary_cool_until
+    cooling = time.monotonic() < _primary_cool_until
+    steps = (("fallback", 0),) if cooling or getattr(_turn_model, "fallback", False) else (("primary", 0), ("fallback", 0))
     for label, wait in steps:
         if wait:
             time.sleep(wait)
         try:
             if label == "fallback":
-                response = _fallback().models.generate_content(model=FALLBACK_MODEL, contents=contents, config=config)
+                slower = config.model_copy(update={"http_options": types.HttpOptions(timeout=FALLBACK_STEP_TIMEOUT_MS)})
+                response = _fallback().models.generate_content(model=FALLBACK_MODEL, contents=contents, config=slower)
             else:
                 response = client.models.generate_content(model=GEMINI_MODEL, contents=contents, config=config)
         except Exception as exc:   # rate-limited or unavailable: try the next way, else the caller uses a template
             log.warning("model call failed (%s): %s: %s", label, type(exc).__name__, str(exc)[:200])
+            if label == "primary" and ("429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)):
+                _primary_cool_until = time.monotonic() + PRIMARY_COOLDOWN_SECONDS
             continue
         if label == "fallback":
             _turn_model.fallback = True
@@ -520,6 +566,7 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
         system_instruction=SYSTEM_PROMPT.format(language=conv["language"], today=pickups.now_ist().date().isoformat(),
                                                 facts=_facts_summary(conv)),
         tools=[TOOLS], temperature=0.2,
+        http_options=types.HttpOptions(timeout=AGENT_STEP_TIMEOUT_MS),
         thinking_config=types.ThinkingConfig(thinking_budget=0),   # ~2 s per call instead of 5+; the guardrails live in code
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
@@ -568,37 +615,58 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
     return text.strip(), report
 
 
-def understand(client, language: str, text: str | None, audio: bytes | None, mime: str | None,
+def understand(client, language: str | None, text: str | None, audio: bytes | None, mime: str | None,
                transcribe_fallback) -> tuple[str, str | None]:
-    """(farmer's words, English rendering). Gemini hears audio directly;
-    Cloud Speech-to-Text is the fallback."""
+    """(farmer's words, English rendering or None). Gemini hears audio
+    directly and returns both; Cloud Speech-to-Text is the fallback. Typed
+    text is not translated here: take_turn does that in the background."""
     if audio:
-        heard = understand_audio(client, audio, mime or "audio/wav", language)
+        heard = understand_audio(client, audio, mime or "audio/wav", language or "Punjabi")
         if heard:
             return heard["transcript"], heard.get("english")
-        words = transcribe_fallback(audio)
-        return words, to_english(client, words, language)
-    if language == "English":
-        return text, text            # already English: no translation call
-    return text, to_english(client, text, language)
+        return transcribe_fallback(audio), None
+    return text, None
 
 
-def take_turn(db, client, farmer_id: str, language: str, words: str, english: str | None,
+def reply_language(words: str, hint: str | None, conv: dict | None) -> str:
+    """The language to answer in: what the farmer just used, else the hint
+    (a language pill they tapped), else the conversation's, else Punjabi."""
+    detected = lang_detect.detect(words)
+    if detected in lang_detect.SUPPORTED:
+        return detected
+    for candidate in (hint, (conv or {}).get("language")):
+        if candidate in lang_detect.SUPPORTED:
+            return candidate
+    return "Punjabi"
+
+
+def take_turn(db, client, farmer_id: str, language: str | None, words: str, english: str | None,
               conversation_id: str | None = None, quality: dict | None = None) -> dict:
-    """Loads or starts the conversation, runs one turn, saves it."""
+    """Loads or starts the conversation, runs one turn, saves it. The reply
+    language follows the farmer: `language` is only a hint."""
     conv = store.get_conversation(db, conversation_id) if conversation_id else None
     if conv is not None and conv["farmer_id"] != farmer_id:
         raise PermissionError("conversation belongs to another farmer")
+    if lang_detect.detect(words) == lang_detect.UNSUPPORTED:
+        return {"conversation_id": conv["id"] if conv else None, "heard": {"text": words, "english": english},
+                "reply": lang_detect.UNSUPPORTED_REPLY, "speak_text": lang_detect.UNSUPPORTED_SPOKEN,
+                "language": "English", "cards": [], "fields": (conv or {}).get("fields") or {},
+                "missing_fields": [], "booking_id": (conv or {}).get("booking_id"),
+                "guardrails": {"tool_calls": [], "unsupported_language": True}}
+    spoken = reply_language(words, language, conv)
     if conv is None:
-        conv = store.save_conversation(db, {"farmer_id": farmer_id, "language": language, "turns": [],
+        conv = store.save_conversation(db, {"farmer_id": farmer_id, "language": spoken, "turns": [],
                                             "fields": {}, "facts": {}})
     if len([t for t in conv["turns"] if t["role"] == "user"]) >= MAX_TURNS:
         raise OverflowError("conversation is too long; please start again")
-    conv["language"] = language
+    conv["language"] = spoken
     if quality:
         conv["quality"] = quality
+    if english is None:   # translate for the records while the agent works
+        english = words if spoken == "English" else _TRANSLATOR.submit(to_english, client, words, spoken)
     turn = Turn(db, conv, words, english)
     reply, report = respond(client, turn, words)
+    english = turn.english
     now = pickups.now_ist().isoformat()
     conv["turns"] = conv.get("turns", []) + [
         {"role": "user", "text": words, "english": english, "at": now},
@@ -606,6 +674,6 @@ def take_turn(db, client, farmer_id: str, language: str, words: str, english: st
     ]
     store.save_conversation(db, conv)
     return {"conversation_id": conv["id"], "heard": {"text": words, "english": english}, "reply": reply,
-            "cards": turn.cards, "fields": conv.get("fields") or {},
+            "language": spoken, "cards": turn.cards, "fields": conv.get("fields") or {},
             "missing_fields": pickups.agent_missing_fields(conv.get("fields") or {}),
             "booking_id": conv.get("booking_id"), "guardrails": report}

@@ -108,3 +108,10 @@ def test_live_config_locks_the_language_and_farm_vocabulary():
     assert cfg.input_audio_transcription.language_codes == ["pa-IN"]
     assert "ਕਿੱਲੇ" in cfg.input_audio_transcription.custom_vocabulary
     assert live.caption_events(NS(server_content=None)) == []
+
+
+def test_without_a_language_live_listening_hears_all_three():
+    cfg = live.live_config(None)
+    assert cfg.input_audio_transcription.language_codes == ["pa-IN", "hi-IN", "en-IN"]
+    vocab = cfg.input_audio_transcription.custom_vocabulary
+    assert "ਕਿੱਲੇ" in vocab and "एकड़" in vocab and "acres" in vocab

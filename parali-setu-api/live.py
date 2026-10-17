@@ -39,17 +39,22 @@ VOCABULARY = {
 }
 
 
-def live_config(language: str) -> types.LiveConnectConfig:
+def live_config(language: str | None = None) -> types.LiveConnectConfig:
+    """With no language, the session listens for Punjabi, Hindi and English at
+    once and writes each in its own script (tested 17 Oct 2026), so the farmer
+    never has to pick one first."""
+    if language in LANGUAGE_CODES:
+        codes, vocabulary = [LANGUAGE_CODES[language]], VOCABULARY[language]
+    else:
+        codes = list(LANGUAGE_CODES.values())
+        vocabulary = [w for words in VOCABULARY.values() for w in words]
     return types.LiveConnectConfig(
         response_modalities=["TEXT"],
-        input_audio_transcription=types.AudioTranscriptionConfig(
-            language_codes=[LANGUAGE_CODES.get(language, "hi-IN")],
-            custom_vocabulary=VOCABULARY.get(language, VOCABULARY["Hindi"]),
-        ),
+        input_audio_transcription=types.AudioTranscriptionConfig(language_codes=codes, custom_vocabulary=vocabulary),
     )
 
 
-def open_session(language: str):
+def open_session(language: str | None = None):
     """An async context manager for one live transcription session. A seam
     tests replace with a scripted session."""
     client = genai.Client(vertexai=True, project=PROJECT_ID, location=LIVE_LOCATION)

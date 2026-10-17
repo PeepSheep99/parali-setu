@@ -243,8 +243,9 @@ def understand_audio(client: genai.Client, audio_bytes: bytes, mime_type: str, l
     "english": a faithful English rendering for ops and inventory}. None if
     Gemini is unavailable or hears nothing, so the caller can fall back to
     Cloud Speech-to-Text."""
-    prompt = types.Part.from_text(text=f"""This is a farmer in Punjab or Haryana speaking,
-probably in {language} (they may mix in Hindi, Punjabi or English words).
+    prompt = types.Part.from_text(text=f"""This is a farmer in Punjab or Haryana speaking Punjabi, Hindi or
+English (they may mix them; {language} is only a guess). Write the transcript in the script of the
+language they actually spoke: Gurmukhi for Punjabi, Devanagari for Hindi, Latin for English.
 Respond with ONLY a JSON object:
 {{"transcript": <exactly what they said, in the script of the language they spoke>,
   "english": <a faithful English translation; keep every number, place and date exactly>}}

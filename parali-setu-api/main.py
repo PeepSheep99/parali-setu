@@ -52,6 +52,9 @@ from phrases import confirm_summary, window_words
 from speech import synthesize_speech, transcribe_audio
 from trust import score_no_burn_submission
 
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+for noisy in ("httpx", "httpcore", "google_genai", "urllib3"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 log = logging.getLogger("parali.api")
 app = FastAPI(title="Parali Setu API")
 
@@ -84,10 +87,10 @@ def _today() -> date:
     return pickups.now_ist().date()
 
 
-def _spoken(text: str | None, language: str) -> dict | None:
+def _spoken(text: str | None, language: str, say: str | None = None) -> dict | None:
     if not text:
         return None
-    audio = synthesize_speech(text, language)
+    audio = synthesize_speech(say or text, language)
     return {"text": text, "audio_base64": base64.b64encode(audio).decode("ascii") if audio else None}
 
 
@@ -475,7 +478,7 @@ def demo_locate(req: LocateRequest):
 @app.post("/agent/turn")
 async def agent_turn(
     farmer_id: str = Form(..., min_length=1, max_length=64),
-    language: Language = Form("Punjabi"),
+    language: Language | None = Form(None),     # only a hint: the reply follows what the farmer says
     conversation_id: str | None = Form(None, max_length=64),
     text: str | None = Form(None, max_length=600),
     audio: UploadFile | None = File(None),
@@ -497,7 +500,7 @@ async def agent_turn(
 
     def stt(data: bytes) -> str:
         fmt, rate = ("linear16", 16000) if "wav" in (audio.content_type or "") else ("webm_opus", 48000)
-        words = transcribe_audio(data, language, sample_rate_hertz=rate, audio_format=fmt)
+        words = transcribe_audio(data, language or "Punjabi", sample_rate_hertz=rate, audio_format=fmt)
         if words is None:
             raise HTTPException(status_code=422, detail="Could not hear that clearly -- please try again or type it")
         return words
@@ -523,7 +526,11 @@ async def agent_turn(
     except OverflowError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     turn_done = time.perf_counter()
-    result["reply"] = (await run_in_threadpool(_spoken, result["reply"], language)) if speak         else {"text": result["reply"], "audio_base64": None}
+    spoken_text = result.pop("speak_text", None) or result["reply"]
+    if speak:
+        result["reply"] = await run_in_threadpool(_spoken, result["reply"], result["language"], spoken_text)
+    else:
+        result["reply"] = {"text": result["reply"], "audio_base64": None, "speak_text": spoken_text}
     if quality:
         result["quality"] = quality
     log.info("agent turn: understand %.1fs, agent %.1fs, speech %.1fs", heard_at - started, turn_done - heard_at,
@@ -548,7 +555,7 @@ async def agent_live(ws: WebSocket):
     try:
         start = json.loads(await asyncio.wait_for(ws.receive_text(), timeout=10))
         farmer_id = str(start.get("farmer_id", ""))[:64]
-        language = start.get("language") if start.get("language") in live.LANGUAGE_CODES else "Punjabi"
+        language = start.get("language") if start.get("language") in live.LANGUAGE_CODES else None   # a hint only
         conversation_id = (str(start["conversation_id"])[:64] if start.get("conversation_id") else None)
         if not farmer_id:
             raise ValueError("farmer_id is required")
@@ -602,15 +609,30 @@ async def agent_live(ws: WebSocket):
     db = store.get_firestore_client()
     client = get_gemini_client()
     try:
-        english = await run_in_threadpool(agent.to_english, client, words, language)
-        result = await run_in_threadpool(agent.take_turn, db, client, farmer_id, language, words, english, conversation_id)
-        result["reply"] = await run_in_threadpool(_spoken, result["reply"], language)
+        result = await run_in_threadpool(agent.take_turn, db, client, farmer_id, language, words, None, conversation_id)
+        spoken_text = result.pop("speak_text", None) or result["reply"]
+        result["reply"] = await run_in_threadpool(_spoken, result["reply"], result["language"], spoken_text)
         await ws.send_json({"type": "reply", **result})
     except PermissionError:
         await ws.send_json({"type": "error", "detail": "Conversation not found"})
     except OverflowError as exc:
         await ws.send_json({"type": "error", "detail": str(exc)})
     await ws.close()
+
+
+class SpeechRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=700)
+    language: Language
+
+
+@app.post("/speech")
+def speech(req: SpeechRequest):
+    """The reply read aloud. The phone shows the agent's text first and fetches
+    this alongside, so the farmer is never waiting on speech to see an answer."""
+    audio = synthesize_speech(req.text, req.language)
+    if not audio:
+        raise HTTPException(status_code=503, detail="Speech is unavailable right now")
+    return {"audio_base64": base64.b64encode(audio).decode("ascii")}
 
 
 @app.get("/agent/conversations/{conversation_id}")
