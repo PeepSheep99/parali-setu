@@ -1,0 +1,157 @@
+{
+ "api": "https://parali-setu-api-866617346749.asia-southeast1.run.app",
+ "reads": {
+  "/health": {
+   "p50": 103,
+   "p95": 203,
+   "status": [
+    200
+   ]
+  },
+  "/prices/today": {
+   "p50": 173,
+   "p95": 212,
+   "status": [
+    200
+   ]
+  },
+  "/impact": {
+   "p50": 184,
+   "p95": 211,
+   "status": [
+    200
+   ]
+  },
+  "/ops/summary": {
+   "p50": 410,
+   "p95": 511,
+   "status": [
+    200
+   ]
+  },
+  "/forecast": {
+   "p50": 206,
+   "p95": 288,
+   "status": [
+    200
+   ]
+  },
+  "/depots": {
+   "p50": 318,
+   "p95": 514,
+   "status": [
+    200
+   ]
+  },
+  "/fire-detections": {
+   "p50": 201,
+   "p95": 254,
+   "status": [
+    200
+   ]
+  },
+  "/inventory": {
+   "p50": 204,
+   "p95": 236,
+   "status": [
+    200
+   ]
+  },
+  "/costs": {
+   "p50": 102,
+   "p95": 111,
+   "status": [
+    200
+   ]
+  }
+ },
+ "agent": {
+  "turns": [
+   {
+    "status": 200,
+    "ms": 3484,
+    "language": "English",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 4100,
+    "language": "English",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 3500,
+    "language": "Punjabi",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 3567,
+    "language": "Punjabi",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 4292,
+    "language": "Hindi",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 4315,
+    "language": "Hindi",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 3162,
+    "language": "Punjabi",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 3386,
+    "language": "Punjabi",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 5783,
+    "language": "English",
+    "audio": true,
+    "offer": false
+   },
+   {
+    "status": 200,
+    "ms": 6494,
+    "language": "English",
+    "audio": true,
+    "offer": false
+   }
+  ],
+  "conversation_ids": [
+   "conv_ce455d1852",
+   "conv_0d03fa7a54",
+   "conv_82bfed2279",
+   "conv_60b7a21965",
+   "conv_6a7418b2b7"
+  ],
+  "turn_with_voice_ms": {
+   "p50": 3834,
+   "p95": 6174
+  },
+  "ok": "10/10",
+  "offers_created": 0,
+  "deleted_conversations": 5
+ },
+ "ran_at": "2026-10-17 22:16"
+}
