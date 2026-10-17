@@ -111,7 +111,7 @@
     $("days").replaceChildren(...days.map((d) => {
       const stops = schedule.route_sheets.filter((s) => s.date === d).reduce((n, s) => n + s.stops.length, 0);
       return h("button", { type: "button", role: "tab", "aria-selected": String(d === state.day),
-        onclick: () => { state.day = d; renderOps(); } }, dayLabel(d), h("span", { class: "n" }, `${stops} stops`));
+        onclick: () => { state.day = d; renderOps(); } }, dayLabel(d), h("span", { class: "n" }, `${stops} ${stops === 1 ? "stop" : "stops"}`));
     }));
 
     const sheets = schedule.route_sheets.filter((s) => s.date === state.day);
