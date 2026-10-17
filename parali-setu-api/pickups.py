@@ -146,7 +146,7 @@ def build_jobs(bookings: list[dict], listings: dict[str, dict], locked_slots: di
         lat, lon, _ = location
         earliest, latest, _ = listing_window(listing, today)
         locks = locked_slots.get(booking["id"]) or []
-        if booking.get("status") == "booked" and locks:
+        if booking.get("status") in ("booked", "verified") and locks:
             for slot in locks:
                 jobs.append(PickupJob(
                     booking_id=f"{booking['id']}#v{slot['visit']}", depot_id=booking["depot_id"],
@@ -252,7 +252,7 @@ def plan_depot(db, depot_id: str, today: date | None = None, time_limit_seconds:
     for booking in bookings:
         status = booking.get("status")
         reason = reasons.get(booking["id"])
-        if status == "booked":
+        if status in ("booked", "verified"):
             summary["booked"] += 1
             if reason:
                 summary["needs_attention"] += 1
@@ -319,6 +319,30 @@ def replace_open_offers(db, farmer_id: str) -> list[str]:
     return depots
 
 
+VERIFY_CHECKS = ("phone", "location", "acres", "price")
+
+
+def verify_booking(db, booking: dict, by: str, checks: dict | None = None, notes: str | None = None) -> dict:
+    """A person has called the farmer and confirmed the details: only now is
+    the pickup put on a crew's dispatch sheet."""
+    record = {"status": "verified", "by": by, "at": now_ist().isoformat(), "notes": notes or None,
+              "checks": {k: bool((checks or {}).get(k, True)) for k in VERIFY_CHECKS}}
+    try:
+        return store.update_booking_status(db, booking["id"], "verified", {"verification": record})
+    except store.InvalidTransition as exc:
+        raise BookingError(str(exc)) from exc
+
+
+def flag_booking(db, booking: dict, by: str, notes: str) -> dict:
+    """The call found something to fix (a wrong village, a different acreage):
+    the pickup stays booked and is not dispatched until it is fixed."""
+    if booking.get("status") != "booked":
+        raise BookingError("Only a booked pickup awaiting its call can be marked for a change")
+    record = {"status": "needs_change", "by": by, "at": now_ist().isoformat(), "notes": notes}
+    store.update_booking_fields(db, booking["id"], {"verification": record})
+    return {**booking, "verification": record}
+
+
 def booking_view(db, booking: dict, depots: dict[str, dict] | None = None) -> dict:
     """A booking as the apps show it: depot name, slots, arrival window,
     payout estimate and when an unaccepted offer lapses."""
@@ -335,6 +359,8 @@ def booking_view(db, booking: dict, depots: dict[str, dict] | None = None) -> di
         "offer_expires_at": expires.isoformat() if expires and booking.get("status") in ("offered", "unschedulable") else None,
         "partner_crew": any(s.get("partner") for s in slots),
         "booking_code": booking_code(booking["id"]),
+        "verification": booking.get("verification") or ({"status": "verified"} if booking.get("status") in
+                                                          ("verified", "collected", "paid") else None),
     }
 
 
@@ -352,7 +378,8 @@ def accept_booking(db, booking: dict, accepted_by: str) -> dict:
         raise BookingError("This offer has expired -- please list again for a new slot")
     try:
         updated = store.update_booking_status(db, booking["id"], "booked",
-                                              {"slot_accepted_at": now_ist().isoformat(), "accepted_by": accepted_by})
+                                              {"slot_accepted_at": now_ist().isoformat(), "accepted_by": accepted_by,
+                                               "verification": {"status": "pending"}})
     except store.InvalidTransition as exc:
         raise BookingError(str(exc)) from exc
     locked = store.set_slots_status(db, booking["id"], "locked", locked=True)

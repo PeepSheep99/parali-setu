@@ -83,6 +83,41 @@ def depot_capacity_t_per_week(crews: list[dict], partner: bool) -> float:
                for c in crews if bool(c.get("partner")) == partner)
 
 
+ONCALL_ACRES_PER_DAY = 20.0
+
+
+def readiness(db, today: date | None = None, days: int = 14) -> list[dict]:
+    """For each of the next `days` days and each depot: the farm acres the
+    forecast expects us to clear (TimesFM timing x district straw x our booking
+    share, as in run_procurement, spread over working days), against what our
+    own crews clear in a day, and the on-call crews that gap needs."""
+    today = today or pickups.now_ist().date()
+    plan = store.get_plan(db, "procurement_current") or {}
+    shares = plan.get("district_depot_share", {})
+    by_week: dict[str, dict[str, float]] = {}
+    for row in plan.get("weekly", []):
+        share = shares.get(row["district"], {})
+        total = sum(share.values())
+        if not total or not row.get("bookable_t"):
+            continue
+        week = by_week.setdefault(row["week"], {})
+        for depot_id, s in share.items():
+            week[depot_id] = week.get(depot_id, 0.0) + row["bookable_t"] * s / total
+    out = []
+    for depot in store.get_depots(db):
+        crews = store.get_crews_for_depot(db, depot["id"])
+        own = sum(c.get("acres_per_day", 20.0) for c in crews if not c.get("partner"))
+        for i in range(days):
+            day = today + timedelta(days=i)
+            tonnes = by_week.get(_monday(day).isoformat(), {}).get(depot["id"], 0.0)
+            acres = round(tonnes / WORK_DAYS_PER_WEEK / STRAW_T_PER_ACRE, 1)
+            gap = max(0.0, acres - own)
+            out.append({"date": day.isoformat(), "depot_id": depot["id"], "depot_name": depot["name"],
+                        "forecast_acres": acres, "own_capacity_acres": own,
+                        "oncall_crews_needed": int(-(-gap // ONCALL_ACRES_PER_DAY))})
+    return out
+
+
 def active_orders(orders: list[dict]) -> list[dict]:
     return [o for o in orders if o.get("status") != "cancelled"]
 

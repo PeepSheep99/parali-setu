@@ -105,13 +105,14 @@ def get_draft(db: firestore.Client, draft_id: str) -> dict | None:
 BOOKING_TRANSITIONS = {
     "offered": {"booked", "expired", "cancelled", "unschedulable"},
     "unschedulable": {"offered", "expired", "cancelled"},
-    "booked": {"collected", "cancelled"},
+    "booked": {"verified", "cancelled"},          # a person calls the farmer before dispatch
+    "verified": {"collected", "cancelled"},
     "collected": {"paid"},
     "paid": set(),
     "expired": set(),
     "cancelled": set(),
 }
-ACTIVE_BOOKING_STATUSES = ("offered", "unschedulable", "booked")
+ACTIVE_BOOKING_STATUSES = ("offered", "unschedulable", "booked", "verified")
 
 
 class InvalidTransition(ValueError):

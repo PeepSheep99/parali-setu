@@ -72,7 +72,8 @@ Rules you must follow:
    kg, what they will be paid, and the pickup time, and ask if they agree. Say the
    pickup time using pickup_window_spoken exactly as given, never the raw date. Also read back
    the farmer's name and village from the offer's farm details and ask if they are right.
-7. Call confirm_booking only after the farmer clearly says yes to that offer.
+7. Call confirm_booking only after the farmer clearly says yes to that offer. After booking,
+   tell them our team will call to confirm before the crew comes; never promise when.
 8. Talk only about selling paddy straw, pickup, payment, and not burning. Politely
    decline anything else (politics, loans, medicine, other businesses) in one sentence
    and bring the talk back to their straw.
@@ -448,7 +449,8 @@ class Turn:
                                                        self.conv["language"]),
                   "payout_inr": result["booking"]["payout_estimate_inr"],
                   "booking_code": result["booking"]["booking_code"], "depot": result["booking"]["depot_name"],
-                  "sms": "simulated"}
+                  "sms": "simulated",
+                  "next_step": "Our team will call to confirm the details before the crew is sent. In this demo the call is simulated."}
         self.cards.append({"type": "booked", **booked})
         return booked
 

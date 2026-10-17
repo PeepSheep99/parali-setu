@@ -127,6 +127,9 @@ def test_collect_and_pay_flows_into_stock_payouts_and_impact(api):
     client.post(f"/ops/bookings/{booking['id']}/accept")
     assert store.get_booking(api["db"], booking["id"])["accepted_by"] == "ops (demo)"
     assert client.post(f"/stops/{booking['id']}/collected", json={"collected_kg": 99999}).status_code == 422
+    assert client.post(f"/stops/{booking['id']}/collected", json={}).status_code == 409, "collect only after the call"
+    verified = client.post(f"/ops/bookings/{booking['id']}/verify", json={"notes": "called, all correct"}).json()["booking"]
+    assert verified["status"] == "verified" and verified["verification"]["checks"]["location"] is True
     paid = client.post(f"/stops/{booking['id']}/collected", json={}).json()
     assert paid["booking"]["status"] == "paid" and paid["purchase"]["method"] == "UPI"
 
@@ -249,3 +252,32 @@ def test_orders_get_a_code_and_can_be_cancelled(api):
     assert client.post(f"/customers/cust_board/orders/{body['order']['id']}/cancel").status_code == 409
     listed = client.get("/customers/cust_board/orders").json()["orders"]
     assert any(o["id"] == body["order"]["id"] and o["status"] == "cancelled" for o in listed)
+
+
+def test_dispatch_board_shows_crews_calls_and_forecast_readiness(api):
+    booking = _offer(api)["booking"]
+    client.post(f"/ops/bookings/{booking['id']}/accept")
+    day = booking["slots"][0]["date"]
+    board = client.get("/ops/dispatch", params={"day": day}).json()
+    sangrur = next(d for d in board["depots"] if d["depot_id"] == booking["depot_id"])
+    stops = [s for c in sangrur["crews"] for s in c["stops"] if s["booking_id"] == booking["id"]]
+    assert stops and stops[0]["dispatch"] == "call first", "booked but not yet confirmed by a person"
+    assert any(q["booking_id"] == booking["id"] for q in board["verify_queue"])
+    assert all(not c["on_call"] or c["stops"] for c in sangrur["crews"]), "unused on-call crews are not hired"
+    assert {"forecast_acres", "own_capacity_acres", "oncall_crews_needed"} <= set(board["readiness"][0])
+    assert len(board["readiness"]) == 14 * len(store.get_depots(api["db"]))
+
+    client.post(f"/ops/bookings/{booking['id']}/verify", json={})
+    board = client.get("/ops/dispatch", params={"day": day}).json()
+    stop = next(s for d in board["depots"] for c in d["crews"] for s in c["stops"] if s["booking_id"] == booking["id"])
+    assert stop["dispatch"] == "ready" and not any(q["booking_id"] == booking["id"] for q in board["verify_queue"])
+
+
+def test_a_call_that_finds_a_problem_keeps_the_pickup_off_the_road(api):
+    booking = _offer(api)["booking"]
+    client.post(f"/ops/bookings/{booking['id']}/accept")
+    flagged = client.post(f"/ops/bookings/{booking['id']}/needs-change", json={"notes": "village is Bhawanigarh, not Sangrur city"}).json()
+    assert flagged["booking"]["status"] == "booked" and flagged["booking"]["verification"]["status"] == "needs_change"
+    assert client.post(f"/stops/{booking['id']}/collected", json={}).status_code == 409
+    assert client.post("/ops/verify-all").json()["verified"] >= 1
+    assert store.get_booking(api["db"], booking["id"])["status"] == "verified"

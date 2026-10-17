@@ -18,7 +18,7 @@ import base64
 import logging
 import os
 import time
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -32,6 +32,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 import agent
+import costs
 import firestore_store as store
 import live
 import operations
@@ -48,6 +49,7 @@ from forecast.demand_segments import EX_SITU_SOURCE, EX_SITU_TOTAL_T, SEGMENTS, 
 from geo import demo_farm_location, district_from_text
 from gemini_client import get_gemini_client
 from impact import impact_for_kg, punjab_scenario
+from scheduler import STRAW_T_PER_ACRE
 from phrases import confirm_summary, window_words
 from speech import synthesize_speech, transcribe_audio
 from trust import score_no_burn_submission
@@ -145,8 +147,8 @@ def impact_summary():
     db = store.get_firestore_client()
     collected_kg = booked_kg = paid_inr = 0.0
     farmers = set()
-    for b in store.get_bookings(db, ("booked", "collected", "paid")):
-        if b["status"] == "booked":
+    for b in store.get_bookings(db, ("booked", "verified", "collected", "paid")):
+        if b["status"] in ("booked", "verified"):
             booked_kg += b["kg"]
         else:
             collected_kg += b.get("collected_kg") or b["kg"]
@@ -668,7 +670,8 @@ def ops_summary():
         "pickups_today": len([s for s in slots_today if s["status"] == "locked"]),
         "tentative_today": len([s for s in slots_today if s["status"] == "tentative"]),
         "on_partner_crews": len({s["booking_id"] for s in slots_today if s.get("partner")}),
-        "needs_attention": [b["id"] for b in bookings if b.get("status") == "booked" and b.get("schedule_note")],
+        "needs_attention": [b["id"] for b in bookings if b.get("status") in ("booked", "verified") and b.get("schedule_note")],
+        "verify_queue": len([b for b in bookings if b.get("status") == "booked"]),
         "stock_t": round(sum(operations.depot_stock_t(db, d["id"]) for d in store.get_depots(db)), 1),
         "procurement_shortfall_t": procurement.get("shortfall_t"),
         "delivery_shortfall_t": deliveries.get("shortfall_t"),
@@ -728,7 +731,7 @@ def depot_schedule(depot_id: str):
                       "reason_code": b.get("status_reason_code")}
                      for b in bookings.values() if b.get("status") == "unschedulable"]
     attention = [{**_farm(listings.get(b["listing_id"], {}), b), "note": b["schedule_note"]}
-                 for b in bookings.values() if b.get("status") == "booked" and b.get("schedule_note")]
+                 for b in bookings.values() if b.get("status") in ("booked", "verified") and b.get("schedule_note")]
     return {"depot": depot, "route_sheets": route_sheets, "unschedulable": unschedulable, "needs_attention": attention}
 
 
@@ -769,6 +772,122 @@ def accept_on_behalf(booking_id: str):
     if booking is None:
         raise HTTPException(status_code=404, detail="Booking not found")
     return _accept(db, booking, "ops (demo)")
+
+
+class VerifyRequest(BaseModel):
+    checks: dict[str, bool] | None = None
+    notes: str | None = Field(default=None, max_length=500)
+
+
+@app.post("/ops/bookings/{booking_id}/verify")
+def verify_booking(booking_id: str, req: VerifyRequest):
+    """Our team called the farmer and confirmed phone, location, acres and
+    price (simulated call in the prototype): the pickup can now be dispatched."""
+    db = store.get_firestore_client()
+    booking = store.get_booking(db, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    try:
+        updated = pickups.verify_booking(db, booking, by="ops", checks=req.checks, notes=req.notes)
+    except pickups.BookingError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {"booking": pickups.booking_view(db, updated)}
+
+
+class FlagRequest(BaseModel):
+    notes: str = Field(min_length=3, max_length=500)
+
+
+@app.post("/ops/bookings/{booking_id}/needs-change")
+def flag_booking(booking_id: str, req: FlagRequest):
+    db = store.get_firestore_client()
+    booking = store.get_booking(db, booking_id)
+    if booking is None:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    try:
+        updated = pickups.flag_booking(db, booking, by="ops", notes=req.notes)
+    except pickups.BookingError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return {"booking": pickups.booking_view(db, updated)}
+
+
+@app.post("/ops/verify-all")
+def verify_all():
+    """Demo shortcut: confirm every booked pickup at once."""
+    db = store.get_firestore_client()
+    done = [pickups.verify_booking(db, b, by="ops (demo, all at once)")["id"] for b in store.get_bookings(db, ("booked",))]
+    return {"verified": len(done)}
+
+
+@app.get("/ops/dispatch")
+def dispatch(day: date | None = None):
+    """Who goes out on `day` (default tomorrow): each depot's crews with their
+    stops in order, which crews are on-call hires and what they cost, which
+    vehicles stay idle; the calls still to make; whether our crews cover the
+    forecast for the next two weeks; and the few things that need a person."""
+    db = store.get_firestore_client()
+    today = _today()
+    day = day or today + timedelta(days=1)
+    depots_out, queue, exceptions = [], [], []
+    premium = costs.PARTNER_COLLECTION_PER_T_INR - costs.OWN_COLLECTION_PER_T_INR
+    for depot in store.get_depots(db):
+        crews = store.get_crews_for_depot(db, depot["id"])
+        bookings = {b["id"]: b for b in store.get_bookings_for_depot(db, depot["id"])}
+        listings = {lid: doc for lid in {b["listing_id"] for b in bookings.values()} if (doc := store.get_listing(db, lid))}
+        slots = store.get_slots_for_depot(db, depot["id"])
+        by_crew: dict[str, list[dict]] = {}
+        for slot in slots:
+            booking = bookings.get(slot["booking_id"])
+            if slot["date"] != day.isoformat() or booking is None or booking.get("status") not in ("offered", "booked", "verified"):
+                continue
+            by_crew.setdefault(slot["crew_id"], []).append({
+                **_farm(listings.get(booking["listing_id"], {}), booking), "acres": slot["acres"],
+                "window": pickups.window_label(slot), "window_start_min": slot["window_start_min"],
+                "sequence": slot["sequence"], "booking_code": pickups.booking_code(booking["id"]),
+                "dispatch": {"verified": "ready", "booked": "call first", "offered": "awaiting farmer"}[booking["status"]]})
+        rows = []
+        for crew in crews:
+            stops = sorted(by_crew.get(crew["id"], []), key=lambda s: s["sequence"])
+            if crew.get("partner") and not stops:
+                continue          # an on-call crew we don't need is not hired
+            acres = round(sum(s["acres"] for s in stops), 1)
+            rows.append({"crew_id": crew["id"], "name": crew["name"], "on_call": bool(crew.get("partner")),
+                         "acres": acres, "acres_per_day": crew.get("acres_per_day", 20.0), "stops": stops,
+                         "start_min": min((s["window_start_min"] for s in stops), default=None),
+                         "hire_cost_inr": round(acres * STRAW_T_PER_ACRE * premium) if crew.get("partner") else 0})
+        own = [r for r in rows if not r["on_call"]]
+        depots_out.append({"depot_id": depot["id"], "name": depot["name"], "crews": rows,
+                           "own_crews_out": len([r for r in own if r["stops"]]), "own_crews_idle": len([r for r in own if not r["stops"]]),
+                           "oncall_hired": len([r for r in rows if r["on_call"]]),
+                           "hire_cost_inr": sum(r["hire_cost_inr"] for r in rows),
+                           "farms": sum(len(r["stops"]) for r in rows), "acres": round(sum(r["acres"] for r in rows), 1)})
+        first_slot = {}
+        for slot in slots:
+            key = (slot["date"], slot["window_start_min"])
+            if slot["booking_id"] not in first_slot or key < first_slot[slot["booking_id"]]:
+                first_slot[slot["booking_id"]] = key
+        for b in bookings.values():
+            farm = _farm(listings.get(b["listing_id"], {}), b)
+            if b.get("status") == "booked":
+                when = first_slot.get(b["id"])
+                queue.append({**farm, "booking_code": pickups.booking_code(b["id"]), "depot_name": depot["name"],
+                              "pickup_date": when[0] if when else None, "pickup_start_min": when[1] if when else None,
+                              "verification": b.get("verification") or {"status": "pending"},
+                              "farmer_name": listings.get(b["listing_id"], {}).get("farmer_name")})
+            elif b.get("status") == "unschedulable":
+                exceptions.append({"kind": "no_slot", "depot_name": depot["name"], **farm, "reason": b.get("status_reason")})
+            if b.get("status") in ("booked", "verified") and b.get("schedule_note"):
+                exceptions.append({"kind": "promise_at_risk", "depot_name": depot["name"], **farm, "reason": b["schedule_note"]})
+    queue.sort(key=lambda q: (q["pickup_date"] or "9999", q["pickup_start_min"] or 0))
+    procurement = store.get_plan(db, "procurement_current") or {}
+    deliveries = store.get_plan(db, "deliveries_current") or {}
+    if procurement.get("shortfall_t"):
+        exceptions.append({"kind": "orders_short_of_straw", "tonnes": procurement["shortfall_t"]})
+    if deliveries.get("shortfall_t"):
+        exceptions.append({"kind": "deliveries_short", "tonnes": deliveries["shortfall_t"],
+                           "orders": sorted({s["order_id"] for s in deliveries.get("shortfall", [])})})
+    return {"date": day.isoformat(), "today": today.isoformat(), "depots": depots_out, "verify_queue": queue,
+            "readiness": operations.readiness(db, today, 14), "exceptions": exceptions}
 
 
 class CollectedRequest(BaseModel):

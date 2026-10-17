@@ -46,7 +46,11 @@ DEPOTS = [
     ("dep_karnal", "Karnal depot", "Karnal", 6000, 90, 2),         # also serves Kaithal, Kurukshetra
 ]
 # Hired baler capacity each depot can call on per day (a simulated partner pool).
-PARTNER_CREWS_PER_DEPOT = 3
+# Crews hired for a day when our own are full. The scheduler uses them only
+# after our own crews (scheduler.plan_pickups' second pass), so an unused
+# on-call crew costs nothing; ops sees each one as a hire on the dispatch board.
+ONCALL_CREWS_PER_DEPOT = 6
+ONCALL_NAMES = "ABCDEFGH"
 
 # id, name, segment, district, tonnes per month (12-month forward order)
 CUSTOMERS = [
@@ -84,9 +88,9 @@ def seed_depots(db) -> None:
         store.save_depot(db, {"id": depot_id, "name": name, "district": district, "lat": lat, "lon": lon,
                               "capacity_t": capacity, "radius_km": radius})
         crews = [(f"{depot_id}_crew{k + 1}", f"Crew {k + 1}", False) for k in range(own_crews)]
-        crews += [(f"{depot_id}_partner{k + 1}", f"Partner baler {k + 1}", True) for k in range(PARTNER_CREWS_PER_DEPOT)]
+        crews += [(f"{depot_id}_oncall{k + 1}", f"On-call crew {ONCALL_NAMES[k]}", True) for k in range(ONCALL_CREWS_PER_DEPOT)]
         for crew_id, crew_name, partner in crews:
-            store.save_crew(db, {"id": crew_id, "depot_id": depot_id, "name": crew_name, "partner": partner,
+            store.save_crew(db, {"id": crew_id, "depot_id": depot_id, "name": crew_name, "partner": partner, "on_call": partner,
                                  "depot_lat": lat, "depot_lon": lon, "shift_start_min": 7 * 60,
                                  "shift_end_min": 18 * 60, "acres_per_day": 20.0})
 
@@ -144,6 +148,8 @@ def demo_run(db) -> dict:
                                     {"slot_accepted_at": pickups.now_ist().isoformat(), "accepted_by": "demo seed"})
         store.set_slots_status(db, booking["id"], "locked", locked=True)
         accepted.append(booking["id"])
+    for bid in accepted[:DEMO_COLLECTED]:   # collected pickups were called and confirmed first
+        pickups.verify_booking(db, store.get_booking(db, bid), by="demo seed")
     collected = [pickups.complete_pickup(db, bid)["purchase"]["amount_inr"] for bid in accepted[:DEMO_COLLECTED]]
     return {"accepted": len(accepted), "collected": len(collected), "paid_inr": round(sum(collected), 2)}
 

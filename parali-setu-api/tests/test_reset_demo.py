@@ -29,6 +29,7 @@ def test_full_demo_season(world):
 def test_demo_names_are_marked_and_assumptions_are_stated(world):
     assert all("(demo)" in c["name"] and c["demo"] for c in store.get_customers(world))
     partners = [c for d in store.get_depots(world) for c in store.get_crews_for_depot(world, d["id"]) if c["partner"]]
-    assert len(partners) == reset_demo.PARTNER_CREWS_PER_DEPOT * len(reset_demo.DEPOTS)
+    assert len(partners) == reset_demo.ONCALL_CREWS_PER_DEPOT * len(reset_demo.DEPOTS)
+    assert all(c["on_call"] and c["name"].startswith("On-call crew") for c in partners)
     plan = store.get_plan(world, "procurement_current")
     assert set(plan["assumptions"]) >= {"booking_share", "forecast_market_share", "forecast"}

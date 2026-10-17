@@ -8,7 +8,8 @@ def test_booking_lifecycle_allows_only_the_documented_moves():
     assert store.can_transition("offered", "booked")
     assert store.can_transition("offered", "expired")
     assert store.can_transition("unschedulable", "offered")
-    assert store.can_transition("booked", "collected")
+    assert store.can_transition("booked", "verified") and store.can_transition("verified", "collected")
+    assert not store.can_transition("booked", "collected"), "no crew goes before a person has confirmed the pickup"
     assert store.can_transition("collected", "paid")
     assert not store.can_transition("booked", "offered"), "an accepted slot is never silently un-accepted"
     assert not store.can_transition("offered", "paid"), "nobody is paid before collection"

@@ -2,6 +2,8 @@
 a depot (with partner crews), and collect-and-pay."""
 from datetime import date, datetime, timedelta
 
+import pytest
+
 import firestore_store as store
 import operations
 import pickups
@@ -87,6 +89,9 @@ def test_collecting_pays_the_farmer_the_same_day_and_adds_stock(world):
     booking = _book(world, "Sangrur", 8, TODAY, TODAY + timedelta(days=6), 1)
     pickups.plan_depot(world, booking["depot_id"])
     store.update_booking_status(world, booking["id"], "booked")
+    with pytest.raises(store.InvalidTransition):
+        pickups.complete_pickup(world, booking["id"], collected_kg=13000)
+    pickups.verify_booking(world, store.get_booking(world, booking["id"]), by="test")
     result = pickups.complete_pickup(world, booking["id"], collected_kg=13000)
     assert result["booking"]["status"] == "paid"
     assert result["purchase"]["amount_inr"] == round(13000 * booking["price_per_kg"], 2)
