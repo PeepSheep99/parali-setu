@@ -184,9 +184,13 @@ def plan_pickups(
     horizon_days: int = HORIZON_DAYS,
     time_limit_seconds: int = 3,
     not_before_min_today: int | None = None,
+    used_acres: dict[tuple[str, date], float] | None = None,
 ) -> ScheduleResult:
     """Plans every job over [start, start + horizon_days). Deterministic when
     time_limit_seconds is 0 (first solution only, used by tests).
+
+    `used_acres` is work already done on a crew-day (farms collected today),
+    which that crew-day can no longer offer to new farms.
 
     Two passes: our own crews first, then partner crews for whatever our
     crews could not fit. A slot locked onto a partner crew stays with it.
@@ -195,7 +199,7 @@ def plan_pickups(
     on day 0 from being planned before that time, so a farmer is never
     offered a slot that has already passed."""
     kwargs = dict(horizon_days=horizon_days, time_limit_seconds=time_limit_seconds,
-                  not_before_min_today=not_before_min_today)
+                  not_before_min_today=not_before_min_today, used_acres=used_acres or {})
     partners = [c for c in crews if c.partner]
     partner_ids = {c.id for c in partners}
     on_partner_lock = {j.booking_id for j in jobs if j.locked is not None and j.locked.crew_id in partner_ids}
@@ -217,6 +221,7 @@ def _plan_with(
     horizon_days: int,
     time_limit_seconds: int,
     not_before_min_today: int | None,
+    used_acres: dict[tuple[str, date], float],
 ) -> ScheduleResult:
     unschedulable: list[dict] = []
     crews_by_depot: dict[str, list[Crew]] = {}
@@ -292,7 +297,8 @@ def _plan_with(
 
     load_cb = routing.RegisterUnaryTransitCallback(lambda index: load[manager.IndexToNode(index)])
     routing.AddDimensionWithVehicleCapacity(
-        load_cb, 0, [int(round(c.acres_per_day * _ACRE_SCALE)) for c, _ in vehicles], True, "Acres")
+        load_cb, 0, [int(round(max(0.0, c.acres_per_day - used_acres.get((c.id, start + timedelta(days=d)), 0.0)) * _ACRE_SCALE))
+                     for c, d in vehicles], True, "Acres")
 
     for v, (crew, d) in enumerate(vehicles):
         day0 = d * MINUTES_PER_DAY

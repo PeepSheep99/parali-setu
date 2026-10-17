@@ -677,6 +677,33 @@ def get_delivery_plan():
             "deliveries": store.get_deliveries(db)}
 
 
+@app.get("/costs")
+def cost_model():
+    """The cost model behind posted prices and customer quotes, each figure
+    marked as sourced or as our working assumption."""
+    import costs
+    return {"items": [
+        {"key": "farm_gate_base", "label": "Base farm-gate price", "value": costs.FARM_GATE_BASE_PER_KG, "unit": "Rs/kg",
+         "kind": "decision", "note": f"posted prices stay within Rs {costs.FARM_GATE_MIN_PER_KG}-{costs.FARM_GATE_MAX_PER_KG}/kg"},
+        {"key": "shadow_share", "label": "Share of shadow price passed to farmers", "value": costs.SHADOW_PRICE_SHARE,
+         "unit": "", "kind": "decision", "note": "how much of a scarce district's marginal value goes into its price"},
+        {"key": "hired_baling", "label": "What farmers pay hired balers", "value": list(costs.HIRED_BALING_PER_T_INR),
+         "unit": "Rs/t", "kind": "sourced", "note": "Rs 2,500-4,000 per acre (Tribune) at 1.75 t/acre"},
+        {"key": "own_collection", "label": "Our crews' collection cost", "value": costs.OWN_COLLECTION_PER_T_INR,
+         "unit": "Rs/t", "kind": "assumption", "note": "below the hired rate because routes are planned densely"},
+        {"key": "partner_collection", "label": "Partner crew cost", "value": costs.PARTNER_COLLECTION_PER_T_INR,
+         "unit": "Rs/t", "kind": "assumption", "note": "low end of the hired rate"},
+        {"key": "haul", "label": "Truck freight", "value": costs.HAUL_PER_T_KM_INR, "unit": "Rs/t-km", "kind": "assumption",
+         "note": "road distance = straight line x 1.3"},
+        {"key": "storage", "label": "Storage", "value": costs.STORAGE_PER_T_MONTH_INR, "unit": "Rs/t/month",
+         "kind": "assumption", "note": "covered bale stack with fire watch"},
+        {"key": "benchmark", "label": "In-season delivered price at plants", "value": costs.IN_SEASON_DELIVERED_PER_T_INR,
+         "unit": "Rs/t", "kind": "sourced", "note": "about Rs 169 per quintal (Tribune)"},
+        {"key": "margin", "label": "Our margin on quotes", "value": costs.DEFAULT_MARGIN_PCT, "unit": "%", "kind": "decision",
+         "note": "added to delivered cost"},
+    ]}
+
+
 @app.get("/forecast")
 def forecast():
     """Supply: TimesFM's forecast of this season's harvest timing per district

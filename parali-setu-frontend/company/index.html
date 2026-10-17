@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Parali Setu · For industry</title>
+<link rel="icon" href="../kisan/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="../ops/ops.css">
+<link rel="stylesheet" href="company.css">
+</head>
+<body>
+<header class="bar">
+  <div class="bar-inner">
+    <a class="brand" href="../"><img src="../kisan/icon.svg" alt="" width="28" height="28"> Parali Setu <em>for industry</em></a>
+    <label class="picker" style="margin-left:auto">Signed in as <select id="customer"></select></label>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="intro">
+    <h1>Paddy straw, delivered all year</h1>
+    <p class="muted">We buy straw from farmers during the six-week harvest, store it at our depots and deliver it to your plant month by month. You sign a volume; we quote a price built from real costs; a satellite-based harvest forecast tells us how much we can collect and when.</p>
+    <ul class="why">
+      <li><strong>One supplier, not thousands of farmers.</strong> We collect, bale, store and haul.</li>
+      <li><strong>Year-round supply</strong> from five depots in Punjab and Haryana.</li>
+      <li><strong>Clean sourcing.</strong> Every tonne comes from a field that was cleared, not burned; farmers can submit satellite-checked proof.</li>
+    </ul>
+  </section>
+
+  <div class="two">
+    <section class="panel">
+      <h2>Get a quote</h2>
+      <form id="quote-form" class="inline-form">
+        <label>Tonnes a month <input id="q-tonnes" type="number" min="1" max="20000" step="1" value="200" required></label>
+        <label>For how many months <input id="q-months" type="number" min="1" max="12" step="1" value="6" required></label>
+        <label>Starting <input id="q-start" type="month" required></label>
+        <button type="submit" class="primary">Quote</button>
+      </form>
+      <div id="quote" hidden></div>
+    </section>
+
+    <section class="panel">
+      <h2>Your orders</h2>
+      <div id="orders"></div>
+    </section>
+  </div>
+  <p class="muted small">Demo customers are invented and marked "(demo)". Prices are built from the cost model shown on each quote; the in-season figure is what biomass plants pay for delivered straw during the harvest (about ₹169 per quintal, Tribune).</p>
+</main>
+
+<p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
+<script src="../config.js"></script>
+<script src="company.js"></script>
+</body>
+</html>

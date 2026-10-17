@@ -214,13 +214,17 @@ def plan_depot(db, depot_id: str, today: date | None = None, time_limit_seconds:
     crews = [crew_from_doc(c) for c in crew_docs]
     listings = {lid: doc for lid in {b["listing_id"] for b in bookings} if (doc := store.get_listing(db, lid))}
     locked: dict[str, list[dict]] = {}
+    used: dict[tuple[str, date], float] = {}
     for slot in store.get_slots_for_depot(db, depot_id):
         if slot.get("locked") and slot.get("status") == "locked":
             locked.setdefault(slot["booking_id"], []).append(slot)
+        elif slot.get("status") == "collected" and slot["date"] >= today.isoformat():
+            key = (slot["crew_id"], date.fromisoformat(slot["date"]))
+            used[key] = used.get(key, 0.0) + slot["acres"]
 
     jobs, unschedulable = build_jobs(bookings, listings, locked, today)
     result = plan_pickups(jobs, crews, today, horizon_days=HORIZON_DAYS, time_limit_seconds=time_limit_seconds,
-                          not_before_min_today=not_before)
+                          not_before_min_today=not_before, used_acres=used)
     unschedulable += result.unschedulable
     locked_job_ids = {j.booking_id for j in jobs if j.locked is not None}
     partner_ids = {c["id"] for c in crew_docs if c.get("partner")}

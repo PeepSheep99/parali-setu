@@ -3,15 +3,43 @@
     {
       "target": "parali-setu",
       "public": "parali-setu-frontend",
-      "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "README.md"],
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "README.md"
+      ],
       "redirects": [
-        { "source": "/farmer.html", "destination": "/kisan/", "type": 301 },
-        { "source": "/company.html", "destination": "/buyer/", "type": 301 }
+        {
+          "source": "/farmer.html",
+          "destination": "/kisan/",
+          "type": 301
+        },
+        {
+          "source": "/company.html",
+          "destination": "/company/",
+          "type": 301
+        },
+        {
+          "source": "/buyer",
+          "destination": "/ops/",
+          "type": 301
+        },
+        {
+          "source": "/buyer/**",
+          "destination": "/ops/",
+          "type": 301
+        }
       ],
       "headers": [
         {
           "source": "**/*.@(js|css)",
-          "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
         }
       ]
     }

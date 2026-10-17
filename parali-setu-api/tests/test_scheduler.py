@@ -161,3 +161,15 @@ def test_reason_codes_cover_every_reason():
                    REASON_NO_CREWS, REASON_BEYOND_HORIZON):
         assert reason_code(reason)
     assert reason_code(None) is None
+
+
+def test_work_already_collected_today_reduces_that_crew_days_capacity():
+    """A crew that already baled 15 acres today can take only 5 more today."""
+    j = job("m1", acres=8.0, earliest=START, latest=START)
+    fresh = plan_pickups([j], [crew()], START, horizon_days=2, time_limit_seconds=0)
+    assert [a.day for a in fresh.assignments] == [START]
+    busy = plan_pickups([j], [crew()], START, horizon_days=2, time_limit_seconds=0, used_acres={("crew1", START): 15.0})
+    assert busy.assignments == [] and busy.unschedulable[0]["reason"] in (REASON_BOOKED, REASON_NO_CAPACITY)
+    small = plan_pickups([job("m2", acres=4.0, earliest=START, latest=START)], [crew()], START, horizon_days=2,
+                         time_limit_seconds=0, used_acres={("crew1", START): 15.0})
+    assert [a.day for a in small.assignments] == [START], "5 acres are still free"
