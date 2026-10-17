@@ -1,11 +1,75 @@
-/* Customer portal: the ops console's palette and components, plus a short intro. */
-.intro { display: grid; gap: 10px; max-width: 80ch; }
-.intro h1 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
-.why { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; color: var(--ink-soft); }
-.why strong { color: var(--ink); }
-.wrap > * + * { margin-top: 16px; }
-.inline-form input[type=month] { border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; background: var(--surface); min-height: 38px; }
-.quote-price { font-family: var(--font-display); font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.compare { border-radius: 10px; background: var(--bg); padding: 10px 12px; font-size: .9rem; }
-.breakdown td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
-.breakdown tr.total td { font-weight: 600; border-top: 2px solid var(--ink); }
+/* Customer portal: the phulkari system for a procurement manager. One
+   sentence to price an order, the price built up in front of them, and each
+   order as a strip of months. */
+body { font-size: 16px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.bar { background: var(--surface); }
+.bar-inner { max-width: 1240px; margin: 0 auto; padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+             display: flex; gap: 16px; align-items: center; flex-wrap: wrap; justify-content: space-between; }
+.brand { display: flex; gap: 10px; align-items: center; text-decoration: none; color: var(--madder); font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; }
+.brand em { font-style: normal; font-family: var(--font-body); font-weight: 500; color: var(--thread-soft); font-size: .92rem; }
+.picker { display: flex; gap: 8px; align-items: center; font-size: .9rem; color: var(--thread-soft); }
+select, input { border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: 7px 10px; background: var(--surface); min-height: 40px; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 24px; }
+.intro { display: grid; gap: 10px; max-width: 74ch; }
+.intro h1 { font-size: var(--step-4); color: var(--madder); line-height: 1.05; }
+.intro p { margin: 0; color: var(--thread-soft); font-size: 1.05rem; }
+.promises { margin: 4px 0 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.promises li { display: flex; gap: 8px; align-items: baseline; color: var(--thread-soft); }
+.promises li::before { content: ""; flex: none; width: 9px; height: 9px; transform: rotate(45deg) translateY(-1px); background: var(--silk); }
+.promises strong { color: var(--thread); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 940px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--surface); border-radius: var(--r-lg); padding: 20px 22px; box-shadow: var(--shadow); display: grid; gap: 14px; min-width: 0; }
+.card h2 { font-size: 1.35rem; }
+
+/* the sentence form */
+.sentence { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 1.1rem; line-height: 1.5; }
+.sentence .field input { width: 6.5em; font: 600 1.1rem var(--font-body); text-align: center; color: var(--madder); border: 0; border-bottom: 2px solid var(--madder); border-radius: 0; background: transparent; padding: 2px 4px; min-height: 0; }
+.sentence .field input[type=month] { width: 10em; }
+.sentence .field input:focus { outline: none; background: var(--madder-soft); }
+.sentence .btn { margin-left: auto; }
+@media (max-width: 560px) { .sentence .btn { margin-left: 0; width: 100%; } }
+
+.quote { display: grid; gap: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+.hint { margin: 0; color: var(--thread-soft); font-size: .92rem; }
+.price-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+.price-line .big { font-family: var(--font-display); font-weight: 700; font-size: 2.8rem; line-height: 1; color: var(--madder); font-variant-numeric: tabular-nums; }
+.price-line .per { color: var(--thread-soft); }
+.price-line .total { font-weight: 600; }
+.compare { margin: 0; border-radius: var(--r); background: var(--khaddar); padding: 10px 12px; font-size: .92rem; }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart .axis text, .chart .lbl { font-family: var(--font-body); font-size: 13px; fill: var(--thread-soft); }
+.chart .lbl.dark { fill: var(--thread); font-weight: 600; }
+.commit { display: grid; gap: 8px; }
+.commit-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.months { display: grid; grid-template-columns: repeat(auto-fit, minmax(42px, 1fr)); gap: 4px; }
+.mcell { display: grid; gap: 3px; text-align: center; font-size: .72rem; color: var(--thread-soft); }
+.mcell .b { height: 36px; border-radius: 5px; background: var(--khaddar); position: relative; overflow: hidden; }
+.mcell .b i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--ok); }
+.mcell .b.gap { box-shadow: inset 0 0 0 1.5px var(--warn); }
+.mcell .b.gap i { background: var(--warn); }
+.mcell .b.none { box-shadow: inset 0 0 0 1.5px var(--line-strong); background: var(--surface); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.fine { margin: 0; font-size: .82rem; color: var(--thread-soft); }
+
+/* confirmation: a document-like order card */
+.po { border: 1px solid var(--line-strong); border-radius: var(--r); padding: 16px; display: grid; gap: 8px; background: var(--surface); position: relative; overflow: hidden; }
+.po::before { content: ""; position: absolute; inset: 0 0 auto; height: 8px; background: var(--bagh); background-size: 22px 8px; }
+.po .code { font-family: var(--font-display); font-weight: 700; font-size: 1.6rem; letter-spacing: .04em; margin-top: 6px; }
+
+/* orders */
+.orders { display: grid; gap: 14px; }
+.order { border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: grid; gap: 10px; }
+.order header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; }
+.order strong { font-family: var(--font-display); font-size: 1.1rem; }
+.order .meta { font-size: .86rem; color: var(--thread-soft); }
+.order.cancelled { opacity: .6; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .78rem; color: var(--thread-soft); }
+.legend i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.confirm-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .9rem; }
+.empty { margin: 0; color: var(--thread-soft); }
+.footnote { margin: 0; font-size: .82rem; color: var(--thread-soft); max-width: 90ch; }
+.tooltip { position: fixed; z-index: 30; pointer-events: none; background: var(--thread); color: #fff6ef; padding: 7px 10px; border-radius: var(--r-sm); font-size: .82rem; max-width: 260px; }
