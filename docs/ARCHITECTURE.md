@@ -84,7 +84,7 @@ sequenceDiagram
   participant T as Tools (planners, Firestore)
   participant TTS as /speech (Text-to-Speech)
   F->>API: text, a recording, or live audio (captions stream back)
-  API->>L: which language? (script and cue words; other scripts get a trilingual reply)
+  API->>L: which language? (script and cue words, other scripts get a trilingual reply)
   par English record
     API->>G: translate for the records (background)
   and the turn
@@ -96,7 +96,7 @@ sequenceDiagram
     end
     G-->>API: reply text
   end
-  API->>API: guardrails: numbers, claims, language; one rewrite, else a template
+  API->>API: guardrails: numbers, claims, language, then one rewrite or a template
   API-->>F: reply text + cards (offer, booked) at once
   F->>TTS: fetch the spoken reply alongside
 ```
