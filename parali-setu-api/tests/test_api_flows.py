@@ -66,7 +66,8 @@ def test_confirm_books_at_the_posted_price_with_a_slot(api):
     assert booking["pickup_window"] and booking["slots"]
     assert booking["payout_estimate_inr"] == round(17500 * booking["price_per_kg"], 2)
     assert booking["offer_expires_at"].startswith("2026-10-17T13:00")
-    assert body["explanation"]["text"] == f"{booking['price_per_kg']} {booking['pickup_window']}"
+    spoken = body["explanation"]["text"]
+    assert spoken.startswith(str(booking["price_per_kg"])) and booking["pickup_window"] not in spoken,         "the offer is narrated with a spoken window, not the raw ISO label"
     assert body["impact_if_collected"]["acres_cleared"] == 10.0
 
 

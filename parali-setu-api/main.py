@@ -41,7 +41,7 @@ from forecast.demand_segments import EX_SITU_SOURCE, EX_SITU_TOTAL_T, SEGMENTS, 
 from geo import district_from_text
 from gemini_client import get_gemini_client
 from impact import impact_for_kg, punjab_scenario
-from phrases import confirm_summary
+from phrases import confirm_summary, window_words
 from speech import synthesize_speech, transcribe_audio
 from trust import score_no_burn_submission
 
@@ -312,9 +312,11 @@ def confirm_listing(draft_id: str, req: ConfirmDraftRequest):
 
     explanation = None
     if view["status"] == "offered" and view["pickup_window"]:
+        slot = view["slots"][0]
         explanation = explain_offer(client, {
-            "price_per_kg": view["price_per_kg"], "district": district, "kg": view["kg"],
-            "payout_inr": view["payout_estimate_inr"], "pickup_window": view["pickup_window"],
+            "price_per_kg": view["price_per_kg"], "district": district, "kg": round(view["kg"]),
+            "payout_inr": round(view["payout_estimate_inr"]),
+            "pickup_window": window_words(slot["date"], slot["window_start_min"], slot["window_end_min"], language),
         }, language)
     return {
         "listing": listing,
