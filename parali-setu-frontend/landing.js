@@ -121,7 +121,19 @@
     clearTimeout(scenarioTimer);
     scenarioTimer = setTimeout(loadScenario, 250);
   });
+  // The fire map: the 2024 season's real fire pixels (a static file pulled from
+  // Earth Engine by forecast/fire_map_data.py) under our depots from the API.
+  async function loadFireMap() {
+    if (!$("firemap") || !window.FireMap) return;
+    const depots = await getJson("/depots").then((b) => b.depots).catch(() => []);
+    const map = await FireMap.mount($("firemap"), { season: "data/fires_2024.json", depots,
+      ariaLabel: "Satellite fire pixels in Punjab and Haryana, October and November 2024, with our five depots" });
+    $("map-title").textContent = `${fmt(map.total)} satellite fire detections in 61 days: the 2024 paddy season from space`;
+    $("map-lede").textContent = `Every red square is a NASA satellite fire pixel in Punjab or Haryana between 1 October and 30 November 2024; the worst day was ${FireMap.dayLabel(map.start, map.peakDay).replace(/ \d{4}$/, "")}, with ${fmt(map.byDay[map.peakDay])}. Press play to watch the burning move across the districts. The diamonds are our five depots; the dashed rings are how far their crews reach.`;
+  }
+
   loadLive();
   loadRecord();
   loadScenario();
+  loadFireMap();
 })();

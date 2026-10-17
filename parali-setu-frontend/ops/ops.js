@@ -420,9 +420,31 @@
     renderHeat();
     renderSkill();
     renderDemand();
+    renderFireMap();
     const straw = Object.entries(state.forecast.district_straw || {}).sort((a, b) => b[1].straw_t - a[1].straw_t);
     $("fc-straw").replaceChildren(table(["District", { label: "Rice", n: 1 }, { label: "Straw", n: 1 }, "Year"],
       straw.map(([d, v]) => h("tr", {}, h("td", {}, d), h("td", { class: "n" }, `${fmt(v.rice_t / 1e6, 2)} Mt`), h("td", { class: "n" }, `${fmt(v.straw_t / 1e6, 2)} Mt`), h("td", {}, String(v.year))))));
+  }
+
+  // This week's satellite fires (the daily FIRMS refresh), our depots and the
+  // farms on their route sheets, on the district map.
+  async function renderFireMap() {
+    if (!window.FireMap || state.fireMapDone) return;
+    state.fireMapDone = true;
+    if (!state.depots.length) state.depots = (await api("/depots")).depots;
+    const [fires, ...schedules] = await Promise.all([
+      api("/fire-detections").catch(() => ({ detections: [] })),
+      ...state.depots.map((d) => api(`/depots/${encodeURIComponent(d.id)}/schedule`).catch(() => ({ route_sheets: [] }))),
+    ]);
+    const farms = new Map();
+    for (const s of schedules) for (const sheet of s.route_sheets || []) for (const stop of sheet.stops || []) {
+      if (stop.lat != null) farms.set(stop.booking_id, { lat: stop.lat, lon: stop.lon });
+    }
+    const live = fires.detections || [];
+    const cov = fires.coverage;
+    $("fm-sub").textContent = `${fmt(live.length)} NASA FIRMS fire detection${live.length === 1 ? "" : "s"} in our area${cov ? ` from ${short(cov.start_date)} to ${short(cov.end_date)}` : ""} (refreshed daily at 06:30), our ${state.depots.length} depots and the ${fmt(farms.size)} farms on crews' route sheets. A fire near a booked farm is a farm to reach first.`;
+    await FireMap.mount($("ops-firemap"), { season: "../data/fires_2024.json", outlinesOnly: true, depots: state.depots,
+      farms: [...farms.values()], live, ariaLabel: "Map of this week's satellite fires, our depots and booked farms" });
   }
 
   async function renderSeasons() {

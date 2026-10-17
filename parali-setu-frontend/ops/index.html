@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Baloo+Paaji+2:wght@500;600;700&family=Hind:wght@400;500;600&family=Mukta+Mahee:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../shared/tokens.css">
 <link rel="stylesheet" href="ops.css">
+<link rel="stylesheet" href="../shared/firemap.css">
 </head>
 <body>
 <header class="bar">
@@ -105,6 +106,11 @@
       <div id="fc-curve" class="chart"></div>
       <details><summary>Show as a table</summary><div id="fc-table"></div></details>
     </section>
+    <section class="panel">
+      <h2>Fires this week, around our farms</h2>
+      <p class="muted small" id="fm-sub">NASA FIRMS fire detections from the last daily refresh, our depots and the farms booked with us. A fire near a booked farm is a farm to reach first.</p>
+      <div id="ops-firemap"></div>
+    </section>
     <div class="two">
       <section class="panel">
         <h2>Where the straw comes first</h2>
@@ -163,6 +169,7 @@
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
 <script src="../config.js"></script>
+<script src="../shared/firemap.js"></script>
 <script src="ops.js"></script>
 </body>
 </html>
