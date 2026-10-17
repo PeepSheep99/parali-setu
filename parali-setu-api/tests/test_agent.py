@@ -230,3 +230,19 @@ def test_the_offer_reads_back_the_farm_and_the_booking_gets_a_code(chat, world):
                   first["conversation_id"])
     booked = next(c for c in second["cards"] if c["type"] == "booked")
     assert booked["booking_code"].startswith("PS-") and len(booked["booking_code"]) == 7 and booked["sms"] == "simulated"
+
+
+def test_service_terms_answer_the_questions_farmers_ask(chat):
+    result = chat([[("get_service_terms", {})], lambda r: "ਪੈਸੇ ਉਸੇ ਦਿਨ ਡਿਜੀਟਲ ਟ੍ਰਾਂਸਫਰ ਨਾਲ ਮਿਲਣਗੇ, ਇਸ ਡੈਮੋ ਵਿੱਚ ਅਸਲੀ ਪੈਸੇ ਨਹੀਂ"],
+                  "ਪੈਸੇ ਕਿਵੇਂ ਮਿਲਣਗੇ? ਟਰੱਕ ਨਾ ਆਇਆ ਤਾਂ?")
+    assert result["guardrails"]["tool_calls"][0] == {"name": "get_service_terms", "args": {}, "ok": True}
+    terms = agent.SERVICE_TERMS
+    assert "partner crew" in terms["if_crew_does_not_come"] and "simulated" in terms["payment"]
+    assert not agent.forbidden_claims(" ".join(str(v) for v in terms.values()), []), "our own answers pass our own guardrail"
+    assert not agent.numbers_in(" ".join(str(v) for v in terms.values() if isinstance(v, str)))
+
+
+def test_a_very_close_sowing_date_is_flagged_and_unserved_places_list_the_districts():
+    w = agent.listing_warnings({"sowing_deadline": "2026-10-19", "village_or_district": "Amritsar"}, set(), TODAY)
+    codes = {x["code"]: x for x in w}
+    assert "sowing_very_soon" in codes and "Sangrur" in codes["place_not_recognised"]["served_districts"]

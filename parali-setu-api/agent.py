@@ -35,7 +35,7 @@ import operations
 import pickups
 from extraction import to_english, understand_audio
 from gemini_client import GEMINI_MODEL, quota_cooling_down
-from geo import district_from_text, demo_farm_location
+from geo import DISTRICT_COORDS, district_from_text, demo_farm_location
 from impact import impact_for_kg
 from phrases import window_words
 from scheduler import STRAW_T_PER_ACRE
@@ -69,6 +69,10 @@ Rules you must follow:
    decline anything else (politics, loans, medicine, other businesses) in one sentence
    and bring the talk back to their straw.
 9. Never promise anything a tool did not return: no subsidies, no other prices.
+   When the farmer asks how payment works, how the straw is weighed, what happens if the
+   crew does not come, who we are or how the price is set, call get_service_terms and answer
+   that question first, in plain words, before going back to booking. Ask them to book at
+   most once in a reply.
 10. Parali Setu is a private company, not the government and not a government scheme. Never
     call the price "government" or "official". Payments in this prototype are simulated: never
     ask the farmer to trust us, never say "without worry", and never guarantee anything.
@@ -114,6 +118,11 @@ TOOLS = types.Tool(function_declarations=[
             "farmer_said_yes": {"type": "boolean"}}, "required": ["farmer_said_yes"]},
     ),
     types.FunctionDeclaration(
+        name="get_service_terms",
+        description="How Parali Setu works: payment, weighing, what happens if our crew does not come, who we are, how the price is set. Call it whenever the farmer asks about any of these.",
+        parameters_json_schema={"type": "object", "properties": {}},
+    ),
+    types.FunctionDeclaration(
         name="my_bookings",
         description="The farmer's pickups and payments so far.",
         parameters_json_schema={"type": "object", "properties": {}},
@@ -126,6 +135,17 @@ TOOLS = types.Tool(function_declarations=[
             "required": ["booking_id", "farmer_said_yes"]},
     ),
 ])
+
+# Fixed, prototype-honest answers to the questions farmers ask before they book.
+# No digits here: the number guardrail only lets through numbers a tool returned.
+SERVICE_TERMS = {
+    "who_we_are": "Parali Setu is a private company. This is a demo prototype.",
+    "price": "One posted price per district per day, set by our planner from how much straw we need and how much we expect. There is no bargaining, and the price you are offered does not change during the day.",
+    "payment": "In this prototype payment is a simulated UPI transfer on the day our crew collects. No real money moves.",
+    "weighing": "The straw is weighed on a weighbridge at the depot and you are paid for the weighed kilograms. The weight in the offer is an estimate from your area.",
+    "if_crew_does_not_come": "If our own crew cannot come, a partner crew is booked before your sowing date, our team is alerted, and you can cancel for free at any time before collection.",
+    "field_cleared_free": True,
+}
 
 LISTING_KEYS = ("acres", "quantity_kg", "crop_type", "village_or_district", "ready_by", "sowing_deadline", "contact",
                 "farmer_name")
@@ -241,8 +261,11 @@ def listing_warnings(fields: dict, stated: set[str], today: date) -> list[dict]:
         warnings.append({"code": "sowing_date_passed", "sowing_deadline": sowing})
     if sowing and ready and ready > sowing:
         warnings.append({"code": "ready_after_sowing", "ready_by": ready, "sowing_deadline": sowing})
+    if sowing and sowing >= today.isoformat() and (date.fromisoformat(sowing) - today).days <= 2:
+        warnings.append({"code": "sowing_very_soon", "sowing_deadline": sowing})
     if fields.get("village_or_district") and pickups.listing_district(fields) is None:
-        warnings.append({"code": "place_not_recognised", "village_or_district": fields["village_or_district"]})
+        warnings.append({"code": "place_not_recognised", "village_or_district": fields["village_or_district"],
+                         "served_districts": sorted(DISTRICT_COORDS)})
     return warnings
 
 
@@ -347,7 +370,7 @@ class Turn:
             "conversation_id": self.conv["id"]}, self.conv["language"])
         booking, price = operations.book_listing(self.db, listing)
         if booking is None:
-            return {"error": "out_of_area", "district": district}
+            return {"error": "out_of_area", "district": district, "served_districts": sorted(DISTRICT_COORDS)}
         pickups.plan_depots(self.db, {*replaced, booking["depot_id"]})
         view = pickups.booking_view(self.db, store.get_booking(self.db, booking["id"]))
         self.conv["booking_id"], self.conv["offer_turn"] = view["id"], self.index
@@ -390,6 +413,9 @@ class Turn:
                   "sms": "simulated"}
         self.cards.append({"type": "booked", **booked})
         return booked
+
+    def tool_get_service_terms(self) -> dict:
+        return dict(SERVICE_TERMS)
 
     def tool_my_bookings(self) -> dict:
         views = [pickups.booking_view(self.db, b) for b in store.get_bookings_for_farmer(self.db, self.conv["farmer_id"])
