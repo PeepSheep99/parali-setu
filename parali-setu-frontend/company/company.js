@@ -101,7 +101,9 @@
         h("table", {}, h("thead", {}, h("tr", {}, h("th", {}, "Month"), h("th", { class: "num" }, "Ordered"), h("th", { class: "num" }, "Planned"), h("th", {}, ""))),
           h("tbody", {}, months.map((m) => h("tr", {}, h("td", {}, month(m)), h("td", { class: "n" }, `${fmt(o.tonnes_by_month[m])} t`),
             h("td", { class: "n" }, `${fmt(delivered[m] || 0)} t`),
-            h("td", {}, shortBy[m] ? h("span", { class: "pill warn" }, `short ${fmt(shortBy[m])} t`) : h("span", { class: "pill booked" }, "covered")))))));
+            h("td", {}, shortBy[m] ? h("span", { class: "pill warn" }, `short ${fmt(shortBy[m])} t`)
+              : (delivered[m] || 0) + 0.05 >= o.tonnes_by_month[m] ? h("span", { class: "pill booked" }, "covered")
+              : h("span", { class: "pill" }, "not planned yet")))))));
     }) : [h("p", { class: "empty" }, "No orders yet. Get a quote to start.")]));
   }
 

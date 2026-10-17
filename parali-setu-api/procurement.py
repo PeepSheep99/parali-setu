@@ -176,7 +176,8 @@ def plan_procurement(supply: list[DistrictSupply], depots: list[Depot], sales: S
         sell_committed_t=round(sell_c.solution_value(), 2),
         sell_forecast_t=round(sell_f.solution_value(), 2),
         shortfall_t=round(short.solution_value(), 2),
-        margin_inr=round(obj.Value(), 2),
+        # The shortfall penalty steers the solver; it is not money anyone pays.
+        margin_inr=round(obj.Value() + SHORTFALL_PENALTY_PER_T * short.solution_value(), 2),
     )
     for key, row in supply_rows.items():
         shadow = max(0.0, row.dual_value())

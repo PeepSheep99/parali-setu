@@ -137,3 +137,12 @@ def test_nearest_depot_ships_first():
     orders = [OrderLine("o1", "c1", PATIALA[0] + 0.05, PATIALA[1], tonnes_by_month=(500,))]
     plan = plan_deliveries(depots, orders, months=1)
     assert plan.shipments == {("near", "o1", 0): pytest.approx(500)}
+
+
+def test_margin_is_real_money_and_leaves_out_the_shortfall_penalty():
+    plan = plan_procurement([supply(weekly=(200, 200))], [depot()],
+                            SalesBook(committed_t=5000, committed_price_per_t=2600, forecast_t=0, forecast_price_per_t=0))
+    assert plan.shortfall_t > 4000
+    # 400 t sold at 2,600 can't lose crores: the penalty only steers the solver.
+    assert abs(plan.margin_inr) < 400 * 2600
+    assert plan.margin_inr > 0
