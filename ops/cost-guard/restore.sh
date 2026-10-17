@@ -3,7 +3,7 @@
 # Run only after you've checked billing and decided it's safe to resume.
 set -euo pipefail
 
-PROJECT_ID="${GCP_PROJECT_ID:-parali-setu-aibuildercup2026}"
+PROJECT_ID="${GCP_PROJECT_ID:-parali-setu-aibuildercup-2026}"
 REGION="${REGION:-asia-southeast1}"
 SERVICES="${SERVICES:-parali-setu-api}"
 

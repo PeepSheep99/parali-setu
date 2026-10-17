@@ -1,12 +1,12 @@
 {
   "projects": {
-    "default": "parali-setu-aibuildercup2026"
+    "default": "parali-setu-aibuildercup-2026"
   },
   "targets": {
-    "parali-setu-aibuildercup2026": {
+    "parali-setu-aibuildercup-2026": {
       "hosting": {
         "parali-setu": [
-          "parali-setu-aibuildercup2026"
+          "parali-setu-aibuildercup-2026"
         ]
       }
     }

@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 
 from google.cloud import firestore
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "parali-setu-aibuildercup2026")
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "parali-setu-aibuildercup-2026")
 
 
 def get_firestore_client() -> firestore.Client:

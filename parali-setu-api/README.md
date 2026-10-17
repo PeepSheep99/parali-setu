@@ -35,7 +35,7 @@ A FastAPI service on Cloud Run. The design is in [../docs/ARCHITECTURE.md](../do
 
 | Variable | Default |
 |---|---|
-| `GCP_PROJECT_ID` | `parali-setu-aibuildercup2026` |
+| `GCP_PROJECT_ID` | `parali-setu-aibuildercup-2026` |
 | `GEMINI_MODEL` | `gemini-3.5-flash` |
 | `AGENT_FALLBACK_MODEL`, `AGENT_FALLBACK_LOCATION` | `gemini-2.5-flash`, `asia-south1` |
 | `LIVE_TRANSCRIBE_MODEL`, `LIVE_LOCATION` | `gemini-3.5-transcribe-live`, `global` |
@@ -60,7 +60,7 @@ whole flows run in tests: book → plan → accept → verify → collect → pa
 ## Deploy
 
 ```bash
-gcloud run deploy parali-setu-api --source . --project parali-setu-aibuildercup2026 --region asia-southeast1 \
+gcloud run deploy parali-setu-api --source . --project parali-setu-aibuildercup-2026 --region asia-southeast1 \
   --allow-unauthenticated --memory 1Gi --timeout 300 --max-instances 3 \
-  --set-env-vars GCP_PROJECT_ID=parali-setu-aibuildercup2026,GEMINI_MODEL=gemini-3.5-flash,AGENT_PLATFORM_LOCATION=global
+  --set-env-vars GCP_PROJECT_ID=parali-setu-aibuildercup-2026,GEMINI_MODEL=gemini-3.5-flash,AGENT_PLATFORM_LOCATION=global
 ```

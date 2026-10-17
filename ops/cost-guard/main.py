@@ -23,7 +23,7 @@ import os
 
 import functions_framework
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "parali-setu-aibuildercup2026")
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "parali-setu-aibuildercup-2026")
 REGION = os.environ.get("REGION", "asia-southeast1")
 TRIGGER_BUDGET_NAME = os.environ.get("TRIGGER_BUDGET_NAME", "Parali Setu - REAL money (net)")
 SERVICES = [s for s in os.environ.get("SERVICES", "parali-setu-api").split(",") if s]
