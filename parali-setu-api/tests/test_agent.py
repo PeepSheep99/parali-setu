@@ -79,7 +79,8 @@ def chat(world, monkeypatch):
 
 
 SANGRUR_CALL = ("update_listing", {"acres": 10, "crop_type": "rice_stubble", "village_or_district": "Bahadurpur, Sangrur",
-                                   "sowing_deadline": "2026-10-24"})
+                                   "sowing_deadline": "2026-10-24", "farmer_name": "Gurmeet Singh",
+                                   "contact": "98765 43210"})
 
 
 def _offer_text(r):
@@ -138,7 +139,7 @@ def test_missing_details_and_mismatches_come_back_as_questions(chat):
                   "10 ਕਿੱਲੇ, 2000 ਕਿਲੋ ਪਰਾਲੀ")
     draft = next(c for c in result["cards"] if c["type"] == "draft")
     assert {w["code"] for w in draft["warnings"]} == {"acres_weight_mismatch"}
-    assert set(draft["missing_fields"]) == {"crop_type", "location", "sowing_deadline"}
+    assert set(draft["missing_fields"]) == {"crop_type", "location", "sowing_deadline", "name", "phone"}
     assert result["guardrails"]["fallback"] is False, "17500 came from the tool, so the reply may say it"
 
 
@@ -180,7 +181,7 @@ def test_agent_turn_endpoint_speaks_and_returns_cards(world, monkeypatch):
 
 def test_a_withdrawn_weight_is_cleared_and_a_mismatch_blocks_booking(chat, world):
     first = chat([[("update_listing", {"acres": 8, "quantity_kg": 3000, "crop_type": "rice_stubble",
-                                       "village_or_district": "Patiala", "sowing_deadline": "2026-10-22"})],
+                                       "village_or_district": "Patiala", "sowing_deadline": "2026-10-22", "farmer_name": "Gurmeet", "contact": "9876543210"})],
                   [("find_pickup_slot", {})], lambda r: "ਪਹਿਲਾਂ ਵਜ਼ਨ ਦੱਸੋ"], "8 ਕਿੱਲੇ, 3000 ਕਿਲੋ, ਪਟਿਆਲਾ, 22 ਤਰੀਕ")
     refused = next(c for c in first["guardrails"]["tool_calls"] if c["name"] == "find_pickup_slot")
     assert refused["ok"] is False and first["booking_id"] is None, "no booking while acres and weight disagree"
@@ -208,3 +209,24 @@ def test_a_reply_that_calls_the_rate_government_is_regenerated(chat):
                   "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
     g = result["guardrails"]
     assert g["blocked_claims"] == ["government"] and g["regenerated"] and not g["fallback"]
+
+
+def test_name_and_a_valid_mobile_are_required_before_an_offer(chat):
+    no_contact = ("update_listing", {"acres": 10, "crop_type": "rice_stubble", "village_or_district": "Sangrur",
+                                     "sowing_deadline": "2026-10-24", "contact": "12345"})
+    result = chat([[no_contact], [("find_pickup_slot", {})], lambda r: "ਨਾਮ ਅਤੇ ਮੋਬਾਈਲ ਨੰਬਰ ਦੱਸੋ"], "ਦਸ ਕਿੱਲੇ ਸੰਗਰੂਰ")
+    assert result["missing_fields"] == ["name", "phone"]
+    assert not any(c["type"] == "offer" for c in result["cards"])
+
+
+def test_the_offer_reads_back_the_farm_and_the_booking_gets_a_code(chat, world):
+    first = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], _offer_text], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    offer = next(c for c in first["cards"] if c["type"] == "offer")
+    assert offer["farm"]["name"] == "Gurmeet Singh" and offer["farm"]["phone"] == "+91 ******3210"
+    assert offer["farm"]["location"] == "demo location"
+    fields = store.get_conversation(world, first["conversation_id"])["fields"]
+    assert fields["contact"] == "+919876543210" and fields["location_source"] == "demo"
+    second = chat([[("confirm_booking", {"farmer_said_yes": True})], lambda r: "ਬੁੱਕ ਹੋ ਗਿਆ"], "ਹਾਂ ਜੀ, ਕਰ ਦਿਓ",
+                  first["conversation_id"])
+    booked = next(c for c in second["cards"] if c["type"] == "booked")
+    assert booked["booking_code"].startswith("PS-") and len(booked["booking_code"]) == 7 and booked["sms"] == "simulated"

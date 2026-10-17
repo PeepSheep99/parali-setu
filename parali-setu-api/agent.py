@@ -35,7 +35,7 @@ import operations
 import pickups
 from extraction import to_english, understand_audio
 from gemini_client import GEMINI_MODEL, quota_cooling_down
-from geo import district_from_text
+from geo import district_from_text, demo_farm_location
 from impact import impact_for_kg
 from phrases import window_words
 from scheduler import STRAW_T_PER_ACRE
@@ -58,10 +58,12 @@ Rules you must follow:
    "Killa"/"kille" means acre. Never convert acres to weight yourself. If the farmer
    corrects or withdraws a detail, pass it in clear_fields.
 4. If update_listing returns warnings, ask one short question that resolves them.
-5. If details are missing, ask for all of them together in one short question.
+5. If details are missing, ask for all of them together in one short question. Besides the
+   straw details we always need the farmer's name and mobile number (and a village or district).
 6. When nothing is missing, call find_pickup_slot. Then tell the farmer the price per
    kg, what they will be paid, and the pickup time, and ask if they agree. Say the
-   pickup time using pickup_window_spoken exactly as given, never the raw date.
+   pickup time using pickup_window_spoken exactly as given, never the raw date. Also read back
+   the farmer's name and village from the offer's farm details and ask if they are right.
 7. Call confirm_booking only after the farmer clearly says yes to that offer.
 8. Talk only about selling paddy straw, pickup, payment, and not burning. Politely
    decline anything else (politics, loans, medicine, other businesses) in one sentence
@@ -75,7 +77,7 @@ Today's date is {today}. What we already know in this conversation:
 {facts}"""
 
 LISTING_KEYS_FOR_SCHEMA = ("acres", "quantity_kg", "crop_type", "village_or_district", "ready_by", "sowing_deadline",
-                           "contact")
+                           "contact", "farmer_name")
 
 TOOLS = types.Tool(function_declarations=[
     types.FunctionDeclaration(
@@ -95,7 +97,8 @@ TOOLS = types.Tool(function_declarations=[
             "village_or_district": {"type": "string"},
             "ready_by": {"type": "string", "description": "YYYY-MM-DD when the straw is ready"},
             "sowing_deadline": {"type": "string", "description": "YYYY-MM-DD by which the field must be clear"},
-            "contact": {"type": "string", "description": "Phone number, only if the farmer gave one"},
+            "contact": {"type": "string", "description": "Mobile phone number, only if the farmer gave one"},
+            "farmer_name": {"type": "string", "description": "The farmer's own name, only if they said it"},
             "clear_fields": {"type": "array", "items": {"type": "string", "enum": list(LISTING_KEYS_FOR_SCHEMA)},
                              "description": "Details the farmer corrected or withdrew, e.g. a weight they are not sure of"}}},
     ),
@@ -124,7 +127,8 @@ TOOLS = types.Tool(function_declarations=[
     ),
 ])
 
-LISTING_KEYS = ("acres", "quantity_kg", "crop_type", "village_or_district", "ready_by", "sowing_deadline", "contact")
+LISTING_KEYS = ("acres", "quantity_kg", "crop_type", "village_or_district", "ready_by", "sowing_deadline", "contact",
+                "farmer_name")
 
 # ---- guardrail: numbers ---------------------------------------------------
 
@@ -291,6 +295,7 @@ class Turn:
                 stated.discard(key)
         if "quantity_kg" not in stated and "acres" in stated:
             fields.pop("quantity_kg", None)
+        rejected = []
         for key in LISTING_KEYS:
             value = kwargs.get(key)
             if value in (None, ""):
@@ -298,6 +303,11 @@ class Turn:
             if key in ("ready_by", "sowing_deadline"):
                 value = _valid_date(value)
                 if value is None:
+                    continue
+            if key == "contact":
+                value = pickups.normalise_phone(value)
+                if value is None:
+                    rejected.append("contact")
                     continue
             if key in ("acres", "quantity_kg"):
                 value = float(value)
@@ -310,14 +320,16 @@ class Turn:
         fields = pickups.complete_quantities(fields)
         self.conv["fields"], self.conv["stated"] = fields, sorted(stated)
         result = {"fields": fields, "district": pickups.listing_district(fields),
-                  "missing_fields": pickups.missing_fields(fields),
+                  "missing_fields": pickups.agent_missing_fields(fields),
                   "warnings": listing_warnings(fields, stated, pickups.now_ist().date())}
+        if rejected:
+            result["not_a_valid_mobile_number"] = True
         self.cards.append({"type": "draft", **result})
         return result
 
     def tool_find_pickup_slot(self) -> dict:
         fields = self.conv.get("fields") or {}
-        missing = pickups.missing_fields(fields)
+        missing = pickups.agent_missing_fields(fields)
         if missing:
             return {"error": "missing_details", "missing_fields": missing}
         warnings = listing_warnings(fields, set(self.conv.get("stated") or []), pickups.now_ist().date())
@@ -325,6 +337,10 @@ class Turn:
         if blocking:
             return {"error": "resolve_with_farmer_first", "warnings": blocking}
         replaced = pickups.replace_open_offers(self.db, self.conv["farmer_id"])
+        if fields.get("lat") is None:     # prototype: "detect my location" is a demo farm, see geo.demo_farm_location
+            lat, lon, _ = demo_farm_location(pickups.listing_district(fields), self.conv["farmer_id"])
+            fields = {**fields, "lat": lat, "lon": lon, "location_source": "demo"}
+            self.conv["fields"] = fields
         district = pickups.listing_district(fields)
         listing = store.save_listing(self.db, self.conv["farmer_id"], {
             **fields, "district": district, "quality_grade": (self.conv.get("quality") or {}).get("grade", "unknown"),
@@ -343,7 +359,10 @@ class Turn:
                  "pickup_window_spoken": window_words(slot["date"], slot["window_start_min"], slot["window_end_min"],
                                                       self.conv["language"]),
                  "depot": view["depot_name"], "offer_valid_until": view["offer_expires_at"],
-                 "field_cleared_free": True, "paid_same_day": True}
+                 "field_cleared_free": True, "paid_same_day": True,
+                 "farm": {"name": fields.get("farmer_name"), "phone": pickups.mask_phone(fields.get("contact")),
+                          "village": fields.get("village_or_district"), "acres": fields.get("acres"),
+                          "location": "demo location" if fields.get("location_source") == "demo" else None}}
         self.cards.append({"type": "offer", **offer, "impact": impact_for_kg(view["kg"]),
                            "partner_crew": view["partner_crew"]})
         return offer
@@ -366,7 +385,9 @@ class Turn:
         booked = {"booking_id": booking_id, "status": "booked", "pickup_window": result["pickup_window"],
                   "pickup_window_spoken": window_words(slot["date"], slot["window_start_min"], slot["window_end_min"],
                                                        self.conv["language"]),
-                  "payout_inr": result["booking"]["payout_estimate_inr"]}
+                  "payout_inr": result["booking"]["payout_estimate_inr"],
+                  "booking_code": result["booking"]["booking_code"], "depot": result["booking"]["depot_name"],
+                  "sms": "simulated"}
         self.cards.append({"type": "booked", **booked})
         return booked
 
@@ -521,5 +542,5 @@ def take_turn(db, client, farmer_id: str, language: str, words: str, english: st
     store.save_conversation(db, conv)
     return {"conversation_id": conv["id"], "heard": {"text": words, "english": english}, "reply": reply,
             "cards": turn.cards, "fields": conv.get("fields") or {},
-            "missing_fields": pickups.missing_fields(conv.get("fields") or {}),
+            "missing_fields": pickups.agent_missing_fields(conv.get("fields") or {}),
             "booking_id": conv.get("booking_id"), "guardrails": report}

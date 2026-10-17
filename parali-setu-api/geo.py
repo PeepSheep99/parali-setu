@@ -61,3 +61,18 @@ def district_from_text(text: str | None) -> str | None:
         return None
     lowered = text.lower()
     return next((d for d, names in DISTRICT_ALIASES.items() if any(n in lowered for n in names)), None)
+
+
+DEMO_FARM_DISTRICT = "Sangrur"
+
+
+def demo_farm_location(district: str | None, seed: str = "") -> tuple[float, float, str]:
+    """The prototype's stand-in for "detect my location". It never reads the
+    device: a judge opening the demo from anywhere (Bengaluru, say) would get
+    a farm outside every depot's reach. It returns a farm near the district's
+    headquarters (Sangrur if none is known), moved a few km by a number made
+    from the seed so one farmer always gets the same field."""
+    name = district if district in DISTRICT_COORDS else DEMO_FARM_DISTRICT
+    lat, lon = DISTRICT_COORDS[name]
+    n = sum(ord(c) * (i + 7) for i, c in enumerate(seed)) if seed else 0
+    return round(lat + ((n % 9) - 4) * 0.008, 5), round(lon + (((n // 9) % 9) - 4) * 0.008, 5), name

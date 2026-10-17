@@ -241,3 +241,10 @@ textarea, input[type=text], input[type=tel], input[type=number], input[type=date
 .mic.streaming { background: var(--ember); box-shadow: 0 0 0 9px var(--ember-soft); animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 0 14px var(--ember-soft); } }
 @media (prefers-reduced-motion: reduce) { .mic.streaming { animation: none; } }
+
+/* demo honesty */
+.demo-strip { margin: 0; padding: 4px 12px; text-align: center; font-size: .78rem; background: var(--ember-soft); color: var(--ink); border-bottom: 1px solid var(--line); }
+.demo-note { margin: 6px 0 0; font-size: .75rem; color: var(--muted, #6b6b6b); text-align: center; }
+
+.readback { margin: 8px 0 0; font-size: .82rem; color: var(--ink-soft); }
+.booking-code { margin: 6px 0 0; font-size: .9rem; }

@@ -79,7 +79,7 @@ AGENT_FALLBACK = {
         "missing": "कृपया बताइए: {items}.",
         "start": "नमस्ते! बताइए कितने एकड़ धान है, कौन सा गांव, और गेहूं कब बोनी है।",
         "items": {"quantity": "कितने एकड़", "crop_type": "कौन सी फसल", "location": "गांव या ज़िला",
-                  "sowing_deadline": "गेहूं की बुवाई की तारीख"},
+                  "sowing_deadline": "गेहूं की बुवाई की तारीख", "name": "आपका नाम", "phone": "मोबाइल नंबर"},
     },
     "Punjabi": {
         "booked": "ਤੁਹਾਡਾ ਪਿਕਅੱਪ ਬੁੱਕ ਹੋ ਗਿਆ: {window}. ਪਰਾਲੀ ਚੁੱਕਦੇ ਹੀ ਉਸੇ ਦਿਨ ₹{payout} ਮਿਲਣਗੇ।",
@@ -88,7 +88,7 @@ AGENT_FALLBACK = {
         "missing": "ਕਿਰਪਾ ਕਰਕੇ ਦੱਸੋ: {items}.",
         "start": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਦੱਸੋ ਕਿੰਨੇ ਕਿੱਲੇ ਝੋਨਾ ਹੈ, ਕਿਹੜਾ ਪਿੰਡ, ਅਤੇ ਕਣਕ ਕਦੋਂ ਬੀਜਣੀ ਹੈ।",
         "items": {"quantity": "ਕਿੰਨੇ ਕਿੱਲੇ", "crop_type": "ਕਿਹੜੀ ਫ਼ਸਲ", "location": "ਪਿੰਡ ਜਾਂ ਜ਼ਿਲ੍ਹਾ",
-                  "sowing_deadline": "ਕਣਕ ਦੀ ਬਿਜਾਈ ਦੀ ਤਾਰੀਖ"},
+                  "sowing_deadline": "ਕਣਕ ਦੀ ਬਿਜਾਈ ਦੀ ਤਾਰੀਖ", "name": "ਤੁਹਾਡਾ ਨਾਮ", "phone": "ਮੋਬਾਈਲ ਨੰਬਰ"},
     },
     "English": {
         "booked": "Your pickup is booked: {window}. You get Rs {payout} the same day we collect.",
@@ -97,7 +97,7 @@ AGENT_FALLBACK = {
         "missing": "Please tell me: {items}.",
         "start": "Hello! Tell me how many acres of paddy, your village, and when you sow wheat.",
         "items": {"quantity": "how many acres", "crop_type": "which crop", "location": "village or district",
-                  "sowing_deadline": "your wheat sowing date"},
+                  "sowing_deadline": "your wheat sowing date", "name": "your name", "phone": "your mobile number"},
     },
 }
 

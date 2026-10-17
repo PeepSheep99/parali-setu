@@ -214,3 +214,12 @@ def test_an_offer_never_outlives_the_hour_before_its_slot():
     slot = {"date": "2026-10-17", "window_start_min": 11 * 60 + 30}
     assert pickups.offer_expires_at(booking, [slot]).isoformat().startswith("2026-10-17T10:30")
     assert pickups.offer_expires_at(booking, [{**slot, "date": "2026-10-19"}]).isoformat().startswith("2026-10-17T13:00")
+
+
+def test_demo_locate_never_uses_the_device_and_sets_the_farm(api):
+    conv = store.save_conversation(api["db"], {"farmer_id": "f1", "language": "Hindi", "turns": [], "fields": {}, "facts": {}})
+    body = client.post("/demo/locate", json={"farmer_id": "f1", "conversation_id": conv["id"]}).json()
+    assert body["source"] == "demo" and body["district"] == "Sangrur" and 29 < body["lat"] < 32 and 74 < body["lon"] < 77
+    fields = store.get_conversation(api["db"], conv["id"])["fields"]
+    assert fields["lat"] == body["lat"] and fields["location_source"] == "demo"
+    assert client.post("/demo/locate", json={"farmer_id": "someone_else", "conversation_id": conv["id"]}).status_code == 403

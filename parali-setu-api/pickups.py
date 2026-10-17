@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
+import re
 import firestore_store as store
 from costs import road_km
 from geo import DISTRICT_COORDS, district_from_text
@@ -333,6 +334,7 @@ def booking_view(db, booking: dict, depots: dict[str, dict] | None = None) -> di
         "payout_estimate_inr": round(booking["kg"] * booking["price_per_kg"], 2),
         "offer_expires_at": expires.isoformat() if expires and booking.get("status") in ("offered", "unschedulable") else None,
         "partner_crew": any(s.get("partner") for s in slots),
+        "booking_code": booking_code(booking["id"]),
     }
 
 
@@ -366,6 +368,37 @@ def complete_quantities(fields: dict) -> dict:
     elif fields.get("quantity_kg") and not fields.get("acres"):
         fields["acres"] = acres_from_kg(fields["quantity_kg"])
     return fields
+
+
+def normalise_phone(text) -> str | None:
+    """A 10-digit Indian mobile number as +91XXXXXXXXXX, or None."""
+    digits = re.sub(r"\D", "", str(text or ""))
+    if len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    return f"+91{digits}" if re.fullmatch(r"[6-9]\d{9}", digits) else None
+
+
+def mask_phone(phone: str | None) -> str | None:
+    return f"+91 ******{phone[-4:]}" if phone and len(phone) >= 4 else None
+
+
+def booking_code(booking_id: str) -> str:
+    """A short reference a farmer can read out, e.g. PS-7F3K."""
+    letters = re.sub(r"[^A-Za-z0-9]", "", booking_id or "")[-4:].upper()
+    return f"PS-{letters}"
+
+
+def agent_missing_fields(fields: dict) -> list[str]:
+    """What the talking agent needs before it may offer a pickup: the listing
+    details plus who is selling and how to reach them."""
+    missing = missing_fields(fields)
+    if not fields.get("farmer_name"):
+        missing.append("name")
+    if not normalise_phone(fields.get("contact")):
+        missing.append("phone")
+    return missing
 
 
 def missing_fields(fields: dict) -> list[str]:

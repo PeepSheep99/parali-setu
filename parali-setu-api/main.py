@@ -43,7 +43,7 @@ from extraction import (
     read_stubble_quality,
 )
 from forecast.demand_segments import EX_SITU_SOURCE, EX_SITU_TOTAL_T, SEGMENTS, segment_totals
-from geo import district_from_text
+from geo import demo_farm_location, district_from_text
 from gemini_client import get_gemini_client
 from impact import impact_for_kg, punjab_scenario
 from phrases import confirm_summary, window_words
@@ -437,6 +437,35 @@ async def submit_no_burn_proof(farmer_id: str, district: str, claimed_date: str 
 # ---------------------------------------------------------------------------
 
 AUDIO_TYPES = {"audio/wav", "audio/x-wav", "audio/wave", "audio/webm", "audio/ogg", "audio/mpeg", "audio/mp3"}
+
+
+class LocateRequest(BaseModel):
+    farmer_id: str = Field(..., min_length=1, max_length=64)
+    conversation_id: str | None = Field(None, max_length=64)
+    village_or_district: str | None = Field(None, max_length=120)
+
+
+@app.post("/demo/locate")
+def demo_locate(req: LocateRequest):
+    """"Detect my location" for the prototype. It deliberately does not use the
+    device: a judge opening the demo from outside Punjab would get a farm that
+    no depot reaches. It returns a demo farm near the named district (Sangrur
+    when none is known) and, given a conversation, records it as the farm."""
+    db = store.get_firestore_client()
+    district = district_from_text(req.village_or_district)
+    conv = store.get_conversation(db, req.conversation_id) if req.conversation_id else None
+    if conv is not None and conv["farmer_id"] != req.farmer_id:
+        raise HTTPException(403, "That conversation belongs to someone else")
+    if district is None and conv is not None:
+        district = pickups.listing_district(conv.get("fields") or {})
+    lat, lon, name = demo_farm_location(district, req.farmer_id)
+    if conv is not None:
+        fields = conv.setdefault("fields", {})
+        fields.update({"lat": lat, "lon": lon, "location_source": "demo"})
+        fields.setdefault("village_or_district", req.village_or_district or name)
+        store.save_conversation(db, conv)
+    return {"lat": lat, "lon": lon, "district": name, "source": "demo",
+            "label": f"Demo farm near {name}, Punjab (the prototype does not use your real location)"}
 
 
 @app.post("/agent/turn")

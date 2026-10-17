@@ -253,7 +253,7 @@
     const book = h("button", { type: "button", class: "primary wide" }, labelNodes("book_this"));
     book.addEventListener("click", () => acceptBooking(card.booking_id, book, (result) => {
       box.replaceWith(bookedCard({ pickup_window: result.pickup_window, payout_inr: result.booking.payout_estimate_inr,
-                                   pickup_window_spoken: card.pickup_window_spoken }));
+                                   pickup_window_spoken: card.pickup_window_spoken, booking_code: result.booking.booking_code }));
     }));
     const box = h("div", { class: "tcard offer" },
       h("div", { class: "kv" }, h("span", { class: "k" }, t("price_today")), h("span", { class: "v" }, perKg(card.price_per_kg))),
@@ -263,14 +263,20 @@
       h("span", { class: "money" }, rupees(card.payout_inr)),
       h("div", { class: "badges" }, h("span", { class: "badge" }, t("field_free")), h("span", { class: "badge" }, t("paid_same_day"))),
       card.partner_crew ? h("p", { class: "note" }, t("partner_crew")) : null,
+      card.farm ? h("p", { class: "readback" }, `${t("check_details")}: ` + [card.farm.name, card.farm.phone, card.farm.village,
+        card.farm.acres ? `${card.farm.acres} acres` : null, card.farm.location].filter(Boolean).join(" · ")) : null,
       card.offer_valid_until ? h("p", { class: "hint" }, t("held_until", { t: clock(card.offer_valid_until) })) : null,
+      h("p", { class: "demo-note" }, t("demo_note")),
       book);
     return box;
   }
 
   function bookedCard(card) {
     return h("div", { class: "tcard done" }, h("strong", {}, labelNodes("booked")),
-      h("span", {}, t("booked_line", { w: card.pickup_window_spoken || formatLabel(card.pickup_window), p: rupees(card.payout_inr) })));
+      h("span", {}, t("booked_line", { w: card.pickup_window_spoken || formatLabel(card.pickup_window), p: rupees(card.payout_inr) })),
+      card.booking_code ? h("p", { class: "booking-code" }, `${t("booking_id")}: `, h("strong", {}, card.booking_code)) : null,
+      card.booking_code ? h("p", { class: "demo-note" }, t("sms_sent")) : null,
+      h("p", { class: "demo-note" }, t("demo_note")));
   }
 
   function renderCards(cards) {
@@ -693,6 +699,13 @@
     });
     $("live-toggle").checked = saved.get("parali_live") === "1";
     $("live-toggle").addEventListener("change", () => saved.set("parali_live", $("live-toggle").checked ? "1" : "0"));
+    $("talk-locate").addEventListener("click", async () => {
+      try {
+        const body = await postJson("/demo/locate", { farmer_id: state.farmerId, conversation_id: state.conversationId });
+        agentBubble(t("located", { d: body.district }));
+        toast(body.label);
+      } catch (err) { toast(err.message); }
+    });
     $("kbd-toggle").addEventListener("click", () => { $("kbd").hidden = !$("kbd").hidden; if (!$("kbd").hidden) $("kbd-input").focus(); });
     $("kbd").addEventListener("submit", (e) => {
       e.preventDefault();

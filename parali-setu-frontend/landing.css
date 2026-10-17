@@ -118,3 +118,5 @@ input[type=range] { width: 100%; accent-color: var(--paddy); min-height: 32px; }
 .real li.yes::before { content: "✓"; color: var(--paddy); }
 .real li.no::before { content: "◌"; color: var(--straw); }
 .footer { padding-block: 28px 44px; border-top: 1px solid var(--line); }
+
+.demo-flag { display: inline-block; margin: 0 0 12px; padding: 4px 12px; border-radius: 999px; font-size: .8rem; font-weight: 600; background: var(--ember-soft, #fde8d8); color: var(--ink, #222); }
