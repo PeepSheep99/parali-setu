@@ -2,6 +2,7 @@
 
     python -m forecast.pipeline backtest --season 2024    # held-out score
     python -m forecast.pipeline live                      # this season, from today's data
+    python -m forecast.pipeline weekly                    # refresh this season's fires, then live (Cloud Run job)
 
 Backtest: both models see weekly fire pixels per district up to 30 June of
 the season's year and forecast the next 26 weeks; the paddy weeks (Sep-Dec)
@@ -127,6 +128,26 @@ def live(today: date) -> dict:
             "observed_to_date": {d: round(sum(v.values()), 1) for d, v in observed.items()}}
 
 
+def refresh_current_season(today: date) -> int:
+    """Re-counts this season's fires in Earth Engine and replaces the
+    season's rows in BigQuery, so the weekly forecast starts from today's
+    data rather than whatever was loaded last."""
+    from google.cloud import bigquery
+
+    import firestore_store as store
+    from forecast import firms_history
+
+    rows = firms_history.season_rows(today.year, store.PROJECT_ID)
+    client = _client()
+    client.query(f"DELETE FROM `{DAILY}` WHERE EXTRACT(YEAR FROM date) = {int(today.year)}").result()
+    if rows:
+        schema = [bigquery.SchemaField("date", "DATE"), bigquery.SchemaField("state", "STRING"),
+                  bigquery.SchemaField("district", "STRING"), bigquery.SchemaField("fire_pixels", "INT64")]
+        client.load_table_from_json(rows, f"{store.PROJECT_ID}.{DAILY}",
+                                    job_config=bigquery.LoadJobConfig(schema=schema, write_disposition="WRITE_APPEND")).result()
+    return len(rows)
+
+
 def save(doc_id: str, payload: dict, out_dir: Path) -> None:
     import firestore_store as store
 
@@ -141,6 +162,7 @@ def main(argv: list[str] | None = None) -> None:
     b = sub.add_parser("backtest")
     b.add_argument("--season", type=int, required=True)
     sub.add_parser("live")
+    sub.add_parser("weekly", help="refresh this season's fires in BigQuery from Earth Engine, then forecast")
     parser.add_argument("--out", type=Path, default=Path("forecast/data/results"))
     args = parser.parse_args(argv)
     if args.cmd == "backtest":
@@ -148,6 +170,8 @@ def main(argv: list[str] | None = None) -> None:
         save(f"supply_backtest_{args.season}", result, args.out)
     else:
         import pickups
+        if args.cmd == "weekly":
+            print(f"refreshed {refresh_current_season(pickups.now_ist().date())} district-days for this season")
         result = live(pickups.now_ist().date())
         save(f"supply_live_{pickups.now_ist().year}", result, args.out)
     print(json.dumps(result if args.cmd == "backtest" else {k: v for k, v in result.items() if k != "districts"}, indent=2))
