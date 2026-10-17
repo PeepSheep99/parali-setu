@@ -1,19 +1,18 @@
-/* Landing page. Same palette and type as the apps: paddy green, straw gold,
-   ember for fire; Fraunces display, IBM Plex text. Committed light theme.
-   Chart colour #2b7d3a is validated for colour-blind separation. */
+/* Landing page in the phulkari system (shared/tokens.css): madder cloth, silk
+   thread, khaddar ground. The local names below map onto the shared tokens.
+   Chart colour #a8304a is validated for colour-blind separation. */
 :root {
-  --bg: #f4f5ef; --surface: #ffffff; --band: #ebede4; --ink: #1b2117; --ink-soft: #4d5547; --smoke: #6f766a;
-  --line: #dde1d5; --paddy: #2f6b3b; --paddy-dark: #24522d; --paddy-soft: #e3eee2; --straw: #8a5d06;
-  --straw-soft: #f6ecd2; --ember: #b33a1a; --ember-soft: #f8e3dc; --series: #2b7d3a; --series-soft: #a9cdb1;
-  --font-display: "Fraunces", Georgia, serif; --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", Consolas, monospace;
+  --bg: var(--khaddar); --band: #efe6df; --ink: var(--thread); --ink-soft: var(--thread-soft); --smoke: var(--thread-soft);
+  --paddy: var(--madder); --paddy-dark: var(--madder-deep); --paddy-soft: var(--madder-soft); --straw: #8a5d06;
+  --straw-soft: var(--silk-pale); --ember: var(--fire); --ember-soft: var(--warn-soft); --series: #a8304a; --series-soft: #e2b6bf;
+  --font-mono: var(--font-body);
   color-scheme: light;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.6; }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 650; margin: 0; text-wrap: balance; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 700; margin: 0; text-wrap: balance; }
 h1 { font-size: clamp(2rem, 4.4vw, 3.1rem); line-height: 1.08; letter-spacing: -.01em; }
 h2 { font-size: clamp(1.5rem, 3vw, 2rem); line-height: 1.2; }
 h3 { font-size: 1.12rem; font-weight: 500; }
@@ -21,7 +20,7 @@ p { margin: 0; }
 a { color: var(--paddy-dark); text-underline-offset: 3px; }
 :focus-visible { outline: 3px solid var(--straw); outline-offset: 2px; }
 .small { font-size: .86rem; } .muted { color: var(--ink-soft); }
-.eyebrow { font-family: var(--font-mono); font-size: .76rem; text-transform: uppercase; letter-spacing: .08em; color: var(--smoke); }
+.eyebrow { font-family: var(--font-display); font-weight: 600; font-size: .95rem; color: var(--madder); }
 .badge { text-transform: none; letter-spacing: 0; margin-left: 6px; background: var(--paddy-soft); color: var(--paddy-dark); border-radius: 999px; padding: 2px 8px; }
 .inner { max-width: 1140px; margin: 0 auto; padding-block: 56px; padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); display: flex; flex-direction: column; gap: 18px; }
 .band { background: var(--band); }
@@ -92,17 +91,17 @@ td { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
 .tour-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; color: var(--ink); text-decoration: none; display: grid; gap: 8px; align-content: start; transition: border-color .15s ease; }
 .tour-card:hover { border-color: var(--paddy); }
 .tour-card p { color: var(--ink-soft); font-size: .93rem; }
-.tour-card .tag { font-family: var(--font-mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--paddy-dark); }
+.tour-card .tag { font-size: .82rem; font-weight: 600; color: var(--paddy-dark); }
 @media (prefers-reduced-motion: reduce) { .tour-card { transition: none; } }
 
 .arch { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.1fr) minmax(0, 1.15fr); gap: 14px; align-items: stretch; }
 @media (max-width: 900px) { .arch { grid-template-columns: 1fr; } }
 .col { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; display: grid; gap: 8px; align-content: start; }
 .col.mid { border-color: var(--paddy); }
-.col-title { font-family: var(--font-mono); font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--smoke); }
+.col-title { font-family: var(--font-display); font-weight: 600; font-size: .95rem; color: var(--madder); }
 .node { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: .9rem; background: var(--bg); }
 .node.strong { border-color: var(--paddy); background: var(--paddy-soft); font-weight: 500; }
-.node.g { background: #eef2fb; border-color: #d5dff2; }
+.node.g { background: var(--silk-pale); border-color: #ecd1a3; }
 .principles { margin: 0; padding-left: 1.1rem; display: grid; gap: 10px; color: var(--ink-soft); max-width: 90ch; }
 .principles b { color: var(--ink); }
 
@@ -134,3 +133,17 @@ input[type=range] { width: 100%; accent-color: var(--paddy); min-height: 32px; }
 }
 .chart-hint { display: none; font-size: .78rem; color: var(--smoke); margin: 4px 0 0; }
 @media (max-width: 640px) { .chart-hint { display: block; } }
+
+/* hero: the phulkari panel carries the demo counters */
+.punjabi { font-family: var(--font-display); font-weight: 700; font-size: clamp(1.4rem, 3vw, 2rem); color: var(--silk); margin: 0; line-height: 1.2; }
+.hero h1 { color: var(--madder); font-size: clamp(2.2rem, 4.8vw, 3.5rem); line-height: 1.04; }
+.phulkari { align-self: stretch; min-height: 340px; border-radius: var(--r-lg); background: var(--bagh) var(--madder); background-size: 64px 32px; display: grid; align-items: end; padding: 18px; box-shadow: var(--shadow); }
+.phulkari .live { background: var(--surface); border-radius: var(--r); padding: 16px; box-shadow: var(--shadow); }
+.live-title { margin: 0; font-family: var(--font-display); font-weight: 700; color: var(--madder); }
+.live-grid .v { color: var(--madder); font-size: 1.6rem; }
+.toll-strip { max-width: 1140px; margin: 0 auto; padding-block: 0 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.toll-strip .toll { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.toll-item { border: 0; box-shadow: var(--shadow); border-left: 4px solid var(--line); }
+.demo-flag { background: var(--silk-pale); color: #5e3a0c; }
+.btn.primary { background: var(--madder); border-color: var(--madder); }
+@media (max-width: 880px) { .phulkari { min-height: 220px; } }

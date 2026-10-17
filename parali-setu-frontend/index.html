@@ -6,7 +6,10 @@
 <title>Parali Setu · We buy the straw so it isn't burned</title>
 <meta name="description" content="Farmers in Punjab and Haryana book a free stubble pickup by voice, get paid the same day, and Parali Setu stores the straw and supplies industry all year. Built on Google Cloud: Gemini, BigQuery TimesFM, Earth Engine, OR-Tools on Cloud Run.">
 <link rel="icon" href="kisan/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<meta name="theme-color" content="#8e1f33">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Baloo+Paaji+2:wght@500;600;700&family=Hind:wght@400;500;600&family=Mukta+Mahee:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="shared/tokens.css">
 <link rel="stylesheet" href="landing.css">
 </head>
 <body>
@@ -22,14 +25,15 @@
     </nav>
   </div>
 </header>
+<div class="bagh-band" aria-hidden="true"></div>
 
 <main>
   <section class="hero">
     <div class="hero-text">
-      <p class="eyebrow">Punjab &amp; Haryana · every October and November</p>
       <p class="demo-flag">Working prototype: demo farms, demo buyers, simulated payments. No real pickups.</p>
+      <p class="punjabi" lang="pa">ਪਰਾਲੀ ਨਾ ਸਾੜੋ, ਸਾਨੂੰ ਵੇਚੋ।</p>
       <h1>The smoke over North India starts in a paddy field. We buy the straw instead.</h1>
-      <p class="lede">Farmers have about two weeks between the paddy harvest and sowing wheat. Burning the straw is fast and nearly free. <strong>Parali Setu makes not burning faster:</strong> book a pickup by talking in Punjabi or Hindi, we clear the field before you sow, and you are paid the same day. No vendors to chase, no machines to rent. <em>How we earn:</em> we buy at one posted price, store the straw, and sell it all year to industry at cost plus a 10% margin.</p>
+      <p class="lede">Farmers have about two weeks between the paddy harvest and sowing wheat. Burning the straw is fast and nearly free. <strong>Parali Setu makes not burning faster:</strong> a farmer books a pickup by simply talking, in Punjabi, Hindi or English, with no language to pick. Our team calls to confirm, clears the field before sowing, and pays the same day. No vendors to chase, no machines to rent. <em>How we earn:</em> we buy at one posted price, store the straw, and sell it all year to industry at cost plus a 10% margin.</p>
       <div class="ctas">
         <a class="btn primary" href="kisan/">Book a pickup <span>Farmers</span></a>
         <a class="btn" href="company/">Buy straw all year <span>Industry</span></a>
@@ -37,12 +41,9 @@
       </div>
       <p class="small muted">Parali (ਪਰਾਲੀ) is paddy straw; setu (ਸੇਤੂ) is a bridge. A working prototype with demo farms, buyers and simulated payments.</p>
     </div>
-    <aside class="toll" aria-label="Why it matters">
-      <div class="toll-item burn"><span class="v">3×</span><span class="k">higher risk of acute respiratory infection for people in districts with intense crop burning; children under five are most affected. <a href="https://www.ifpri.org/news-release/new-study-air-pollution-indias-stubble-burning-leads-usd-15-billion-economic-losses">IFPRI</a></span></div>
-      <div class="toll-item flat"><span class="v">19.17 lakh ha</span><span class="k">burned in Punjab in 2024 against 19.14 lakh ha in 2023, even though recorded fires fell from 36,663 to 10,909 (<a href="https://rsdebate.nic.in/bitstream/123456789/753234/1/PQ_266_20122024_U2905_p94_p95.pdf">CREAMS fire counts, Rajya Sabha reply</a>). The area figures are PRSC/PPCB numbers as reported by <a href="https://currentaffairs.khanglobalstudies.com/declining-farm-fires-in-punjab/">secondary sources</a>; we have not seen the primary report.</span></div>
-      <div class="toll-item good"><span class="v">0.18 t CO₂e</span><span class="k">of methane and nitrous oxide kept out of the air for every tonne of straw collected instead of burned, plus about 8 kg of fine smoke particles.</span></div>
+    <aside class="phulkari" aria-label="Demo run on this prototype">
       <div class="live" id="live" aria-live="polite">
-        <p class="eyebrow">Demo run on this prototype</p>
+        <p class="live-title">Demo run on this prototype</p>
         <div class="live-grid">
           <div><span class="v" id="live-tonnes">–</span><span class="k">straw collected, not burned</span></div>
           <div><span class="v" id="live-paid">–</span><span class="k">paid to farmers the same day (simulated)</span></div>
@@ -50,6 +51,14 @@
         </div>
       </div>
     </aside>
+  </section>
+
+  <section class="toll-strip" aria-label="Why it matters">
+    <div class="toll">
+      <div class="toll-item burn"><span class="v">3×</span><span class="k">higher risk of acute respiratory infection for people in districts with intense crop burning; children under five are most affected. <a href="https://www.ifpri.org/news-release/new-study-air-pollution-indias-stubble-burning-leads-usd-15-billion-economic-losses">IFPRI</a></span></div>
+      <div class="toll-item flat"><span class="v">19.17 lakh ha</span><span class="k">burned in Punjab in 2024 against 19.14 lakh ha in 2023, even though recorded fires fell from 36,663 to 10,909 (<a href="https://rsdebate.nic.in/bitstream/123456789/753234/1/PQ_266_20122024_U2905_p94_p95.pdf">CREAMS fire counts, Rajya Sabha reply</a>). The area figures are PRSC/PPCB numbers as reported by <a href="https://currentaffairs.khanglobalstudies.com/declining-farm-fires-in-punjab/">secondary sources</a>; we have not seen the primary report.</span></div>
+      <div class="toll-item good"><span class="v">0.18 t CO₂e</span><span class="k">of methane and nitrous oxide kept out of the air for every tonne of straw collected instead of burned, plus about 8 kg of fine smoke particles.</span></div>
+    </div>
   </section>
 
   <section class="band" id="how">
@@ -60,9 +69,9 @@
         <article class="lane">
           <h3>Farmer</h3>
           <ol>
-            <li><strong>Talk once.</strong> “Das kille jhona, Sangrur, 25 tak kanak bijni hai.” Our Gemini agent asks only what's missing and reads it back.</li>
+            <li><strong>Talk once, in any of three languages.</strong> “Das kille jhona, Sangrur, 25 tak kanak bijni hai.” Our Gemini agent hears the language, asks only what's missing and reads it back.</li>
             <li><strong>One fair price.</strong> Today's posted price for your district, set by our planner. No bargaining.</li>
-            <li><strong>A slot before sowing.</strong> Our crew, or a hired partner crew, clears the field for free.</li>
+            <li><strong>A call, then the crew.</strong> Our team confirms the details by phone; our crew, or an on-call crew, clears the field before sowing.</li>
             <li><strong>Paid the same day</strong> the straw is collected.</li>
           </ol>
         </article>
@@ -71,7 +80,7 @@
           <ol>
             <li><strong>Forecast the harvest.</strong> 25 seasons of satellite fire data, forecast with TimesFM in BigQuery, show when each district's straw comes.</li>
             <li><strong>Plan what to buy.</strong> A linear program weighs expected straw, depot space, crews and customer orders, and sets each district's price.</li>
-            <li><strong>Route the crews.</strong> A routing model books every farm before its sowing date; hired crews fill any gap.</li>
+            <li><strong>Be ready for the peak.</strong> The forecast sets how many on-call crews to hire each day; a routing model books every farm before its sowing date.</li>
             <li><strong>Store and deliver</strong> from five depots, month by month.</li>
           </ol>
         </article>
@@ -132,10 +141,10 @@
       <p class="eyebrow">Try it</p>
       <h2>Four apps, one system</h2>
       <div class="tour">
-        <a class="tour-card" href="kisan/?view=phone"><span class="tag">Farmer · phone</span><h3>Talk to book</h3><p>A Gemini agent that listens in Punjabi, Hindi or English, asks one thing at a time and books a pickup. Every number it says comes from our planners.</p></a>
-        <a class="tour-card" href="kisan/?view=laptop"><span class="tag">Farmer · laptop</span><h3>Book step by step</h3><p>The same booking with fuller explanations, today's prices by district, and a satellite-checked no-burn proof.</p></a>
-        <a class="tour-card" href="ops/"><span class="tag">Parali Setu team</span><h3>Run the season</h3><p>Crew routes on Google Maps, partner crews when ours are full, depot stock, the harvest forecast and the buying plan.</p></a>
-        <a class="tour-card" href="company/"><span class="tag">Industry</span><h3>Order straw</h3><p>A quote built from real costs, a signed monthly volume and a delivery plan from our depots.</p></a>
+        <a class="tour-card" href="kisan/"><span class="tag">For farmers</span><h3>Talk to book</h3><p>One page on any phone or laptop. Speak Punjabi, Hindi or English; the agent answers in your language, prices the straw and books a slot. Every number it says comes from our planners.</p></a>
+        <a class="tour-card" href="ops/#today"><span class="tag">For our team</span><h3>Dispatch tomorrow</h3><p>Which crews go out and where, the confirmation calls to make before they leave, and how many on-call crews to hire.</p></a>
+        <a class="tour-card" href="ops/#forecast"><span class="tag">For our team</span><h3>See the season coming</h3><p>This season against the last three, the harvest moving across districts, and how accurate the forecast has been.</p></a>
+        <a class="tour-card" href="company/"><span class="tag">For industry</span><h3>Order straw</h3><p>Price an order in one sentence, see the price built from real costs and what we can commit each month.</p></a>
       </div>
     </div>
   </section>
@@ -146,22 +155,24 @@
     <div class="arch" aria-label="Architecture">
       <div class="col">
         <p class="col-title">Apps · Firebase Hosting</p>
-        <div class="node">Farmer app: talk (phone) or step by step (laptop)</div>
+        <div class="node">Pickup page: one conversation in Punjabi, Hindi or English</div>
         <div class="node">Operations console</div>
         <div class="node">Customer portal</div>
         <div class="node">This page</div>
       </div>
       <div class="col mid">
         <p class="col-title">API · Cloud Run (Python, OR-Tools)</p>
-        <div class="node strong">Farmer agent: Gemini function calling with guardrails enforced in code</div>
+        <div class="node strong">Farmer agent: Gemini function calling with guardrails enforced in code; language read from what the farmer says</div>
         <div class="node">Procurement LP → posted price per district (shadow prices)</div>
-        <div class="node">Routing model → crew slots before sowing, partner crews</div>
+        <div class="node">Routing model → crew slots before sowing, on-call crews when ours are full</div>
+        <div class="node">Verification → a person confirms each pickup before dispatch</div>
+        <div class="node">Readiness → forecast acres per day against crews, hires to make</div>
         <div class="node">Delivery LP → monthly shipments from depot stock</div>
         <div class="node">Impact model → CO₂e, PM2.5, payouts</div>
       </div>
       <div class="col">
         <p class="col-title">Google services</p>
-        <div class="node g">Vertex AI · Gemini: conversation, audio understanding, photo grading, explanations</div>
+        <div class="node g">Vertex AI · Gemini 3.5 Flash (agent), 2.5 Flash in Mumbai (fallback), live transcription for words as you speak</div>
         <div class="node g">Speech-to-Text · Text-to-Speech (Chirp 3 HD): Punjabi, Hindi, English</div>
         <div class="node g">BigQuery · TimesFM (AI.FORECAST) and ARIMA_PLUS backtests</div>
         <div class="node g">Earth Engine · NASA FIRMS fire history, FAO GAUL districts</div>
@@ -173,7 +184,7 @@
     </div>
     <ul class="principles">
       <li><b>Gemini never sets a number.</b> Prices come from the procurement LP, slots from the routing model, payouts from price × weight. The agent may only repeat numbers a tool returned or the farmer said; anything else is blocked and rewritten.</li>
-      <li><b>A booking needs the farmer's own yes,</b> checked in code in their language, after the offer has been shown.</li>
+      <li><b>A booking needs the farmer's own yes,</b> checked in code in their language, after the offer has been shown. Then a person confirms it by phone before any crew leaves.</li>
       <li><b>Forecasts are scored on held-out seasons.</b> TimesFM placed the 2024 and 2025 harvest peaks within a week, ahead of ARIMA_PLUS and a same-as-last-year baseline.</li>
     </ul>
   </section>
@@ -204,7 +215,7 @@
         <li class="yes">District straw from government crop statistics; industry demand from published figures</li>
         <li class="yes">The Gemini agent, voice in Punjabi, Hindi and English, photo grading</li>
         <li class="yes">The optimizers: posted prices, crew routes, deliveries</li>
-        <li class="no">Farms, customers, crews and partner crews are demo data</li>
+        <li class="no">Farms, customers, crews and on-call crews are demo data; confirmation calls are simulated</li>
         <li class="no">Payments are simulated; cost figures marked “assumption” are our working estimates</li>
       </ul>
     </div>
