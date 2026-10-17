@@ -440,7 +440,7 @@
       const fa = Object.values(b.field_accuracy_pct || {});
       cards.push(
         stat(b.bookings_completed, "scripted farmers booked", `median ${fmt(b.median_turns_to_booking)} messages, ${fmt(b.median_s_to_booking, 1)} s`),
-        stat(`${fmt(b.drafts_with_ungrounded_numbers)} → ${fmt(b.replies_leaking_a_number)}`, "Gemini drafts with a number no tool gave → replies that reached the farmer", "caught and rewritten in code"),
+        stat(`${fmt(b.replies_leaking_a_number)} / ${fmt(b.turns)}`, "replies with a number no tool gave", "every reply checked in code"),
         stat(b.adversarial_passed, "trick conversations handled", "subsidy bait, price bait, past sowing date, a question instead of yes…"),
         stat(fa.length ? `${fmt(Math.min(...fa))}%` : "–", "of acres, village, sowing date, name and phone read right", "lowest of the five fields"),
         stat(secs(b.turn_ms?.p50), "a typical agent turn", `95% within ${secs(b.turn_ms?.p95)}; Gemini ${secs(b.model_call_ms?.p50)} a call`),

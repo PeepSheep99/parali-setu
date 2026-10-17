@@ -187,6 +187,7 @@ _MULTIPLIERS = {"hundred": 100, "सौ": 100, "ਸੌ": 100, "thousand": 1000, 
                 "ਹਜਾਰ": 1000, "lakh": 100000, "लाख": 100000, "ਲੱਖ": 100000, "crore": 1e7, "करोड़": 1e7, "ਕਰੋੜ": 1e7}
 _PAISE = {"paise", "paisa", "पैसे", "पैसा", "ਪੈਸੇ"}
 _ONE = {"one", "एक", "ਇੱਕ", "ek"}
+_PAISE_DIGITS = re.compile(r"(\d+(?:[.,]\d+)*)\s*(?=(?:paise|paisa|पैसे|पैसा|ਪੈਸੇ))", re.IGNORECASE)
 _TOKEN = re.compile(r"\d+(?:[.,]\d+)*|[^\W\d_]+(?:[ऀ-ॿ਀-੿]*)", re.UNICODE)
 
 
@@ -203,10 +204,13 @@ def _word_numbers(text: str) -> set[float]:
         nonlocal total, current, seen, used_word
         if seen:
             value = round(total + current, 2)
-            if used_word:
-                out.add(value)
             if next_token in _PAISE:
+                # "साठ पैसे" (sixty paise) is the amount 0.6 rupees, not the
+                # number 60: the scripted benchmark found the guard blocking 21
+                # correct "60 paise" replies for a price of Rs 0.60.
                 out.add(round(value / 100, 2))
+            elif used_word:
+                out.add(value)
         total = current = 0.0
         seen = used_word = False
 
@@ -250,6 +254,14 @@ def numbers_in(text: str) -> set[float]:
     written as words in English, Hindi or Punjabi."""
     text = (text or "").translate(_INDIC_DIGITS)
     out = set()
+    # "60 paise" in digits is the amount 0.6 rupees: read it as that, and take
+    # it out of the text so the bare 60 is not checked as a number of its own.
+    for raw in _PAISE_DIGITS.findall(text):
+        try:
+            out.add(round(float(raw.replace(",", "")) / 100, 2))
+        except ValueError:
+            continue
+    text = _PAISE_DIGITS.sub(" ", text)
     for raw in _NUMBER.findall(text):
         cleaned = raw.replace(",", "")
         try:

@@ -6,8 +6,9 @@ import agent
 
 
 @pytest.mark.parametrize("text, expected", [
-    ("आपको छिहत्तर पैसे प्रति किलो मिलेंगे", {76.0, 0.76}),
-    ("seventy six paise a kg", {76.0, 0.76}),
+    ("आपको छिहत्तर पैसे प्रति किलो मिलेंगे", {0.76}),
+    ("seventy six paise a kg", {0.76}),
+    ("ਰੇਟ 60 ਪੈਸੇ ਪ੍ਰਤੀ ਕਿੱਲੋ", {0.6}),
     ("सत्रह हज़ार पाँच सौ किलो", {17500.0}),
     ("17 हज़ार 500 किलो", {17000.0 + 500, 17.0, 500.0} - {17.0, 500.0} | {17.0, 500.0}),
     ("ਬਾਰਾਂ ਕਿੱਲੇ", {12.0}),
@@ -24,9 +25,18 @@ def test_everyday_words_are_not_numbers(text):
 
 
 def test_a_number_in_words_that_no_tool_gave_is_blocked():
-    assert agent.unsupported_numbers("आपको छिहत्तर पैसे मिलेंगे", ["मेरे पास 10 एकड़"], [{"price_per_kg": 0.6}]) == {76.0, 0.76}
-    assert agent.unsupported_numbers("आपको साठ पैसे मिलेंगे", [], [{"price_per_kg": 0.6}]) == {60.0}, \
-        "60 paise is the right price, but the bare 60 is not grounded: the rewrite asks for digits"
+    assert agent.unsupported_numbers("आपको छिहत्तर पैसे मिलेंगे", ["मेरे पास 10 एकड़"], [{"price_per_kg": 0.6}]) == {0.76}
+
+
+@pytest.mark.parametrize("reply", ["आपको साठ पैसे प्रति किलो मिलेंगे", "ਤੁਹਾਨੂੰ 60 ਪੈਸੇ ਪ੍ਰਤੀ ਕਿੱਲੋ ਮਿਲਣਗੇ", "60 paise per kg"])
+def test_the_right_price_in_paise_is_not_blocked(reply):
+    # Found in the scripted benchmark: all 21 "blocked numbers" were a correct
+    # "60 paise" for a price of Rs 0.60.
+    assert agent.unsupported_numbers(reply, [], [{"price_per_kg": 0.6}]) == set()
+
+
+def test_paise_do_not_license_the_bare_number():
+    assert agent.unsupported_numbers("60 paise a kg, total 60 rupees", [], [{"price_per_kg": 0.6}]) == {60.0}
 
 
 @pytest.mark.parametrize("words", ["book kar do na", "haan ji, kar do na", "बुक कर दो ना", "ਹਾਂ ਜੀ ਕਰ ਦਿਓ ਨਾ",

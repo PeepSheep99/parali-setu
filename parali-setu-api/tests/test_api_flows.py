@@ -291,3 +291,13 @@ def test_forecast_seasons_line_up_by_week_of_season(api):
     assert past["year"] == 2025 and sum(w["fires"] for w in past["weeks"]) > 0
     assert all(0 <= w["week"] < 18 for s in body["seasons"] for w in s["weeks"])
     assert body["forecast"] and set(body["forecast_by_district"]) >= {"Sangrur", "Karnal"}
+
+
+def test_an_explanation_with_a_number_no_planner_gave_is_dropped(api, monkeypatch):
+    # The step-by-step flow's explanations get the agent's number rule too.
+    monkeypatch.setattr(main, "explain_offer", lambda c, offer, lang: "You will get 5 rupees a kg")
+    assert _offer(api)["explanation"] is None, "dropped; the offer card still shows the real numbers"
+    monkeypatch.setattr(main, "explain_price", lambda c, facts, lang: "The price is 9 rupees")
+    booking = _offer(api, farmer="f2")["booking"]
+    body = client.get(f"/bookings/{booking['id']}/price-explanation", params={"language": "Hindi"}).json()
+    assert "9 rupees" not in body["explanation"], "falls back to the planner's own reason"

@@ -332,11 +332,10 @@ def confirm_listing(draft_id: str, req: ConfirmDraftRequest):
     explanation = None
     if view["status"] == "offered" and view["pickup_window"]:
         slot = view["slots"][0]
-        explanation = explain_offer(client, {
-            "price_per_kg": view["price_per_kg"], "district": district, "kg": round(view["kg"]),
-            "payout_inr": round(view["payout_estimate_inr"]),
-            "pickup_window": window_words(slot["date"], slot["window_start_min"], slot["window_end_min"], language),
-        }, language)
+        offer = {"price_per_kg": view["price_per_kg"], "district": district, "kg": round(view["kg"]),
+                 "payout_inr": round(view["payout_estimate_inr"]),
+                 "pickup_window": window_words(slot["date"], slot["window_start_min"], slot["window_end_min"], language)}
+        explanation = _grounded(explain_offer(client, offer, language), [offer, slot])
     return {
         "listing": listing,
         "status": view["status"],
@@ -408,8 +407,18 @@ def price_explanation(booking_id: str, language: Language = "Hindi"):
     created = (booking.get("created_at") or _today().isoformat())[:10]
     row = store.get_posted_price(db, created, booking["district"]) or _posted_price(db, booking["district"])
     facts = {"district": booking["district"], "price_per_kg": booking["price_per_kg"], "reason": row["reason"]}
-    text = explain_price(get_gemini_client(), facts, language)
+    text = _grounded(explain_price(get_gemini_client(), facts, language), [facts, row])
     return {"explanation": text or row["reason"], "reason_code": row.get("reason_code"), "facts": facts}
+
+
+def _grounded(text: str | None, facts: list) -> str | None:
+    """The agent's number rule for the step-by-step flow's explanations too:
+    a Gemini text with a number the facts don't hold is dropped, and the
+    caller falls back to its fixed wording."""
+    if text and agent.unsupported_numbers(text, [], facts):
+        log.warning("explanation dropped: unsupported numbers %s", sorted(agent.unsupported_numbers(text, [], facts)))
+        return None
+    return text
 
 
 @app.post("/farmers/{farmer_id}/no-burn-proof")
