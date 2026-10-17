@@ -30,7 +30,7 @@ Point `API_BASE` at `http://127.0.0.1:8080` and run `python dev_server.py` in `p
 ## Deploy
 
 ```bash
-firebase deploy --only hosting:parali-setu --project ai-builder-cup-aidatlas
+firebase deploy --only hosting:parali-setu --project parali-setu-aibuildercup2026
 ```
 
 ## Testing

@@ -20,7 +20,7 @@ from google.genai import errors as genai_errors
 # gemini-3.5-flash: about 1 s per agent step in tests on 17 Oct 2026, while
 # gemini-3.8-flash on the same endpoint was returning 429s and 504s.
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "ai-builder-cup-aidatlas")
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "parali-setu-aibuildercup2026")
 VERTEX_LOCATION = os.environ.get("AGENT_PLATFORM_LOCATION", "global")
 
 # After a 429, skip Gemini for this long instead of forever. The original

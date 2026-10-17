@@ -66,7 +66,7 @@ ALLOWED_ORIGINS = [
     o.strip()
     for o in os.environ.get(
         "ALLOWED_ORIGINS",
-        "https://parali-setu.web.app,https://parali-setu.firebaseapp.com,http://localhost:8000,http://127.0.0.1:8000",
+        "https://parali-setu-aibuildercup2026.web.app,https://parali-setu-aibuildercup2026.firebaseapp.com,http://localhost:8000,http://127.0.0.1:8000",
     ).split(",")
     if o.strip()
 ]

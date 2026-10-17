@@ -14,7 +14,7 @@ Collections
 - conversations               the farmer agent's turns, tool facts and draft
 - farmers, no_burn_proofs, fire_detections   trust and satellite data
 
-Shares the ai-builder-cup-aidatlas project with AidAtlas, whose only
+Lives in its own project, separate from AidAtlas, whose only
 collection ("allocations") does not overlap.
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 
 from google.cloud import firestore
 
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "ai-builder-cup-aidatlas")
+PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "parali-setu-aibuildercup2026")
 
 
 def get_firestore_client() -> firestore.Client:
