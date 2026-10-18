@@ -99,7 +99,11 @@ if __name__ == "__main__":
     with httpx.Client(timeout=30) as client:
         reads = bench_reads(client)
         agent = bench_agent(client)
-    agent["deleted_conversations"] = cleanup(agent["conversation_ids"])
+    try:
+        agent["deleted_conversations"] = cleanup(agent["conversation_ids"])
+    except Exception as exc:   # no Firestore access from this machine: keep the results, say what was left
+        agent["deleted_conversations"] = 0
+        print(f"cleanup skipped ({type(exc).__name__}); delete conversations {agent['conversation_ids']} by hand")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps({"api": API, "reads": reads, "agent": agent, "ran_at": time.strftime("%Y-%m-%d %H:%M")},
                               indent=1, ensure_ascii=False), encoding="utf-8")

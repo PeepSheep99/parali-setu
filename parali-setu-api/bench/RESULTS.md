@@ -74,4 +74,4 @@ Harvesting alone also lowers NBR, which is why the field check also needs a char
 
 ## The live service (`bench_live.py`)
 
-Cloud Run (2026-10-17 22:16), over the internet: page data endpoints answer in 102–410 ms (median); an agent turn including the spoken reply takes 3.8 s median, 6.2 s at the 95th percentile (10/10 succeeded).
+Cloud Run on parali-setu-aibuildercup-2026 (2026-10-18), over the internet: page data endpoints answer in 65–307 ms (median); an agent turn including the spoken reply takes 3.7 s median, about 6.8 s at the 95th percentile (10/10 succeeded). On the earlier project (2026-10-17): 102–410 ms and 3.8 s.
