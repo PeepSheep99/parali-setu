@@ -120,14 +120,30 @@ const Subtitles: React.FC<{lines: Line[]; dur: number}> = ({lines, dur}) => {
   );
 };
 
-export const S3: React.FC<P> = ({dur}) => (
+// v6: the booking is shown in English; a banner says the same works in Punjabi and Hindi.
+const LangBanner: React.FC<{at: number}> = ({at}) => {
+  const a = useIn(at, 16);
+  return (
+    <div style={{position: 'absolute', left: 60, width: 1500, bottom: 36, display: 'flex', justifyContent: 'center', ...a}}>
+      <div style={{padding: '14px 30px', borderRadius: 14, background: 'rgba(42,26,31,.88)', color: '#fff6ef', fontFamily: F.body, fontSize: 31,
+        boxShadow: '0 18px 40px -20px rgba(0,0,0,.6)'}}>
+        Shown in English. Farmers are free to speak or type in{' '}
+        <span lang="pa" style={{fontFamily: F.display, fontWeight: 700, color: C.silk}}>ਪੰਜਾਬੀ</span>,{' '}
+        <span lang="hi" style={{fontFamily: F.display, fontWeight: 700, color: C.silk}}>हिन्दी</span> or{' '}
+        <span style={{fontFamily: F.display, fontWeight: 700, color: C.silk}}>English</span>, with no language to pick.
+      </div>
+    </div>
+  );
+};
+
+export const S3: React.FC<P> = () => (
   <Ground>
     <BaghBand top={0} />
-    <Browser src="footage/s03_kisan_v2.mp4" url={`${SITE}/kisan/`} x={60} y={90} w={1500} zoom={{scale: 1.12, ox: 0.3, oy: 0.62}} />
-    <Subtitles lines={S3_LINES} dur={dur} />
+    <Browser src="footage/s03_kisan_en.mp4" url={`${SITE}/kisan/`} x={60} y={90} w={1500} zoom={{scale: 1.12, ox: 0.3, oy: 0.62}} />
+    <LangBanner at={sec(0.8)} />
     <Row x={1590} y={120} col gap={16}>
       <Chip at={sec(0.5)}>Live site</Chip>
-      <Chip at={sec(1.3)} tone="light">typed in ਪੰਜਾਬੀ</Chip>
+      <Chip at={sec(1.3)} tone="light">ਪੰਜਾਬੀ · हिन्दी · English</Chip>
       <Chip at={sec(8.2)} tone="silk">Gemini · Vertex AI</Chip>
       <Chip at={sec(11.5)} tone="light">{`${BK.turns} messages`}</Chip>
       {BK.speed3 > 1.05 ? <Chip at={sec(0.5)} tone="light" size={19}>{`sped up ${BK.speed3}×`}</Chip> : null}
@@ -146,8 +162,8 @@ export const S4: React.FC<P> = ({dur}) => {
   return (
     <Ground>
       <BaghBand top={0} />
-      <Browser src="footage/s04_kisan_v2.mp4" url={`${SITE}/kisan/`} x={60} y={90} w={1500} zoom={{scale, ox: 0.33, oy}} />
-      <Subtitles lines={S4_LINES} dur={dur} />
+      <Browser src="footage/s04_kisan_en.mp4" url={`${SITE}/kisan/`} x={60} y={90} w={1500} zoom={{scale, ox: 0.33, oy}} />
+      <LangBanner at={0} />
       <Row x={1590} y={120} col gap={16}>
         <Chip at={sec(1.2)} tone="silk">{o.price}</Chip>
         <Chip at={sec(2.2)}>{`${o.payout} payout`}</Chip>
@@ -190,10 +206,6 @@ export const S5: React.FC<P> = () => {
       <BaghBand top={0} />
       <Kicker x={90} y={60} at={4}>One number, two places</Kicker>
       <Shot shot={s.reply} file="reply.png" x={90} y={170} w={860} hlAt={[sec(6.0), sec(5.2)]} title="Gemini's reply" titleAt={sec(2.9)} />
-      <div style={{position: 'absolute', left: 90, top: 170 + 54 + (s.reply ? s.reply.h * (860 / s.reply.w) : 180) + 18, width: 860,
-        fontFamily: F.body, fontSize: 25, lineHeight: 1.35, color: C.inkSoft || C.ink, fontStyle: 'italic', ...useIn(sec(3.4))}}>
-        In English: “…your straw is ₹0.76 per kg, ₹10,640 in total…”
-      </div>
       <Shot shot={s.card} file="card.png" x={1130} y={170} w={640} hlAt={[sec(6.4), sec(5.6)]} title="Optimizer's offer card" titleAt={sec(4.96)} />
       <div style={{position: 'absolute', left: 975, top: 420, width: 130, height: 6, borderRadius: 3, background: C.silk, transformOrigin: 'left', transform: `scaleX(${line})`}} />
       <div style={{position: 'absolute', left: 960, top: 440, width: 160, textAlign: 'center', fontFamily: F.display, fontWeight: 700, fontSize: 22, color: C.madder, opacity: line}}>checked in code</div>
@@ -220,17 +232,24 @@ const FootageScene: React.FC<{src: string; url: string; chips: [number, string, 
 export const S6: React.FC<P> = () => (
   <Ground>
     <BaghBand top={0} />
-    <Browser src="footage/s06_dispatch.mp4" url={`${SITE}/ops/`} x={40} y={100} w={1500} />
+    <Browser src="footage/s06_dispatch_v6.mp4" url={`${SITE}/ops/#today`} x={40} y={100} w={1500} />
     <Row x={1570} y={130} col gap={16}>
       <Chip at={sec(3.3)} tone="light">Confirm by phone first</Chip>
       <Chip at={sec(7.9)}>Google OR-Tools</Chip>
       <Chip at={sec(11.6)} tone="silk">−13% km</Chip>
-      <Chip at={sec(14.6)} size={24}>Fire nearby alert · Pub/Sub</Chip>
     </Row>
   </Ground>
 );
+export const SRoutes: React.FC<P> = () => (
+  <FootageScene src="footage/s_routes.mp4" url={`${SITE}/ops/#pickups`}
+    chips={[[0.8, 'Routes · OR-Tools'], [4.6, 'arrival window per farm', 'light'], [10.0, 'booked stops stay fixed', 'silk']]} />
+);
+export const SCapacity: React.FC<P> = () => (
+  <FootageScene src="footage/s_capacity.mp4" url={`${SITE}/ops/#capacity`}
+    chips={[[0.8, 'Capacity desk · 3 weeks ahead'], [4.6, 'TimesFM forecast → crews', 'light'], [10.4, 'crews to sign up before the peak', 'silk']]} />
+);
 export const S7: React.FC<P> = () => (
-  <FootageScene src="footage/s07_forecast.mp4" url={`${SITE}/ops/#forecast`}
+  <FootageScene src="footage/s07_forecast_v6.mp4" url={`${SITE}/ops/#forecast`}
     chips={[[4.5, 'NASA FIRMS · 25 seasons', 'light'], [7.5, 'BigQuery · TimesFM'], [11.5, 'peak within 1 week', 'silk']]} />
 );
 const SatPair: React.FC<{name: string; label: string; burned: boolean; y: number; at: number; wipeAt: number; labelAt: number}> = ({name, label, burned, y, at, wipeAt, labelAt}) => {
@@ -261,13 +280,13 @@ export const S8: React.FC<P> = () => SAT ? (
   <Ground bg="assets/tech_bg.png">
     <BaghBand top={0} />
     <Kicker x={60} y={50} at={2}>Sentinel-2 · Google Earth Engine</Kicker>
-    <Browser src="footage/s08_impact.mp4" url={`${SITE}/ops/#impact`} x={40} y={130} w={960} />
+    <Browser src="footage/s08_impact_v6.mp4" url={`${SITE}/ops/#impact`} x={40} y={130} w={960} />
     <SatPair name="Sangrur" label="burn scar" burned y={120} at={sec(1.0)} wipeAt={sec(4.4)} labelAt={sec(6.4)} />
     <SatPair name="Karnal" label="no burn scar" burned={false} y={500} at={sec(2.0)} wipeAt={sec(5.0)} labelAt={sec(7.0)} />
     <Row x={60} y={940} gap={18}><Chip at={sec(8.5)} tone="light">a scar stays for weeks</Chip></Row>
   </Ground>
 ) : (
-  <FootageScene src="footage/s08_impact.mp4" url={`${SITE}/ops/#impact`}
+  <FootageScene src="footage/s08_impact_v6.mp4" url={`${SITE}/ops/#impact`}
     chips={[[1.5, 'Earth Engine · Sentinel-2'], [6.5, 'burn scar (dNBR)', 'light']]} />
 );
 export const S9: React.FC<P> = ({dur}) => {
@@ -298,14 +317,13 @@ export const S10: React.FC<P> = () => {
     <Ground bg="assets/tech_bg.png">
       <BaghBand top={0} />
       <Kicker x={70} y={44} at={2}>Architecture</Kicker>
-      <div style={{position: 'absolute', left: 60, top: 104, width: 1290, height: 942, borderRadius: 18, overflow: 'hidden', background: '#fff',
+      <div style={{position: 'absolute', left: 50, top: 150, width: 1500, height: 746, borderRadius: 18, overflow: 'hidden', background: '#fff',
         boxShadow: '0 30px 60px -30px rgba(42,26,31,.45)', border: `1px solid ${C.line}`, ...a}}>
-        <Img src={pub('img/architecture.png')} style={{width: 1290, height: 942}} />
+        <Img src={pub('img/deck_arch.png')} style={{width: 1500, height: 746}} />
       </div>
-      <div style={{position: 'absolute', left: 1400, top: 104, display: 'flex', flexDirection: 'column', gap: 14}}>
-        <Chip at={sec(0.6)} tone="madder" size={30}>Google Cloud</Chip>
-        {SERVICES.map(([t, s]) => <Chip key={s} at={sec(t)} tone="light" size={27}>{s}</Chip>)}
-        <Chip at={sec(9.6)} tone="silk" size={24}>OR-Tools optimizers</Chip>
+      <div style={{position: 'absolute', left: 1580, top: 120, display: 'flex', flexDirection: 'column', gap: 12}}>
+        <Chip at={sec(0.6)} tone="madder" size={26}>Google Cloud</Chip>
+        {SERVICES.map(([t, s]) => <Chip key={s} at={sec(t)} tone="light" size={22}>{s}</Chip>)}
       </div>
     </Ground>
   );
@@ -326,12 +344,30 @@ export const S11: React.FC<P> = () => (
   <Ground bg="assets/tech_bg.png">
     <BaghBand top={0} />
     <Kicker x={90} y={60} at={2}>bench/RESULTS.md</Kicker>
-    <Browser src="footage/s11_agent.mp4" url={`${SITE}/ops/#forecast`} x={90} y={140} w={880} style={{opacity: 0.95}} />
+    <Browser src="footage/s11_agent_v6.mp4" url={`${SITE}/ops/#forecast`} x={90} y={140} w={880} style={{opacity: 0.95}} />
     <div style={{position: 'absolute', left: 1020, top: 140, display: 'grid', gridTemplateColumns: '400px 400px', gap: 26}}>
-      <Stat at={sec(1.56)} big="40/40" small="simulated farmers booked" />
-      <Stat at={sec(4.07)} big="0" small="invented numbers in 181 replies" />
-      <Stat at={sec(6.29)} big="10/10" small="trick conversations handled" />
-      <Stat at={sec(11.9)} big="0.96" small="groundedness · Vertex AI Gen AI Evaluation" />
+      <Stat at={sec(1.58)} big="40/40" small="simulated farmers booked" />
+      <Stat at={sec(3.88)} big="0" small="invented numbers in 181 replies" />
+      <Stat at={sec(5.28)} big="12/12" small="trick conversations handled" />
+      <Stat at={sec(14.4)} big="0.96" small="groundedness · Vertex AI Gen AI Evaluation" />
+    </div>
+  </Ground>
+);
+
+// v6: performance beyond the agent (deck slide 13; bench/RESULTS.md).
+export const SPerf: React.FC<P> = () => (
+  <Ground bg="assets/tech_bg.png">
+    <BaghBand top={0} />
+    <Kicker x={90} y={60} at={2}>Measured beyond the agent</Kicker>
+    <div style={{position: 'absolute', left: 90, top: 160, display: 'grid', gridTemplateColumns: '400px 400px 400px 400px', gap: 26}}>
+      <Stat at={sec(0.6)} big="−13%" small="km driven vs dispatcher rules (50 farms; −5% at 200)" />
+      <Stat at={sec(2.4)} big="1.28×" small="roads vs straight line, Google Maps; we assume 1.3×" />
+      <Stat at={sec(5.6)} big="66%" small="NASA fire spots with a Sentinel-2 burn scar, vs 11% elsewhere" />
+      <Stat at={sec(11.0)} big="0.1–0.3 s" small="live site, a page's data" />
+    </div>
+    <div style={{position: 'absolute', left: 90, top: 560, display: 'grid', gridTemplateColumns: '400px 400px', gap: 26}}>
+      <Stat at={sec(1.2)} big="100%" small="farms cleared before sowing, every route test" />
+      <Stat at={sec(13.2)} big="3.7 s" small="spoken reply, typical" />
     </div>
   </Ground>
 );
@@ -365,7 +401,7 @@ export const S12: React.FC<P> = ({dur}) => {
         </div>
         <div style={{position: 'absolute', left: 0, right: 0, bottom: 200, textAlign: 'center', fontFamily: F.body, fontSize: 24, color: C.silkPale,
           opacity: interpolate(f, [sec(8.3), sec(8.9)], [0, 0.9], clamp)}}>
-          Made with Remotion, Veo and Nano Banana · Narration: Google Chirp 3 HD
+          Made with Remotion, Veo and Nano Banana · Narration: Google Chirp 3 HD · Music: Lyria
         </div>
       </AbsoluteFill>
     </AbsoluteFill>

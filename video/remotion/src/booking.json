@@ -1,35 +1,52 @@
 {
  "turns": 4,
- "speed3": 0.96,
- "speed4": 0.86,
+ "speed3": 1.11,
+ "speed4": 0.91,
  "replies": [
-  "ਸਤ ਸ੍ਰੀ ਅਕਾਲ ਜੀ! ਮੈਂ ਤੁਹਾਡੀ ਪਰਾਲੀ ਦੀ ਜਾਣਕਾਰੀ ਦਰਜ ਕਰ ਲਈ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਆਪਣਾ ਨਾਮ, ਮੋਬਾਈਲ ਨੰਬਰ ਅਤੇ ਉਹ ਤਰੀਕ ਦੱਸੋ ਜਦੋਂ ਤੱਕ ਖੇਤ ਖਾਲੀ ਕਰਨਾ ਜ਼ਰੂਰੀ ਹੈ?",
-  "ਮੈਂ ਬਿਜਾਈ ਦੀ ਤਰੀਕ 28 ਅਕਤੂਬਰ ਦਰਜ ਕਰ ਲਈ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਆਪਣਾ ਨਾਮ ਅਤੇ ਮੋਬਾਈਲ ਨੰਬਰ ਵੀ ਦੱਸ ਦਿਓ ਜੀ।",
-  "ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ ਜੀ, ਲੌਂਗੋਵਾਲ ਸੰਗਰੂਰ ਲਈ ਤੁਹਾਡੀ ਪਰਾਲੀ ਦਾ ਭਾਅ 0.76 ਰੁਪਏ ਪ੍ਰਤੀ ਕਿੱਲੋ ਹੈ ਅਤੇ ਕੁੱਲ 10640 ਰੁਪਏ ਬਣਦੇ ਹਨ। ਸਾਡੀ ਟੀਮ ਐਤਵਾਰ, 18 ਅਕਤੂਬਰ, ਦੁਪਹਿਰ 1 ਤੋਂ ਸ਼ਾਮ 4 ਵਜੇ ਦੇ ਵਿਚਕਾਰ ਪਰਾਲੀ ਚੁੱਕਣ ਆਵੇਗੀ। ਕੀ ਤੁਹਾਡਾ ਨਾਮ, ਪਿੰਡ ਅਤੇ ਇਹ ਸਮਾਂ ਸਹੀ ਹੈ, ਅਤੇ ਕੀ ਤੁਸੀਂ ਇਸ ਲਈ ਸਹਿਮਤ ਹੋ?",
-  "ਤੁਹਾਡੀ ਬੁਕਿੰਗ ਸਫਲਤਾਪੂਰਵਕ ਹੋ ਗਈ ਹੈ ਅਤੇ ਤੁਹਾਡਾ ਬੁਕਿੰਗ ਕੋਡ PS-DE76 ਹੈ। ਸਾਡੀ ਟੀਮ ਖੇਤ ਵਿੱਚ ਆਉਣ ਤੋਂ ਪਹਿਲਾਂ ਤੁਹਾਨੂੰ ਫੋਨ ਕਰਕੇ ਪੁਸ਼ਟੀ ਕਰੇਗੀ। ਸਾਡੇ ਨਾਲ ਜੁੜਨ ਲਈ ਧੰਨਵਾਦ ਜੀ!"
+  "Hello! I have noted your 8 acres of rice stubble in Longowal, Sangrur. To help you book a pickup, could you please tell me your name, mobile number, and the date by which you need the field cleared for sowing?",
+  "I have recorded your sowing deadline as 2026-10-28. To complete your booking, could you please share your name and mobile number?",
+  "We can offer you 0.76 rupees per kg, which comes to a total payout of 10640 rupees for your 14000 kg of straw. Our crew will clear your field on Tuesday 20 October, 7 am to 10 am. Are your name Gurpreet Singh and village Longowal, Sangrur correct, and should I book this for you?",
+  "Your booking is confirmed with code PS-AD6B. Our team will call you to confirm the details before the crew comes to clear your field."
+ ],
+ "sent": [
+  "Hello, I have 8 acres of paddy straw in village Longowal, Sangrur.",
+  "I have to sow wheat by 28 October.",
+  "My name is Gurpreet Singh, number 9876543210.",
+  "Yes, please book it."
  ],
  "offer": {
   "price": "₹0.76 / kg",
   "payout": "₹10,640",
-  "kg": "14,000 kg",
-  "slot": "ਐਤਵਾਰ, 18 ਅਕਤੂਬਰ, ਦੁਪਹਿਰ 1 ਤੋਂ ਸ਼ਾਮ 4 ਵਜੇ"
+  "kg": "0 kg",
+  "slot": "Tuesday 20 October, 7 am to 10 am"
  },
- "booked_in_s4": 9.1,
- "code": "PS-DE76",
+ "booked_in_s4": 7.45,
+ "code": "PS-AD6B",
+ "s3_marks": {
+  "typing1": 0.27,
+  "send1": 2.37,
+  "reply1": 6.36,
+  "typing2": 7.73,
+  "send2": 8.96,
+  "reply2": 11.37,
+  "typing3": 12.74,
+  "send3": 14.26,
+  "reply3": 17.83
+ },
  "shots": {
   "reply": {
    "w": 560,
    "h": 118.5625,
    "hl": [
     {
-     "x": 38.96875,
+     "x": 14,
      "y": 32.640625,
-     "w": 42.125,
+     "w": 42.109375,
      "h": 27,
      "text": "10640"
     },
     {
-     "x": 367.3125,
+     "x": 141.859375,
      "y": 8,
      "w": 28.703125,
      "h": 27,
@@ -50,11 +67,11 @@
      "text": "₹10,640"
     },
     {
-     "x": 461.75,
+     "x": 466.40625,
      "y": 98.65625,
-     "w": 82.25,
+     "w": 77.59375,
      "h": 22.328125,
-     "text": "₹0.76 ਪ੍ਰਤੀ ਕਿੱਲੋ"
+     "text": "₹0.76 per kg"
     }
    ],
    "file": "card.png"
