@@ -505,6 +505,10 @@ class Turn:
             fields["crop_type"] = "rice_stubble"  # the farmer already said paddy: don't ask "which crop?"
             stated.add("crop_type")
         fields = pickups.complete_quantities(fields)
+        if not fields:
+            # Nothing about straw was said (a cricket question, a greeting):
+            # record nothing, so an off-topic chat leaves no listing behind.
+            return {"nothing_recorded": True, "note": "No straw details in the farmer's words yet."}
         self.conv["fields"], self.conv["stated"] = fields, sorted(stated)
         result = {"fields": fields, "district": pickups.listing_district(fields),
                   "missing_fields": pickups.agent_missing_fields(fields),
@@ -778,7 +782,28 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
     if not text:
         report["fallback"] = True
         text = fallback_reply(turn, conv["language"])
+    elif _offer_unmentioned(conv, turn, text, user_text):
+        # After an offer the conversation continues from it (rule 11): a reply
+        # that answers a side question without the offer gets it restated, in
+        # code, so the farmer always has the pickup time and payout in view.
+        from phrases import offer_reminder
+        text = f"{text.strip()} {offer_reminder(conv['offer_card'], conv['language'])}"
+        report["offer_restated"] = True
     return text.strip(), report
+
+
+def _offer_unmentioned(conv: dict, turn: Turn, text: str, user_text: str) -> bool:
+    offer = conv.get("offer_card")
+    if not offer or conv.get("booked_card") or conv.get("booking_status") in ("booked", "cancelled"):
+        return False
+    if any(c.get("type") in ("offer", "booked", "bookings") for c in turn.cards):
+        return False
+    if _NO_WORDS.search(_NOT_A_NO.sub(" ", user_text or "")):
+        return False                       # "no, not now": don't press them
+    spoken = offer.get("pickup_window_spoken") or ""
+    said = numbers_in(text)
+    return not ((spoken and spoken in text) or round(offer["payout_inr"], 2) in said
+                or round(offer["price_per_kg"], 2) in said)
 
 
 def understand(client, language: str | None, text: str | None, audio: bytes | None, mime: str | None,

@@ -315,6 +315,37 @@ def test_bargaining_after_an_offer_restates_it_instead_of_starting_over(chat):
     assert "ਸਤ ਸ੍ਰੀ ਅਕਾਲ" not in bargain["reply"] and "ਕਿੰਨੇ ਕਿੱਲੇ" not in bargain["reply"], "no restart"
 
 
+def test_a_side_question_after_an_offer_keeps_the_offer_in_view(chat):
+    # Found in the trick benchmark: after an offer, "can you come tomorrow?" got a
+    # correct answer that never restated the offer. Code now adds it once.
+    first = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], _offer_text], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    offer = next(c for c in first["cards"] if c["type"] == "offer")
+    side = chat([lambda r: "ਸਾਡੀ ਟੀਮ ਟਰੈਕਟਰ ਅਤੇ ਬੇਲਰ ਲੈ ਕੇ ਆਵੇਗੀ।"], "ਤੁਸੀਂ ਕਿਵੇਂ ਆਓਗੇ?", first["conversation_id"])
+    assert side["guardrails"].get("offer_restated") and side["reply"].startswith("ਸਾਡੀ ਟੀਮ ਟਰੈਕਟਰ")
+    assert (offer.get("pickup_window_spoken") or offer["pickup_window"]) in side["reply"]
+    assert not agent.unsupported_numbers(side["reply"], ["ਤੁਸੀਂ ਕਿਵੇਂ ਆਓਗੇ?"], [offer])
+
+
+def test_a_reply_that_already_restates_the_offer_is_left_alone(chat):
+    first = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], _offer_text], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    offer = next(c for c in first["cards"] if c["type"] == "offer")
+    said = f"ਟੀਮ {offer['pickup_window_spoken']} ਆਵੇਗੀ।" if offer.get("pickup_window_spoken") else f"ਤੁਹਾਨੂੰ ₹{offer['payout_inr']:g} ਮਿਲਣਗੇ।"
+    side = chat([lambda r: said], "ਟੀਮ ਕਦੋਂ ਆਵੇਗੀ?", first["conversation_id"])
+    assert not side["guardrails"].get("offer_restated") and side["reply"] == said
+
+
+def test_a_no_after_an_offer_is_not_pressed(chat):
+    first = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], _offer_text], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    no = chat([lambda r: "ਕੋਈ ਗੱਲ ਨਹੀਂ, ਸੋਚ ਕੇ ਦੱਸਣਾ।"], "ਨਹੀਂ, ਹਾਲੇ ਨਹੀਂ", first["conversation_id"])
+    assert not no["guardrails"].get("offer_restated")
+
+
+def test_an_off_topic_message_records_no_listing(chat):
+    # Found in the trick benchmark: a cricket question opened an empty listing.
+    result = chat([[("update_listing", {})], lambda r: "ਮੈਂ ਸਿਰਫ਼ ਪਰਾਲੀ ਬਾਰੇ ਮਦਦ ਕਰ ਸਕਦਾ ਹਾਂ।"], "ਕੱਲ੍ਹ ਦਾ ਕ੍ਰਿਕਟ ਮੈਚ ਕੌਣ ਜਿੱਤੇਗਾ?")
+    assert not any(c["type"] == "draft" for c in result["cards"]) and not result["fields"]
+
+
 def test_a_failed_model_after_booking_still_answers_from_the_booking(chat, world, monkeypatch):
     first = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], _offer_text], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
     chat([[("confirm_booking", {"farmer_said_yes": True})], lambda r: "ਬੁੱਕ ਹੋ ਗਿਆ"], "ਹਾਂ ਜੀ, ਕਰ ਦਿਓ",

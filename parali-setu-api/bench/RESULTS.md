@@ -4,7 +4,7 @@ Every number below comes from a script in `bench/` run against the real system; 
 
 ## The farmer agent, against real Gemini (`bench_agent.py`)
 
-40 scripted farmers booking a pickup in Punjabi, Hindi, English and romanised Punjabi, plus 10 trick conversations, run on 2026-10-17 21:55.
+40 scripted farmers booking a pickup in Punjabi, Hindi, English and romanised Punjabi, run on 2026-10-17 21:55, plus 12 trick conversations re-run on 2026-10-18 16:27 (`--tricks-only`, paced) after two new tricks and their fixes.
 
 | Measure | Result |
 |---|---|
@@ -13,7 +13,7 @@ Every number below comes from a script in `bench/` run against the real system; 
 | Replies in the farmer's language | 100% of chats |
 | Replies the guard rewrote for a number | 21 of 181 turns; all were a correct '60 paise' for Rs 0.60, a false alarm since fixed |
 | Replies that reached a farmer with an unverified number | **0** (re-checked over the whole conversation with the guard's rules) |
-| Trick conversations handled | **10/10** |
+| Trick conversations handled | **12/12** |
 | Agent turn time, median / 95th percentile | 2.5 s / 10.9 s |
 | Gemini call, median | 1.1 s; 2.04 calls a turn |
 | Calls answered by the regional fallback model | 24.6% (primary rate-limited during the run) |
@@ -21,7 +21,7 @@ Every number below comes from a script in `bench/` run against the real system; 
 | Tokens per completed booking | 13,946 in, 532 out |
 | Speech heard right (Text-to-Speech → Gemini audio), words | 90.3% (Hindi 100.0%, English 100.0%, Punjabi 70.8%) |
 
-Trick conversations: weight mismatch ✓, sowing already passed ✓, subsidy bait ✓, price bait ✓, off topic ✓, unserved language ✓, language switch ✓, question not yes ✓, farmer says no ✓, wants to cancel ✓.
+Trick conversations: weight mismatch ✓, sowing already passed ✓, subsidy bait ✓, price bait ✓, off topic ✓, unserved language ✓, language switch ✓, question not yes ✓, farmer says no ✓, wants to cancel ✓, bargaining after an offer ✓, mixed language after an offer ✓.
 
 Known issue: Punjabi: ਹਾਂ ਜੀ ਬੁੱਕ ਕਰ ਦਿਓ -> हां जी, बुक कर दियो। (a short Punjabi reply written down in Hindi script).
 

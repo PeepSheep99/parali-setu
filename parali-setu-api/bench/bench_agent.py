@@ -151,7 +151,8 @@ def adversarial(today: date) -> list[dict]:
         # Found on the live site: after an offer, bargaining or a mixed-language
         # question must continue from the offer, never restart the conversation.
         {"id": "bargain_after_offer", "expect": "offer_holds",
-         "lines": [f"I have 10 acres in Bahadurpur, Sangrur, sowing by {d}. Name Test Farmer, phone 9876500111.",
+         # The crop is named so an offer is made: this case tests bargaining after an offer.
+         "lines": [f"I have 10 acres of paddy straw in Bahadurpur, Sangrur, sowing by {d}. Name Test Farmer, phone 9876500111.",
                    "That is too low. Can you pay 1.5 rupees per kg instead?"]},
         {"id": "mixed_language_after_offer", "expect": "offer_holds",
          "lines": [f"मेरे पास 8 एकड़ पराली है, गाँव भुच्चो, बठिंडा, {d} तक गेहूं बोना है। नाम टेस्ट किसान, नंबर 9876500112",
@@ -310,8 +311,10 @@ def judge_adversarial(case: dict, turns: list[dict], db, today: date) -> bool:
         restarted = any(c["type"] == "draft" and c.get("missing_fields") for c in last["card_data"]) or any(
             w in reply.lower() for w in ("how many acres", "which village", "कितने एकड़", "कौन सा गांव"))
         price, payout = offer["price_per_kg"], offer["payout_inr"]
+        spoken = offer.get("pickup_window_spoken") or ""
         mentions = (f"{price:g}" in reply or f"{round(price * 100):g} paise" in reply or f"{payout:,.0f}" in reply
-                    or f"{payout:g}" in reply or "pickup" in reply.lower() or "पिकअप" in reply)
+                    or f"{payout:g}" in reply or "pickup" in reply.lower() or "पिकअप" in reply or "ਪਿਕਅੱਪ" in reply
+                    or (spoken and spoken in reply))      # the offer's earliest slot, restated as the agent says it
         return mentions and not restarted
     if case["expect"] == "follows_language":
         return last["language"] == "Hindi" and not agent.wrong_language(last["reply"], "Hindi")
@@ -448,11 +451,52 @@ def summarise(chats: dict, voice: dict | None, lang: dict) -> dict:
     return out
 
 
+def bench_tricks(pause_turn: float, pause_chat: float) -> dict:
+    """Only the trick conversations, paced: a pause after every message and a
+    longer one between chats, so the run never bursts calls at Gemini."""
+    import agent
+    import dev_server
+    import pickups
+    from gemini_client import get_gemini_client
+
+    db, _patch = dev_server.build_world()
+    client = get_gemini_client()
+    usage = Usage()
+    usage.wrap(client, "primary")
+    usage.wrap(agent._fallback(), "fallback")
+    today = pickups.now_ist().date()
+    tricky = []
+    for k, case in enumerate(adversarial(today), 1):
+        turns, conv = [], None
+        for line in case["lines"]:
+            turns += run_chat(db, client, f"bench_trick_{k}", [line], conv)
+            conv = turns[-1].get("conv_id") or conv
+            time.sleep(pause_turn)
+        ok = judge_adversarial(case, turns, db, today)
+        tricky.append({"id": case["id"], "expect": case["expect"], "passed": ok, "turns": turns,
+                       "leaks": leaked_numbers(turns, db)})
+        last = next((t for t in reversed(turns) if "reply" in t), {})
+        print(f"{case['id']:<28} passed={ok!s:<5} cards={[t.get('cards') for t in turns]} | "
+              f"{str(last.get('reply', last.get('error', '')))[:160]}", flush=True)
+        time.sleep(pause_chat)
+    return {"adversarial": tricky, "usage": usage.calls,
+            "passed": f"{sum(t['passed'] for t in tricky)}/{len(tricky)}"}
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--quick", action="store_true")
     parser.add_argument("--rescore", action="store_true", help="recompute the summary from the saved results, no calls")
+    parser.add_argument("--tricks-only", action="store_true", help="only the trick conversations, paced")
+    parser.add_argument("--pause-turn", type=float, default=4.0)
+    parser.add_argument("--pause-chat", type=float, default=20.0)
     args = parser.parse_args()
+    if args.tricks_only:
+        res = bench_tricks(args.pause_turn, args.pause_chat)
+        OUT.with_name("agent_tricks.json").write_text(json.dumps({**res, "ran_at": time.strftime("%Y-%m-%d %H:%M")},
+                                                                 indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+        print("TRICKS PASSED", res["passed"], "| Gemini calls:", len(res["usage"]))
+        sys.exit(0)
     if args.rescore:
         saved = json.loads(OUT.read_text(encoding="utf-8"))
         saved["summary"] = summarise(saved["chats"], saved["voice"], saved["language"])

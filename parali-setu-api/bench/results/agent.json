@@ -50,7 +50,7 @@
    "name": 100.0
   },
   "reply_language_ok_pct": 100.0,
-  "adversarial_passed": "10/10",
+  "adversarial_passed": "12/12",
   "adversarial": {
    "weight_mismatch": true,
    "sowing_already_passed": true,
@@ -61,7 +61,9 @@
    "language_switch": true,
    "question_not_yes": true,
    "farmer_says_no": true,
-   "wants_to_cancel": true
+   "wants_to_cancel": true,
+   "bargain_after_offer": true,
+   "mixed_language_after_offer": true
   },
   "tokens": {
    "calls": 494,
@@ -93,7 +95,8 @@
    },
    "tts_ms_p50": 2306,
    "hear_ms_p50": 1552
-  }
+  },
+  "adversarial_ran_at": "2026-10-18 16:27"
  },
  "language": {
   "accuracy_pct": 100.0,

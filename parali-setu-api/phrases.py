@@ -18,6 +18,7 @@ AGENT_FALLBACK = {
         "booked": "आपकी पिकअप बुक हो गई: {window}. पराली उठते ही उसी दिन ₹{payout} मिलेंगे।",
         "offer": "आज का भाव ₹{price} प्रति किलो है। आपको ₹{payout} मिलेंगे, पिकअप {window}. क्या बुक कर दूं?",
         "held": "आपका ऑफ़र वही है: ₹{price} प्रति किलो, आज सबके लिए एक ही भाव, मोलभाव से नहीं बदलता। आपको उसी दिन ₹{payout} मिलेंगे, पिकअप {window}. क्या बुक कर दूं?",
+        "reminder": "आपका ऑफ़र वही है: पिकअप {window}, उसी दिन ₹{payout}। क्या बुक कर दूं?",
         "price": "{district} में आज का भाव ₹{price} प्रति किलो है। खेत मुफ्त में साफ़ होगा, पैसे उसी दिन।",
         "missing": "कृपया बताइए: {items}.",
         "start": "नमस्ते! बताइए कितने एकड़ धान है, कौन सा गांव, और गेहूं कब बोनी है।",
@@ -28,6 +29,7 @@ AGENT_FALLBACK = {
         "booked": "ਤੁਹਾਡਾ ਪਿਕਅੱਪ ਬੁੱਕ ਹੋ ਗਿਆ: {window}. ਪਰਾਲੀ ਚੁੱਕਦੇ ਹੀ ਉਸੇ ਦਿਨ ₹{payout} ਮਿਲਣਗੇ।",
         "offer": "ਅੱਜ ਦਾ ਭਾਅ ₹{price} ਪ੍ਰਤੀ ਕਿਲੋ ਹੈ। ਤੁਹਾਨੂੰ ₹{payout} ਮਿਲਣਗੇ, ਪਿਕਅੱਪ {window}. ਕੀ ਬੁੱਕ ਕਰ ਦਿਆਂ?",
         "held": "ਤੁਹਾਡੀ ਪੇਸ਼ਕਸ਼ ਉਹੀ ਹੈ: ₹{price} ਪ੍ਰਤੀ ਕਿਲੋ, ਅੱਜ ਸਭ ਲਈ ਇੱਕੋ ਭਾਅ, ਮੋਲ-ਭਾਅ ਨਾਲ ਨਹੀਂ ਬਦਲਦਾ। ਤੁਹਾਨੂੰ ਉਸੇ ਦਿਨ ₹{payout} ਮਿਲਣਗੇ, ਪਿਕਅੱਪ {window}. ਕੀ ਬੁੱਕ ਕਰ ਦਿਆਂ?",
+        "reminder": "ਤੁਹਾਡੀ ਪੇਸ਼ਕਸ਼ ਉਹੀ ਹੈ: ਪਿਕਅੱਪ {window}, ਉਸੇ ਦਿਨ ₹{payout}। ਕੀ ਬੁੱਕ ਕਰ ਦਿਆਂ?",
         "price": "{district} ਵਿੱਚ ਅੱਜ ਦਾ ਭਾਅ ₹{price} ਪ੍ਰਤੀ ਕਿਲੋ ਹੈ। ਖੇਤ ਮੁਫ਼ਤ ਸਾਫ਼ ਹੋਵੇਗਾ, ਪੈਸੇ ਉਸੇ ਦਿਨ।",
         "missing": "ਕਿਰਪਾ ਕਰਕੇ ਦੱਸੋ: {items}.",
         "start": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! ਦੱਸੋ ਕਿੰਨੇ ਕਿੱਲੇ ਝੋਨਾ ਹੈ, ਕਿਹੜਾ ਪਿੰਡ, ਅਤੇ ਕਣਕ ਕਦੋਂ ਬੀਜਣੀ ਹੈ।",
@@ -38,6 +40,7 @@ AGENT_FALLBACK = {
         "booked": "Your pickup is booked: {window}. You get Rs {payout} the same day we collect.",
         "offer": "Today's price is Rs {price} per kg. You get Rs {payout}, pickup {window}. Shall I book it?",
         "held": "Your offer stands: Rs {price} per kg, the same price for every farmer today, so it doesn't change with bargaining. You get Rs {payout} the same day, pickup {window}. Shall I book it?",
+        "reminder": "Your offer stands: pickup {window}, Rs {payout} the same day. Shall I book it?",
         "price": "Today's price in {district} is Rs {price} per kg. We clear the field free and pay the same day.",
         "missing": "Please tell me: {items}.",
         "start": "Hello! Tell me how many acres of paddy, your village, and when you sow wheat.",
@@ -45,6 +48,14 @@ AGENT_FALLBACK = {
                   "sowing_deadline": "your wheat sowing date", "name": "your name", "phone": "your mobile number"},
     },
 }
+
+
+def offer_reminder(offer: dict, language: str) -> str:
+    """One sentence restating an open offer's pickup time and payout, added
+    when a reply after the offer doesn't mention it."""
+    t = AGENT_FALLBACK.get(language, AGENT_FALLBACK["English"])
+    return t["reminder"].format(window=offer.get("pickup_window_spoken") or offer["pickup_window"],
+                                payout=_fmt_number(offer["payout_inr"]))
 
 
 def agent_fallback(cards: list[dict], fields: dict, language: str, conv: dict | None = None) -> str:
