@@ -11,3 +11,4 @@ ortools>=9.11
 pydantic>=2.8
 python-dotenv>=1.0
 pytest>=8.0
+google-cloud-pubsub>=2.21

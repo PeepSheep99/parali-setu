@@ -15,3 +15,8 @@ parali-setu-api/forecast/data/raw/
 # Local deploy settings (Maps key, Cloud Run URL)
 .env.local
 parali-setu-frontend/.env.local
+
+# Demo video build outputs
+video/build/
+video/out/
+video/remotion/node_modules/

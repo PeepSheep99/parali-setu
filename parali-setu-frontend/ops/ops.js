@@ -257,6 +257,7 @@
       if (x.kind === "deliveries_short") return h("p", {}, `${fmt(x.tonnes, 1)} t of deliveries are short in ${x.orders.length} order${x.orders.length === 1 ? "" : "s"}. Call those customers. `, link("orders", "See orders"));
       if (x.kind === "no_slot") return h("p", {}, `${x.farmer_name || x.village || x.district} (${x.depot_name}) has no pickup slot: ${x.reason || "no reason given"}. Call the farmer.`);
       if (x.kind === "promise_at_risk") return h("p", {}, `${x.farmer_name || x.village || x.district} (${x.depot_name}) was booked but the latest plan can't keep the slot: ${x.reason}. Call the farmer and re-plan. `, link("pickups", "See routes"));
+      if (x.kind === "fire_nearby") return h("p", { class: "fire-alert" }, h("strong", {}, "Fire nearby: "), `NASA satellites saw a fire ${fmt(x.distance_km, 1)} km from ${x.farmer_name || x.village || x.district} (${x.depot_name})${x.detected_at ? ` on ${short(x.detected_at)}` : ""}. Burning is happening around this farm: reach it first and call the farmer. `, link("forecast", "See the fire map"));
       return h("p", {}, JSON.stringify(x));
     }) : [h("p", { class: "empty" }, "Nothing else needs a person.")]));
   }

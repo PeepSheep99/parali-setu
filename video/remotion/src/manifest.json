@@ -1,0 +1,13 @@
+{
+ "assets/tech_bg.png": true,
+ "assets/title_bg.png": true,
+ "assets/village_bales.png": true,
+ "footage/s01_map.mp4": true,
+ "footage/s06_dispatch.mp4": true,
+ "footage/s07_forecast.mp4": true,
+ "footage/s08_impact.mp4": true,
+ "footage/s09_company.mp4": true,
+ "footage/s11_agent.mp4": true,
+ "footage/s12_firemap.mp4": true,
+ "footage/s12_fires.mp4": true
+}

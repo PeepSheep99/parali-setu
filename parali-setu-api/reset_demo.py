@@ -32,7 +32,7 @@ from geo import DISTRICT_COORDS
 WIPE_COLLECTIONS = (
     "listings", "listing_drafts", "bookings", "depots", "crews", "pickup_slots", "posted_prices",
     "purchases", "inventory_moves", "customers", "orders", "deliveries", "plans", "conversations",
-    "no_burn_proofs", "farmers",
+    "no_burn_proofs", "farmers", "fire_alerts",
     # collections of the earlier marketplace design, cleared if still present
     "matches", "demand", "companies", "payouts", "negotiation_sessions",
 )
@@ -159,6 +159,32 @@ def demo_run(db) -> dict:
     return {"accepted": len(accepted), "collected": len(collected), "paid_inr": round(sum(collected), 2)}
 
 
+# Two real fields from the 2024 season, so the Sentinel-2 field check
+# (satellite_check.py) has results to show: one near Sangrur where NASA FIRMS
+# saw a cluster of fires on 2 Nov 2024, and one near Karnal with no fire within
+# 4 km all season. Both "collected" on 29 Oct 2024; the daily job checks them.
+# Checked on 18 Oct 2026: Sangrur dNBR 0.64 with a charred surface (burn scar),
+# Karnal dNBR -0.03 (no burn scar).
+SATELLITE_EXAMPLES = [
+    ("example_2024_sangrur", "Sangrur", 30.236, 75.96),
+    ("example_2024_karnal", "Karnal", 29.62, 76.90),
+]
+
+
+def seed_satellite_examples(db) -> int:
+    for ex_id, district, lat, lon in SATELLITE_EXAMPLES:
+        listing = store.save_listing(db, f"farmer_{ex_id}", {
+            "acres": 1, "quantity_kg": 1750.0, "crop_type": "rice_stubble", "district": district,
+            "village_or_district": f"{district} (2024 field, satellite check example)", "lat": lat, "lon": lon,
+            "ready_by": "2024-10-28", "sowing_deadline": "2024-11-10"}, "English")
+        store.save_booking(db, {
+            "id": f"booking_{ex_id}", "listing_id": listing["id"], "farmer_id": f"farmer_{ex_id}",
+            "depot_id": "dep_sangrur" if district == "Sangrur" else "dep_karnal", "district": district,
+            "kg": 1750.0, "price_per_kg": 0.6, "status": "paid", "collected_kg": 1750.0,
+            "collected_on": "2024-10-29", "satellite_example": True})
+    return len(SATELLITE_EXAMPLES)
+
+
 def run(include_listings: bool) -> None:
     db = store.get_firestore_client()
     today = pickups.now_ist().date()
@@ -178,6 +204,7 @@ def run(include_listings: bool) -> None:
         for s in summaries:
             print("  ", s)
         print("demo run:", demo_run(db))
+    print("satellite examples:", seed_satellite_examples(db))
     deliveries = operations.run_deliveries(db, today)
     print(f"delivery plan: shortfall {deliveries['shortfall_t']} t, haul Rs {deliveries['haul_cost_inr']}, "
           f"storage Rs {deliveries['storage_cost_inr']}")
