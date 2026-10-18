@@ -41,7 +41,7 @@ def build_world():
     reset_demo.seed_customers_and_orders(db, today)
     operations.run_procurement(db, today)
     listings = reset_demo.seed_listings(db, today)
-    booked = [operations.book_listing(db, listing, today)[0] for listing in listings]
+    booked = reset_demo.place_requests(db, listings, today)
     pickups.plan_depots(db, {b["depot_id"] for b in booked if b})
     reset_demo.demo_run(db)
     reset_demo.seed_history(db, today)

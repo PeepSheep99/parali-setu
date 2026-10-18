@@ -17,6 +17,16 @@ NOW = (2026, 10, 17, 9, 0)
 
 
 @pytest.fixture(autouse=True)
+def no_notice(monkeypatch, request):
+    """Most tests book and collect on the frozen 'today'; only test_notice.py
+    tests the 24 hours' notice a real request needs."""
+    if request.module.__name__.endswith("test_notice"):
+        return
+    import pickups
+    monkeypatch.setattr(pickups, "NOTICE_HOURS", 0)
+
+
+@pytest.fixture(autouse=True)
 def no_rate_limit(monkeypatch):
     """Tests all call from one address; only test_ratelimit.py tests the limits."""
     import ratelimit

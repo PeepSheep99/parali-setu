@@ -115,6 +115,7 @@ class PickupJob:
     earliest: date      # ready date
     latest: date        # last allowed pickup day (day before sowing)
     locked: LockedSlot | None = None
+    not_before_min: int = 0   # on the earliest day, no start before this minute (24 hours' notice)
 
 
 @dataclass(frozen=True)
@@ -330,7 +331,8 @@ def _plan_with(
         else:
             first_day = max(0, (job.earliest - start).days)
             last_day = min(horizon_days - 1, (job.latest - start).days)
-            time_dim.CumulVar(index).SetRange(first_day * MINUTES_PER_DAY, (last_day + 1) * MINUTES_PER_DAY - 1)
+            not_before = job.not_before_min if (job.earliest - start).days == first_day else 0
+            time_dim.CumulVar(index).SetRange(first_day * MINUTES_PER_DAY + not_before, (last_day + 1) * MINUTES_PER_DAY - 1)
             routing.AddDisjunction([index], int(_DROP_PENALTY_PER_ACRE * max(1.0, acres)))
 
     params = pywrapcp.DefaultRoutingSearchParameters()

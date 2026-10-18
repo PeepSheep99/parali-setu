@@ -91,6 +91,10 @@ Rules you must follow:
     ("give me more", "1.5 rupees?"), say politely that the posted price is the same for every
     farmer today and cannot be changed, restate the offer's price, payout and pickup time, and
     ask whether to book. Never greet them again or ask again for details you already have.
+12. We need at least 24 hours' notice before a pickup (notice_hours in the offer). If the farmer
+    wants it today, tonight or early tomorrow, explain kindly that our team must first call to
+    confirm and arrange the baler and crew, then offer the earliest slot the tool returned.
+    Never promise a sooner time.
 
 Today's date is {today}. What we already know in this conversation:
 {facts}"""
@@ -155,6 +159,7 @@ TOOLS = types.Tool(function_declarations=[
 # No digits here: the number guardrail only lets through numbers a tool returned.
 SERVICE_TERMS = {
     "who_we_are": "Parali Setu is a private company. This is a demo prototype.",
+    "notice": "We need at least a full day's notice: our team calls you to confirm the details and lines up the baler and crew. So a pickup is never the same day or the same night you ask; the earliest is a day later.",
     "price": "One posted price per district per day, set by our planner from how much straw we need and how much we expect. There is no bargaining, and the price you are offered does not change during the day.",
     "payment": "In this prototype payment is a simulated UPI transfer on the day our crew collects. No real money moves.",
     "weighing": "The straw is weighed on a weighbridge at the depot and you are paid for the weighed kilograms. The weight in the offer is an estimate from your area.",
@@ -542,7 +547,7 @@ class Turn:
                  "pickup_window_spoken": window_words(slot["date"], slot["window_start_min"], slot["window_end_min"],
                                                       self.conv["language"]),
                  "depot": view["depot_name"], "offer_valid_until": view["offer_expires_at"],
-                 "field_cleared_free": True, "paid_same_day": True,
+                 "field_cleared_free": True, "paid_same_day": True, "notice_hours": pickups.NOTICE_HOURS,
                  "farm": {"name": fields.get("farmer_name"), "phone": pickups.mask_phone(fields.get("contact")),
                           "village": fields.get("village_or_district"), "acres": fields.get("acres"),
                           "location": "demo location" if fields.get("location_source") == "demo" else None}}

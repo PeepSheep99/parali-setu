@@ -35,6 +35,24 @@ OFFER_HOLD_HOURS = 4
 # so "today" and today's earliest slot are right for the farmer.
 IST = timezone(timedelta(hours=5, minutes=30))
 SAME_DAY_LEAD_MIN = 120      # no slot starts within 2 h of the offer
+# A new request needs at least 24 hours' notice: time to call the farmer,
+# confirm the details and line up a baler and crew. Counted from when the
+# farmer asked, rounded up to the hour so no promised window starts sooner.
+NOTICE_HOURS = 24
+LAST_START_MIN = 17 * 60     # a notice ending after 5 pm moves to the next morning
+
+
+def notice_start(booking: dict) -> tuple[date, int] | None:
+    """(earliest day, earliest minute that day) a new request can be picked up."""
+    created = booking.get("requested_at")
+    if not created or NOTICE_HOURS <= 0:
+        return None
+    ready = datetime.fromisoformat(str(created)).astimezone(now_ist().tzinfo) + timedelta(hours=NOTICE_HOURS)
+    minute = ready.hour * 60 + ready.minute
+    minute = -(-minute // 60) * 60   # up to the hour
+    if minute > LAST_START_MIN:
+        return ready.date() + timedelta(days=1), 0
+    return ready.date(), minute
 OFFER_BEFORE_SLOT_MIN = 60  # an offer lapses at least 1 h before its slot starts
 
 
@@ -155,9 +173,13 @@ def build_jobs(bookings: list[dict], listings: dict[str, dict], locked_slots: di
                                       window_start_min=slot["window_start_min"],
                                       window_end_min=slot["window_end_min"])))
             continue
+        not_before = 0
+        notice = notice_start(booking)
+        if notice and notice[0] >= earliest:
+            earliest, not_before = notice
         jobs.append(PickupJob(
             booking_id=booking["id"], depot_id=booking["depot_id"], lat=lat, lon=lon,
-            acres=acres_from_kg(booking["kg"]), earliest=earliest, latest=latest))
+            acres=acres_from_kg(booking["kg"]), earliest=earliest, latest=latest, not_before_min=not_before))
     return jobs, unschedulable
 
 

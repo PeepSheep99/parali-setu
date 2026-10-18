@@ -207,6 +207,20 @@ def seed_listings(db, today: date, seed: int = 17) -> list[dict]:
     return listings
 
 
+def place_requests(db, listings: list[dict], today: date) -> list[dict | None]:
+    """Books each synthetic request at today's posted price. They were placed
+    two days ago, so the 24 hours' notice is already behind them and the board
+    is full from tomorrow whatever time of day the demo is reset."""
+    asked = (pickups.now_ist() - timedelta(days=2)).isoformat()
+    booked = []
+    for listing in listings:
+        booking = operations.book_listing(db, listing, today)[0]
+        if booking:
+            store.update_booking_fields(db, booking["id"], {"requested_at": asked})
+        booked.append(booking)
+    return booked
+
+
 def demo_run(db, seed: int = 23) -> dict:
     """Moves the seeded offers through the same functions the API calls, so
     the board shows every stage: today's pickups confirmed and some already
@@ -282,7 +296,7 @@ def run(include_listings: bool) -> None:
     print("posted prices:", {r["district"]: r["price_per_kg"] for r in store.get_posted_prices_for_day(db, today.isoformat())})
     if include_listings:
         listings = seed_listings(db, today)
-        booked = [operations.book_listing(db, listing, today)[0] for listing in listings]
+        booked = place_requests(db, listings, today)
         summaries = pickups.plan_depots(db, {b["depot_id"] for b in booked if b})
         print(f"seeded {len(listings)} listings -> {sum(1 for b in booked if b)} bookings")
         for s in summaries:

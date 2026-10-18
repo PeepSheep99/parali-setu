@@ -416,6 +416,7 @@ def book_listing(db, listing: dict, today: date | None = None) -> tuple[dict | N
         return None, price
     booking = store.save_booking(db, {
         "listing_id": listing["id"], "farmer_id": listing["farmer_id"], "depot_id": depot["id"], "district": district,
+        "requested_at": pickups.now_ist().isoformat(),   # the 24 hours' notice counts from here
         "kg": listing["quantity_kg"], "acres": listing.get("acres"), "price_per_kg": price["price_per_kg"],
         "price_reason_code": price.get("reason_code"), "contact": listing.get("contact"),
         "village": listing.get("village_or_district"), "sowing_deadline": listing.get("sowing_deadline"),

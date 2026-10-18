@@ -10,7 +10,7 @@ import reset_demo
 def test_full_demo_season(world):
     listings = reset_demo.seed_listings(world, operations.pickups.now_ist().date())
     assert len(listings) == sum(reset_demo.LISTINGS_PER_DISTRICT.values())
-    booked = [operations.book_listing(world, listing)[0] for listing in listings]
+    booked = reset_demo.place_requests(world, listings, operations.pickups.now_ist().date())
     assert all(booked), "every demo farm is within a depot's reach"
     summaries = operations.pickups.plan_depots(world, {b["depot_id"] for b in booked})
     assert sum(s["unschedulable"] for s in summaries) == 0, "every farm gets a slot"
