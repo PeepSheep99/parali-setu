@@ -17,6 +17,7 @@
     <a class="brand" href="../"><img src="../kisan/icon.svg" alt="" width="28" height="28"> Parali Setu <em>Operations</em></a>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" data-tab="today" aria-selected="true">Dispatch</button>
+      <button role="tab" data-tab="capacity">Capacity</button>
       <button role="tab" data-tab="pickups">Routes</button>
       <button role="tab" data-tab="forecast">Forecast</button>
       <button role="tab" data-tab="stock">Depots</button>
@@ -27,6 +28,7 @@
   </div>
 </header>
 <div class="bagh-band" aria-hidden="true"></div>
+<p class="demo-strip">Demo data: farmers, crews and buyers are synthetic; calls and payments are simulated.</p>
 
 <main class="wrap">
   <!-- Dispatch: who goes out, who to call, are we ready for the forecast -->
@@ -43,21 +45,34 @@
     </div>
     <div id="board-kpis" class="kpis"></div>
     <div id="board-depots" class="board-depots"></div>
-    <div class="two">
-      <section class="panel">
-        <div class="panel-head"><h2>Calls to make</h2><button type="button" class="btn quiet small" id="verify-all">Verify all (demo)</button></div>
-        <p class="muted small">Booked pickups wait for a call from our team: check the phone, the farm location, the acres and the price. Only confirmed pickups go on a crew's sheet. Calls are simulated in this prototype.</p>
-        <div id="verify-queue"></div>
-      </section>
-      <section class="panel">
-        <h2>Are we ready for the forecast?</h2>
-        <p class="muted small" id="ready-sub"></p>
-        <div id="ready-chart" class="chart"></div>
-        <p id="ready-action" class="action"></p>
-        <details><summary>By depot and day</summary><div id="ready-table"></div></details>
-      </section>
-    </div>
+    <section class="panel">
+      <div class="panel-head"><h2>Calls to make</h2><button type="button" class="btn quiet small" id="verify-all">Verify all (demo)</button></div>
+      <p class="muted small">Booked pickups wait for a call from our team: check the phone, the farm location, the acres and the price. Only confirmed pickups go on a crew's sheet. Calls are simulated in this prototype.</p>
+      <div id="verify-queue"></div>
+    </section>
     <section class="panel"><h2>Needs a person</h2><div id="exceptions"></div></section>
+  </section>
+
+  <!-- Capacity: the planner's desk. Are we ready for the harvest the forecast says is coming? -->
+  <section id="tab-capacity" class="tab" hidden>
+    <div class="tab-head">
+      <div><h1>Are we ready for the forecast?</h1>
+        <p class="muted">The capacity desk looks three weeks ahead, while dispatch handles tomorrow. Here the harvest forecast (TimesFM) becomes crews: how many on-call crews to hire each day, and how many more to sign up before the peak.</p></div>
+    </div>
+    <p id="ready-action" class="verdict"></p>
+    <div id="cap-kpis" class="kpis"></div>
+    <section class="panel">
+      <h2>Forecast acres a day against our crews</h2>
+      <p class="muted small" id="ready-sub"></p>
+      <div id="ready-chart" class="chart"></div>
+    </section>
+    <section class="panel">
+      <h2>Hiring plan by week and depot</h2>
+      <p class="muted small">On-call crew-days to hire from each depot's pool, and the extra crews to sign up where the forecast is more than our own crews and the whole pool can clear.</p>
+      <div id="cap-plan"></div>
+      <details><summary>Every depot and day</summary><div id="ready-table"></div></details>
+    </section>
+    <p class="muted small" id="cap-assume"></p>
   </section>
 
   <!-- Routes -->

@@ -632,6 +632,11 @@ def verify_all():
     return {"verified": len(done)}
 
 
+# What ops does with each pickup on the board, by booking status.
+DISPATCH_STATE = {"verified": "ready", "booked": "call first", "offered": "awaiting farmer",
+                  "collected": "done", "paid": "done"}
+
+
 @app.get("/ops/dispatch")
 def dispatch(day: date | None = None):
     """Who goes out on `day` (default tomorrow): each depot's crews with their
@@ -651,7 +656,7 @@ def dispatch(day: date | None = None):
         by_crew: dict[str, list[dict]] = {}
         for slot in slots:
             booking = bookings.get(slot["booking_id"])
-            if slot["date"] != day.isoformat() or booking is None or booking.get("status") not in ("offered", "booked", "verified"):
+            if slot["date"] != day.isoformat() or booking is None or booking.get("status") not in DISPATCH_STATE:
                 continue
             by_crew.setdefault(slot["crew_id"], []).append({
                 **_farm(listings.get(booking["listing_id"], {}), booking), "acres": slot["acres"],
@@ -660,7 +665,7 @@ def dispatch(day: date | None = None):
                 "planned_end_min": slot.get("planned_end_min"),
                 "farmer_name": listings.get(booking["listing_id"], {}).get("farmer_name"),
                 "sequence": slot["sequence"], "booking_code": pickups.booking_code(booking["id"]),
-                "dispatch": {"verified": "ready", "booked": "call first", "offered": "awaiting farmer"}[booking["status"]]})
+                "dispatch": DISPATCH_STATE[booking["status"]]})
         rows = []
         for crew in crews:
             stops = sorted(by_crew.get(crew["id"], []), key=lambda s: s["sequence"])

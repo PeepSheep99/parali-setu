@@ -44,6 +44,7 @@ def build_world():
     booked = [operations.book_listing(db, listing, today)[0] for listing in listings]
     pickups.plan_depots(db, {b["depot_id"] for b in booked if b})
     reset_demo.demo_run(db)
+    reset_demo.seed_history(db, today)
     operations.run_deliveries(db, today)
     return db, patcher
 

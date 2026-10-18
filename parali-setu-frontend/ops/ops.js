@@ -77,7 +77,7 @@
     document.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
     document.querySelectorAll(".tab").forEach((s) => { s.hidden = s.id !== `tab-${tab}`; });
     location.hash = tab;
-    const loader = { today: loadToday, pickups: loadPickups, stock: loadStock, forecast: loadForecast, plan: loadPlan,
+    const loader = { today: loadToday, capacity: loadCapacity, pickups: loadPickups, stock: loadStock, forecast: loadForecast, plan: loadPlan,
                      orders: loadOrders, impact: loadImpact }[tab];
     Promise.resolve().then(loader).catch((err) => toast(err.message));
   }
@@ -98,22 +98,26 @@
     const hireCost = board.depots.reduce((n, d) => n + d.hire_cost_inr, 0);
     const idle = board.depots.reduce((n, d) => n + d.own_crews_idle, 0);
     const calls = board.verify_queue.filter((q) => q.pickup_date === board.date).length;
+    const stops = board.depots.flatMap((d) => d.crews.flatMap((c) => c.stops));
+    const count = (state) => stops.filter((s) => s.dispatch === state).length;
     $("board-sub").textContent = `${board.depots.length} depots. Plans come from the routing model; a crew leaves only for pickups our team has confirmed by phone.`;
     $("board-kpis").replaceChildren(
       kpi(fmt(crews.length), "crews out"),
       kpi(fmt(farms), `farms, ${fmt(acres, 1)} acres`),
-      kpi(fmt(hired), hired ? `on-call crews to hire, about ${rs(hireCost)} extra` : "on-call crews needed", hired ? "silk" : ""),
-      kpi(fmt(idle), "own crews free"),
-      kpi(fmt(calls), "calls to make before they go", calls ? "warn" : ""));
+      kpi(fmt(count("ready")), "confirmed, crew goes", "go"),
+      kpi(fmt(calls), "calls to make before they go", calls ? "call" : ""),
+      kpi(fmt(count("awaiting farmer")), "offers, farmer hasn't said yes", "wait"),
+      kpi(fmt(hired), hired ? `on-call crews to hire, about ${rs(hireCost)} extra` : "on-call crews needed"),
+      kpi(fmt(idle), "own crews free"));
     $("board-depots").replaceChildren(...board.depots.filter((d) => d.crews.length).map(depotBoard),
-      board.depots.some((d) => d.crews.length) ? h("div", { class: "legend" },
-        h("span", {}, h("i", { style: "background:var(--chart-own)" }), "our crew"),
-        h("span", {}, h("i", { style: "background:var(--chart-silk)" }), "on-call crew"),
-        h("span", {}, h("i", { style: "background:var(--madder-soft);box-shadow:inset 0 0 0 2px var(--warn)" }), "booked, call before dispatch"),
-        h("span", {}, h("i", { style: "background:var(--madder-soft);box-shadow:inset 0 0 0 1.5px var(--line-strong)" }), "offer, waiting for the farmer"))
+      board.depots.some((d) => d.crews.length) ? h("div", { class: "legend status-legend" },
+        h("span", {}, h("i", { class: "sw go" }), "confirmed: crew goes"),
+        h("span", {}, h("i", { class: "sw call" }), "☎ booked: call the farmer first"),
+        h("span", {}, h("i", { class: "sw wait" }), "offer: waiting for the farmer's yes"),
+        h("span", {}, h("i", { class: "sw done" }), "✓ collected and paid"),
+        h("span", {}, pill("oncall", "on-call"), " crew hired for the day"))
         : h("p", { class: "panel empty" }, `No pickups planned for ${longDay(board.date)} yet.`));
     renderVerifyQueue(board.verify_queue);
-    renderReadiness(board.readiness, board.today);
     renderExceptions(board.exceptions);
   }
 
@@ -126,8 +130,9 @@
         h("small", {}, c.stops.length ? `${c.stops.length} farm${c.stops.length === 1 ? "" : "s"}, ${fmt(c.acres, 1)} of ${fmt(c.acres_per_day)} acres` : "free")),
       h("div", { class: "track" }, c.stops.map((s) => {
         const start = s.planned_start_min ?? s.window_start_min, end = s.planned_end_min ?? s.window_end_min;
-        const kind = `${s.dispatch === "ready" ? "" : s.dispatch === "call first" ? "call" : "awaiting"}${c.on_call ? " oncall" : ""}`;
-        const label = `${s.farmer_name || s.village || s.district} · ${fmt(s.acres, 1)} ac`;
+        const kind = { ready: "go", "call first": "call", "awaiting farmer": "wait", done: "done" }[s.dispatch] || "wait";
+        const mark = { call: "☎ ", done: "✓ " }[kind] || "";
+        const label = `${mark}${s.farmer_name || s.village || s.district} · ${fmt(s.acres, 1)} ac`;
         const block = h("span", { class: `stopblock ${kind}`, style: `left:${pos(start)};width:calc(${pos(end)} - ${pos(start)})`, tabindex: "0" }, label);
         const text = `${s.farmer_name ? `${s.farmer_name}, ` : ""}${s.village || s.district} · ${fmt(s.acres, 1)} acres · ${hm(start)}–${hm(end)} · ${s.booking_code} · ${s.dispatch}`;
         block.addEventListener("mousemove", (e) => tip(e, text));
@@ -143,7 +148,8 @@
 
   function renderVerifyQueue(queue) {
     $("verify-all").disabled = !queue.length;
-    $("verify-queue").replaceChildren(...(queue.length ? queue.map((q) => {
+    const SHOWN = 8;   // the soonest calls first; later ones fold away so tomorrow's stay in view
+    const rowFor = (q) => {
       const row = h("div", { class: "vq" });
       const verify = h("button", { type: "button", class: "btn small" }, "Confirmed");
       const flag = h("button", { type: "button", class: "btn quiet small" }, "Needs a change");
@@ -173,7 +179,17 @@
           h("span", { class: "meta" }, `${q.booking_code}${q.contact ? ` · ${q.contact}` : ""}${q.location_approximate ? " · location from village name" : ""}${v.notes ? ` · note: ${v.notes}` : ""}`)),
         h("div", { class: "acts" }, verify, flag));
       return row;
-    }) : [h("p", { class: "empty" }, "No calls waiting. Every booked pickup is confirmed.")]));
+    };
+    const later = queue.slice(SHOWN);
+    $("verify-queue").replaceChildren(...(queue.length ? [...queue.slice(0, SHOWN).map(rowFor),
+      ...(later.length ? [h("details", { class: "more-calls" }, h("summary", {}, `${later.length} more call${later.length === 1 ? "" : "s"} for later days`), ...later.map(rowFor))] : [])]
+      : [h("p", { class: "empty" }, "No calls waiting. Every booked pickup is confirmed.")]));
+  }
+
+  async function loadCapacity() {
+    const today = (await api("/ops/summary")).date;
+    const board = await api(`/ops/dispatch?day=${addDays(today, 1)}`);
+    renderReadiness(board.readiness, board.today);
   }
 
   // Acres farmers are forecast to book each day, split into what our own crews
@@ -231,16 +247,35 @@
     const shortDays = list.filter((d) => d.signup > 0);
     if (shortDays.length) {
       const most = Math.max(...shortDays.map((d) => d.signup));
-      $("ready-action").className = "action";
+      $("ready-action").className = "verdict";
       $("ready-action").textContent = `Sign up ${most} more on-call crew${most === 1 ? "" : "s"} before ${short(shortDays[0].date)}: from then to ${short(shortDays[shortDays.length - 1].date)} the forecast is more than our own crews plus the whole on-call pool can clear. Until then, hire up to ${Math.max(...hireDays.map((d) => d.hires))} on-call crews a day.`;
     } else if (hireDays.length) {
       const most = Math.max(...hireDays.map((d) => d.hires));
-      $("ready-action").className = "action";
+      $("ready-action").className = "verdict";
       $("ready-action").textContent = `Hire up to ${most} on-call crew${most === 1 ? "" : "s"} a day from ${short(hireDays[0].date)} to ${short(hireDays[hireDays.length - 1].date)}. The pool covers every forecast booking.`;
     } else {
-      $("ready-action").className = "action ok";
+      $("ready-action").className = "verdict ok";
       $("ready-action").textContent = "Our own crews cover the forecast for the next three weeks.";
     }
+    const peak = list.reduce((a, b) => (b.acres > a.acres ? b : a), list[0]);
+    $("cap-kpis").replaceChildren(
+      kpi(fmt(peak.acres), `acres a day at the peak, ${short(peak.date)}`),
+      kpi(fmt(ownCap), "acres a day our own crews clear"),
+      kpi(fmt(hireDays.length), "days we need on-call crews", hireDays.length ? "call" : "go"),
+      kpi(fmt(Math.max(0, ...list.map((d) => d.hires))), "most on-call crews in one day"),
+      kpi(fmt(Math.max(0, ...list.map((d) => d.signup))), "crews to sign up before the peak", shortDays.length ? "warn" : "go"));
+    const monday = (iso) => addDays(iso, -((parse(iso).getDay() + 6) % 7));   // local dates, never UTC
+    const weeks = [...new Set(rows.map((r) => monday(r.date)))].sort();
+    const depots = [...new Set(rows.map((r) => r.depot_name))].sort();
+    const cell = (depot, wk) => {
+      const rs_ = rows.filter((r) => r.depot_name === depot && monday(r.date) === wk);
+      const days_ = rs_.reduce((n, r) => n + r.oncall_crews_needed, 0), signup = Math.max(0, ...rs_.map((r) => r.crews_to_sign_up));
+      if (!days_ && !signup) return h("td", { class: "n muted" }, "own crews");
+      return h("td", { class: "n" }, `${fmt(days_)} crew-day${days_ === 1 ? "" : "s"}`, signup ? h("strong", { class: "warn-text" }, ` +${signup} to sign up`) : null);
+    };
+    $("cap-plan").replaceChildren(table(["Depot", ...weeks.map((w) => ({ label: `Week of ${short(w)}`, n: 1 }))],
+      depots.map((dp) => h("tr", {}, h("td", {}, dp), ...weeks.map((w) => cell(dp, w))))));
+    $("cap-assume").textContent = "Assumption: farmers book 0.5% of each district's straw with us. The harvest timing comes from the TimesFM forecast, refreshed weekly; change the booking share and every number on this page changes with it.";
     $("ready-table").replaceChildren(table(["Day", "Depot", { label: "Forecast acres", n: 1 }, { label: "Own crews clear", n: 1 }, { label: "On-call to hire", n: 1 }, { label: "Crews to sign up", n: 1 }],
       rows.filter((r) => r.forecast_acres > 0).map((r) => h("tr", {}, h("td", {}, day(r.date)), h("td", {}, r.depot_name),
         h("td", { class: "n" }, fmt(r.forecast_acres, 1)), h("td", { class: "n" }, fmt(r.own_capacity_acres)), h("td", { class: "n" }, fmt(r.oncall_crews_needed)), h("td", { class: "n" }, fmt(r.crews_to_sign_up))))));
