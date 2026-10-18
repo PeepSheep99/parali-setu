@@ -167,6 +167,12 @@ SERVICE_TERMS = {
     "field_cleared_free": True,
 }
 
+# Words that already tell us the crop is paddy (parali is paddy straw), in the
+# farmer's languages and romanised; "wheat" is not here because farmers name it
+# as what they sow next, not what they are selling.
+_PADDY_WORDS = re.compile(r"\b(paddy|rice|dhaa?n|jhon[ae]|parali|pa?rali|basmati)\b|धान|पराली|चावल|ਝੋਨ|ਪਰਾਲੀ|ਚੌਲ|ਜੀਰੀ",
+                          re.IGNORECASE)
+
 LISTING_KEYS = ("acres", "quantity_kg", "crop_type", "village_or_district", "ready_by", "sowing_deadline", "contact",
                 "farmer_name")
 
@@ -495,6 +501,9 @@ class Turn:
             stated.add(key)
         if "acres" in stated and "quantity_kg" not in stated:
             fields.pop("quantity_kg", None)       # re-derive weight from area in code
+        if not fields.get("crop_type") and _PADDY_WORDS.search(" ".join(self._farmer_words())):
+            fields["crop_type"] = "rice_stubble"  # the farmer already said paddy: don't ask "which crop?"
+            stated.add("crop_type")
         fields = pickups.complete_quantities(fields)
         self.conv["fields"], self.conv["stated"] = fields, sorted(stated)
         result = {"fields": fields, "district": pickups.listing_district(fields),
@@ -556,6 +565,10 @@ class Turn:
         self.conv["offer"], self.conv["offer_card"], self.conv["offer_fields"] = offer, card, _offer_key(fields)
         self.conv.pop("booked_card", None)
         return offer
+
+    def _farmer_words(self) -> list[str]:
+        """Everything the farmer has said in this conversation, this turn included."""
+        return [t["text"] for t in self.conv.get("turns", []) if t["role"] == "user"] + [self.words or ""]
 
     def _farmer_replied_since_offer(self) -> bool:
         return self.conv.get("offer_turn") is not None and self.index > self.conv["offer_turn"]

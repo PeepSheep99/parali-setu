@@ -138,3 +138,56 @@ body { min-height: 100dvh; display: flex; flex-direction: column; font-size: 17p
   .rail:not(.open) { display: none; }
   .talk { height: calc(100dvh - 104px); }
 }
+
+
+/* ---- composer: one row, WhatsApp-like. Photo and location on the left, the
+   text box in the middle, the mic in the right thumb zone; it becomes send
+   once something is typed. */
+.composer { display: flex; align-items: center; gap: 8px; }
+.composer .round { width: 44px; height: 44px; flex: none; }
+.composer .round svg { width: 20px; }
+.composer input { flex: 1; min-width: 0; height: 48px; border: 1.5px solid var(--line-strong); border-radius: 24px;
+                  padding: 0 16px; background: var(--khaddar); font-size: 1rem; }
+.composer input:focus { border-color: var(--madder); outline: none; background: var(--surface); }
+.composer .mic { width: 60px; height: 60px; flex: none; }
+.composer .mic svg { width: 28px; }
+.composer .send { width: 60px; height: 60px; flex: none; border-radius: 50%; border: 0; background: var(--madder);
+                  display: none; place-items: center; cursor: pointer; }
+.composer .send svg { width: 26px; fill: #fff6ef; }
+.composer.typing .send { display: grid; }
+.composer.typing .mic { display: none; }
+.dock-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px; }
+.dock-foot .mic-label { text-align: right; font-size: .82rem; }
+.dock-foot .mic-label .sub { display: inline; margin-left: 6px; }
+
+/* ---- the empty chat */
+.hello .how { list-style: none; counter-reset: step; margin: 10px auto 0; padding: 0; display: grid; gap: 8px;
+              max-width: 30rem; text-align: left; }
+.hello .how li { counter-increment: step; display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: center;
+                 background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+.hello .how li::before { content: counter(step); width: 28px; height: 28px; border-radius: 50%; background: var(--madder);
+                         color: #fff6ef; display: grid; place-items: center; font-weight: 600; font-size: .9rem; }
+.hello .starters { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 14px; }
+.hello .starters .try { flex-basis: 100%; font-size: .85rem; color: var(--thread-soft); }
+.chip { border: 1.5px solid var(--silk); background: var(--silk-pale); color: var(--thread); border-radius: 18px;
+        padding: 8px 14px; font: inherit; font-size: .92rem; cursor: pointer; text-align: left; max-width: 100%; }
+.chip:active { transform: scale(.98); }
+
+@media (max-width: 420px) {
+  .composer { gap: 6px; }
+  .composer .round { width: 40px; height: 40px; }
+  .hello h1 { font-size: 1.9rem; }
+}
+/* Laptop: the conversation reads in a comfortable column, not across the whole card. */
+@media (min-width: 960px) {
+  /* a 760px reading column: padding, so bubbles keep their own widths and sides */
+  .log, .dock { padding-left: max(18px, calc((100% - 760px) / 2)); padding-right: max(18px, calc((100% - 760px) / 2)); }
+  .composer .mic, .composer .send { width: 52px; height: 52px; }
+}
+/* the chat column never grows past the screen: long chips and labels wrap instead */
+.talk { grid-template-columns: minmax(0, 1fr); }
+.chip { white-space: normal; }
+@media (max-width: 560px) { .dock-foot .mic-label .sub { display: none; } }
+.dock { grid-template-columns: minmax(0, 1fr); }
+.composer input { width: 0; }   /* no intrinsic width: the box takes whatever the row leaves */
+.dock-foot .mic-label { white-space: nowrap; }

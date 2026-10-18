@@ -139,7 +139,7 @@ def test_missing_details_and_mismatches_come_back_as_questions(chat):
                   "10 ਕਿੱਲੇ, 2000 ਕਿਲੋ ਪਰਾਲੀ")
     draft = next(c for c in result["cards"] if c["type"] == "draft")
     assert {w["code"] for w in draft["warnings"]} == {"acres_weight_mismatch"}
-    assert set(draft["missing_fields"]) == {"crop_type", "location", "sowing_deadline", "name", "phone"}
+    assert set(draft["missing_fields"]) == {"location", "sowing_deadline", "name", "phone"}, "ਪਰਾਲੀ already says paddy"
     assert result["guardrails"]["fallback"] is False, "17500 came from the tool, so the reply may say it"
 
 
@@ -329,3 +329,16 @@ def test_an_english_answer_to_a_mixed_message_is_not_a_wrong_language():
     assert not agent.wrong_language("Your pickup is on Monday 19 October.", "Hindi", mixed)
     assert agent.wrong_language("Your pickup is on Monday 19 October.", "Hindi", "पिकअप कब होगा?")
     assert agent.wrong_language("ਪਿਕਅੱਪ ਸੋਮਵਾਰ ਨੂੰ ਹੈ", "Hindi", mixed), "a third language is still wrong"
+
+
+@pytest.mark.parametrize("words,crop", [
+    ("I have 8 acres of paddy straw in Bhucho", "rice_stubble"),
+    ("मेरे पास 8 एकड़ धान है", "rice_stubble"),
+    ("ਮੇਰੇ ਕੋਲ 8 ਕਿੱਲੇ ਝੋਨਾ ਹੈ", "rice_stubble"),
+    ("I have 8 acres, I will sow wheat next", None),
+])
+def test_the_crop_is_read_from_the_farmers_words_and_asked_only_when_unclear(chat, words, crop):
+    result = chat([[("update_listing", {"acres": 8})], lambda r: "8 ✓"], words)   # no script: any language passes
+    assert result["fields"].get("crop_type") == crop
+    draft = next(c for c in result["cards"] if c["type"] == "draft")
+    assert ("crop_type" in draft["missing_fields"]) is (crop is None)

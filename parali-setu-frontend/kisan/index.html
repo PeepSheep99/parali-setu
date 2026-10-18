@@ -36,12 +36,7 @@
     <div id="log" class="log" aria-live="polite"></div>
 
     <div class="dock">
-      <form id="kbd" class="kbd" hidden>
-        <label class="sr" for="kbd-input" data-t="type_label"></label>
-        <input id="kbd-input" type="text" maxlength="600" autocomplete="off">
-        <button type="submit" class="btn" data-t="send"></button>
-      </form>
-      <div class="dock-row">
+      <form id="kbd" class="composer">
         <label class="round" for="talk-photo" title="Photo">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/></svg>
           <span class="sr" data-t="add_photo"></span>
@@ -51,18 +46,19 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
           <span class="sr" data-t="detect_location"></span>
         </button>
+        <label class="sr" for="kbd-input" data-t="type_label"></label>
+        <input id="kbd-input" type="text" maxlength="600" autocomplete="off" enterkeyhint="send">
+        <button type="submit" class="send" aria-label="Send"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z"/></svg></button>
         <button type="button" id="talk-mic" class="mic" aria-describedby="talk-label">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1A7 7 0 0 0 19 12z"/></svg>
         </button>
-        <button type="button" id="kbd-toggle" class="round" title="Keyboard">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm2 3v2h2V9H5zm4 0v2h2V9H9zm4 0v2h2V9h-2zm4 0v2h2V9h-2zM7 13v2h10v-2H7z"/></svg>
-          <span class="sr" data-t="type_instead"></span>
-        </button>
+      </form>
+      <div class="dock-foot">
         <label class="live-switch" title="Words appear as you speak">
           <input type="checkbox" id="live-toggle"> <span data-t="live_mode"></span>
         </label>
+        <p id="talk-label" class="mic-label" data-t="speak"></p>
       </div>
-      <p id="talk-label" class="mic-label" data-t="speak"></p>
     </div>
   </section>
 

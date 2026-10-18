@@ -99,9 +99,9 @@
     document.documentElement.lang = lang;
     document.querySelectorAll("[data-t]").forEach((el) => setLabel(el, el.dataset.t));
     document.querySelectorAll(".langs button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
-    $("kbd-input").placeholder = t("type_placeholder");
-    const hello = document.querySelector(".hello p");
-    if (hello) hello.textContent = t("greeting_sub");
+    $("kbd-input").placeholder = t("type_short");
+    const greeting = document.querySelector(".hello");
+    if (greeting) greeting.replaceWith(hello());
     loadPrices();
     loadPickups();
   }
@@ -193,10 +193,19 @@
   // ---- conversation
   function scrollLog() { const log = $("log"); log.scrollTop = log.scrollHeight; }
 
+  // The empty chat: what to say and what happens next, with examples a
+  // farmer can tap instead of staring at a blank screen.
   function hello() {
+    const chips = ["ex1", "ex2", "ex3"].map((k) => {
+      const b = h("button", { type: "button", class: "chip" }, t(k));
+      b.addEventListener("click", () => sendTurn({ text: t(k) }));
+      return b;
+    });
     return h("div", { class: "hello" },
       h("h1", {}, h("span", { lang: "pa" }, "ਬੋਲੋ"), " ", h("span", { lang: "hi" }, "बोलिए"), " ", h("span", { lang: "en" }, "Speak")),
-      h("p", {}, t("greeting_sub")));
+      h("p", {}, t("greeting_sub")),
+      h("ol", { class: "how" }, ...["how1", "how2", "how3"].map((k) => h("li", {}, t(k)))),
+      h("div", { class: "starters" }, h("span", { class: "try" }, t("try_saying")), ...chips));
   }
   function resetTalk() {
     state.conversationId = null;
@@ -218,6 +227,7 @@
   }
 
   function farmerBubble(text, english) {
+    document.querySelector(".hello .starters")?.remove();   // the examples have done their job
     $("log").append(h("div", { class: "bubble farmer" }, text,
       english && english !== text && state.lang !== "en" ? h("span", { class: "en", lang: "en" }, english) : null));
     scrollLog();
@@ -587,11 +597,14 @@
         agentBubble(t("located", { d: district(body.district) }), state.lang);
       } catch (err) { toast(err.message); }
     });
-    $("kbd-toggle").addEventListener("click", () => { $("kbd").hidden = !$("kbd").hidden; if (!$("kbd").hidden) $("kbd-input").focus(); });
+    // Mic and send share one place: the mic while the box is empty, send once there is text.
+    const syncComposer = () => $("kbd").classList.toggle("typing", $("kbd-input").value.trim().length > 0);
+    $("kbd-input").addEventListener("input", syncComposer);
+    if (window.matchMedia("(min-width: 960px) and (pointer: fine)").matches) $("kbd-input").focus();
     $("kbd").addEventListener("submit", (e) => {
       e.preventDefault();
       const text = $("kbd-input").value.trim();
-      if (text) { $("kbd-input").value = ""; sendTurn({ text }); }
+      if (text) { $("kbd-input").value = ""; syncComposer(); sendTurn({ text }); }
     });
     $("talk-photo").addEventListener("change", () => {
       state.talkPhoto = $("talk-photo").files[0] || null;
