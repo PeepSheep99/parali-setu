@@ -87,18 +87,20 @@ const easeIO = (t: number) => t * t * (3 - 2 * t);
 // reply appears in the footage (raw recording marks / clip speed, make_clips.py).
 type Line = [number, number, 'Farmer' | 'Assistant', string];
 const OFFER_EN = "Gurpreet Singh ji, for Longowal, Sangrur, your straw is ₹0.76 per kg, ₹10,640 in total. Our team will come on Sunday, 18 October, 1–4 pm. Are your name, village and this time right, and do you agree?";
+// Scene 3 plays the recording at x0.96 (24 s), scene 4 at x0.75 (14 s), so each
+// line stays up 3-5 s; times = (recording mark - clip start) / speed.
 const S3_LINES: Line[] = [
-  [1.9, 4.4, 'Farmer', 'Sat Sri Akal. I have 8 acres of paddy straw, village Longowal, Sangrur.'],
-  [4.45, 6.5, 'Assistant', "Sat Sri Akal ji! I've noted your straw details. Please tell me your name, mobile number, and the date your field must be cleared by."],
-  [6.55, 8.65, 'Farmer', 'I have to sow wheat on 28 October.'],
-  [8.7, 10.85, 'Assistant', "I've noted the sowing date, 28 October. Please also tell me your name and mobile number."],
-  [10.9, 14.1, 'Farmer', 'My name is Gurpreet Singh, number 9876543210.'],
-  [14.15, 99, 'Assistant', OFFER_EN],
+  [2.3, 6.35, 'Farmer', 'Sat Sri Akal. I have 8 acres of paddy straw, village Longowal, Sangrur.'],
+  [6.4, 9.4, 'Assistant', "Sat Sri Akal ji! I've noted your straw details. Please tell me your name, mobile number, and the date your field must be cleared by."],
+  [9.45, 12.45, 'Farmer', 'I have to sow wheat on 28 October.'],
+  [12.5, 15.6, 'Assistant', "I've noted the sowing date, 28 October. Please also tell me your name and mobile number."],
+  [15.65, 20.3, 'Farmer', 'My name is Gurpreet Singh, number 9876543210.'],
+  [20.35, 99, 'Assistant', OFFER_EN],
 ];
 const S4_LINES: Line[] = [
-  [0, 4.1, 'Assistant', OFFER_EN],
-  [4.2, 7.9, 'Farmer', 'Yes ji, book it.'],
-  [8.0, 99, 'Assistant', 'Your booking is done. Your booking code is PS-DE76. Our team will call you to confirm before coming to your field. Thank you!'],
+  [0, 4.7, 'Assistant', OFFER_EN],
+  [4.8, 9.0, 'Farmer', 'Yes ji, book it.'],
+  [9.1, 99, 'Assistant', 'Your booking is done. Your booking code is PS-DE76. Our team will call you to confirm before coming to your field. Thank you!'],
 ];
 const Subtitles: React.FC<{lines: Line[]; dur: number}> = ({lines, dur}) => {
   const f = useCurrentFrame();
@@ -128,7 +130,7 @@ export const S3: React.FC<P> = ({dur}) => (
       <Chip at={sec(1.3)} tone="light">typed in ਪੰਜਾਬੀ</Chip>
       <Chip at={sec(8.2)} tone="silk">Gemini · Vertex AI</Chip>
       <Chip at={sec(11.5)} tone="light">{`${BK.turns} messages`}</Chip>
-      <Chip at={sec(0.5)} tone="light" size={19}>{`sped up ${BK.speed3}×`}</Chip>
+      {BK.speed3 > 1.05 ? <Chip at={sec(0.5)} tone="light" size={19}>{`sped up ${BK.speed3}×`}</Chip> : null}
     </Row>
   </Ground>
 );
@@ -137,7 +139,7 @@ export const S3: React.FC<P> = ({dur}) => (
 export const S4: React.FC<P> = ({dur}) => {
   const f = useCurrentFrame();
   const zin = interpolate(f, [0, sec(1.0)], [0, 1], {...clamp, easing: easeIO});
-  const zout = interpolate(f, [sec(5.6), sec(6.6)], [0, 1], {...clamp, easing: easeIO});
+  const zout = interpolate(f, [sec(6.4), sec(7.5)], [0, 1], {...clamp, easing: easeIO});
   const scale = 1 + 0.6 * zin - 0.45 * zout;
   const oy = 0.53 + 0.1 * zout;
   const o = BK.offer || {};

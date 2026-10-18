@@ -1,6 +1,6 @@
 {
  "fps": 30,
- "total": 5515,
+ "total": 5785,
  "scenes": [
   {
    "id": 1,
@@ -19,69 +19,69 @@
   {
    "id": 3,
    "from": 1003,
-   "dur": 500,
+   "dur": 720,
    "audioSec": 16.063,
    "audioFrames": 482
   },
   {
    "id": 4,
-   "from": 1503,
-   "dur": 370,
+   "from": 1723,
+   "dur": 420,
    "audioSec": 11.747,
    "audioFrames": 352
   },
   {
    "id": 5,
-   "from": 1873,
+   "from": 2143,
    "dur": 673,
    "audioSec": 19.339,
    "audioFrames": 580
   },
   {
    "id": 6,
-   "from": 2546,
+   "from": 2816,
    "dur": 584,
    "audioSec": 18.871,
    "audioFrames": 566
   },
   {
    "id": 7,
-   "from": 3130,
+   "from": 3400,
    "dur": 475,
    "audioSec": 15.231,
    "audioFrames": 457
   },
   {
    "id": 8,
-   "from": 3605,
+   "from": 3875,
    "dur": 375,
    "audioSec": 11.903,
    "audioFrames": 357
   },
   {
    "id": 9,
-   "from": 3980,
+   "from": 4250,
    "dur": 195,
    "audioSec": 5.897,
    "audioFrames": 177
   },
   {
    "id": 10,
-   "from": 4175,
+   "from": 4445,
    "dur": 532,
    "audioSec": 17.129,
    "audioFrames": 514
   },
   {
    "id": 11,
-   "from": 4707,
+   "from": 4977,
    "dur": 457,
    "audioSec": 14.633,
    "audioFrames": 439
   },
   {
    "id": 12,
-   "from": 5164,
+   "from": 5434,
    "dur": 351,
    "audioSec": 8.107,
    "audioFrames": 243
