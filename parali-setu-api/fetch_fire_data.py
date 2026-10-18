@@ -129,6 +129,10 @@ def run() -> None:
     import satellite_check
     print("Sentinel-2 field checks:", satellite_check.refresh(db, end) or "none due")
 
+    # Fires near farms with open bookings: alert ops (through Pub/Sub when configured).
+    import fire_alerts
+    print("Fire alerts:", fire_alerts.dispatch(db, detections))
+
 
 if __name__ == "__main__":
     run()

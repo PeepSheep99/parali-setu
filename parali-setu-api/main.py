@@ -26,7 +26,7 @@ from typing import Literal
 import asyncio
 import json
 
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile, WebSocket, WebSocketDisconnect
 from starlette.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -128,6 +128,9 @@ def impact_summary():
     farmers = set()
     paid = []
     for b in store.get_bookings(db, ("booked", "verified", "collected", "paid")):
+        if b.get("satellite_example"):
+            paid.append(b)        # a 2024 field kept to show the Sentinel-2 check; not this season's impact
+            continue
         if b["status"] in ("booked", "verified"):
             booked_kg += b["kg"]
         else:
@@ -699,6 +702,11 @@ def dispatch(day: date | None = None):
                 exceptions.append({"kind": "no_slot", "depot_name": depot["name"], **farm, "reason": b.get("status_reason")})
             if b.get("status") in ("booked", "verified") and b.get("schedule_note"):
                 exceptions.append({"kind": "promise_at_risk", "depot_name": depot["name"], **farm, "reason": b["schedule_note"]})
+            if b.get("status") in ("offered", "booked", "verified") and b.get("fire_nearby"):
+                f = b["fire_nearby"]
+                exceptions.append({"kind": "fire_nearby", "depot_name": depot["name"], **farm,
+                                   "farmer_name": listings.get(b["listing_id"], {}).get("farmer_name"),
+                                   "distance_km": f.get("distance_km"), "detected_at": f.get("detected_at")})
     queue.sort(key=lambda q: (q["pickup_date"] or "9999", q["pickup_start_min"] or 0))
     procurement = store.get_plan(db, "procurement_current") or {}
     deliveries = store.get_plan(db, "deliveries_current") or {}
@@ -714,6 +722,37 @@ def dispatch(day: date | None = None):
         exceptions.append({"kind": "delivery_plan_failed", "status": deliveries.get("status")})
     return {"date": day.isoformat(), "today": today.isoformat(), "depots": depots_out, "verify_queue": queue,
             "readiness": operations.readiness(db, today, 21), "exceptions": exceptions}
+
+
+@app.post("/pubsub/fire-alerts", status_code=204)
+async def pubsub_fire_alert(request: Request):
+    """Pub/Sub push: a satellite fire near a booked farm (fire_alerts.py).
+    Accepted only with a Google-signed token for our push service account
+    (PUBSUB_PUSH_SA) and this endpoint as audience (PUSH_AUDIENCE)."""
+    import fire_alerts
+    from google.auth.transport import requests as google_requests
+    from google.oauth2 import id_token
+    expected = os.environ.get("PUBSUB_PUSH_SA")
+    if not expected:
+        raise HTTPException(status_code=404, detail="Not found")
+    auth = request.headers.get("authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        claims = id_token.verify_oauth2_token(auth[7:], google_requests.Request(), audience=os.environ.get("PUSH_AUDIENCE"))
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if claims.get("email") != expected or not claims.get("email_verified"):
+        raise HTTPException(status_code=403, detail="Wrong sender")
+    try:
+        body = await request.json()
+        alert = json.loads(base64.b64decode(body["message"]["data"]))
+        if not isinstance(alert.get("booking_id"), str):
+            raise ValueError("booking_id")
+    except (KeyError, ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Bad message")   # 4xx: Pub/Sub won't retry forever
+    fire_alerts.record(store.get_firestore_client(), alert)
+    return Response(status_code=204)
 
 
 class CollectedRequest(BaseModel):

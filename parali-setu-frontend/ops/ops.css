@@ -171,3 +171,6 @@ tr:last-child td { border-bottom: none; }
 .heat-scale { display: flex; align-items: center; gap: 6px; font-size: .76rem; color: var(--thread-soft); }
 .heat-scale i { width: 90px; height: 10px; border-radius: 3px; background: linear-gradient(90deg, #f7ecea, var(--chart-own)); }
 .tooltip { position: fixed; z-index: 30; pointer-events: none; background: var(--thread); color: #fff6ef; padding: 8px 10px; border-radius: var(--r-sm); font-size: .82rem; max-width: 280px; }
+
+/* Fire near a booked farm (Pub/Sub alert) */
+.fire-alert { border-left: 3px solid var(--fire); padding-left: 10px; }

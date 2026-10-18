@@ -1,0 +1,43 @@
+{
+ "farmer": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ, ਮੇਰੇ ਕੋਲ 8 ਕਿੱਲੇ ਝੋਨੇ ਦੀ ਪਰਾਲੀ ਹੈ, ਪਿੰਡ ਲੌਂਗੋਵਾਲ, ਸੰਗਰੂਰ।",
+ "farmer_en": "Hello, I have 8 acres of paddy straw, village Longowal, Sangrur.",
+ "reply": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ ਜੀ! ਮੈਂ ਤੁਹਾਡੀ ਪਰਾਲੀ ਦੀ ਜਾਣਕਾਰੀ ਦਰਜ ਕਰ ਲਈ ਹੈ। ਕਿਰਪਾ ਕਰਕੇ ਆਪਣਾ ਨਾਮ, ਮੋਬਾਈਲ ਨੰਬਰ ਅਤੇ ਉਹ ਤਾਰੀਖ਼ ਦੱਸੋ ਜਦੋਂ ਤੱਕ ਖੇਤ ਖਾਲੀ ਕਰਨਾ ਜ਼ਰੂਰੀ ਹੈ?",
+ "conversation_id": "conv_91c1744df2",
+ "tool_calls": [
+  {
+   "name": "update_listing",
+   "args": {
+    "crop_type": "rice_stubble",
+    "village_or_district": "ਲੌਂਗੋਵਾਲ, ਸੰਗਰੂਰ",
+    "acres": 8
+   },
+   "ok": true
+  }
+ ],
+ "blocked_numbers": [],
+ "regenerated": false,
+ "fields": {
+  "acres": 8.0,
+  "crop_type": "rice_stubble",
+  "village_or_district": "ਲੌਂਗੋਵਾਲ, ਸੰਗਰੂਰ",
+  "quantity_kg": 14000.0
+ },
+ "missing": [
+  "sowing_deadline",
+  "name",
+  "phone"
+ ],
+ "district": "Sangrur",
+ "model_calls": [
+  {
+   "ms": 1549,
+   "model": "primary",
+   "ok": true
+  },
+  {
+   "ms": 1343,
+   "model": "primary",
+   "ok": true
+  }
+ ]
+}
