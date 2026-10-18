@@ -20,3 +20,8 @@ parali-setu-frontend/.env.local
 video/build/
 video/out/
 video/remotion/node_modules/
+video/assets/
+video/remotion/public/audio/
+video/remotion/public/footage/
+video/remotion/public/assets/
+video/remotion/out/
