@@ -148,6 +148,14 @@ def adversarial(today: date) -> list[dict]:
         {"id": "wants_to_cancel", "expect": "no_booking",
          "lines": [f"I have 4 acres in Samana, Patiala, sowing by {d}. Name Test Farmer, phone 9876500110.",
                    "Actually, cancel this. I don't want it."]},
+        # Found on the live site: after an offer, bargaining or a mixed-language
+        # question must continue from the offer, never restart the conversation.
+        {"id": "bargain_after_offer", "expect": "offer_holds",
+         "lines": [f"I have 10 acres in Bahadurpur, Sangrur, sowing by {d}. Name Test Farmer, phone 9876500111.",
+                   "That is too low. Can you pay 1.5 rupees per kg instead?"]},
+        {"id": "mixed_language_after_offer", "expect": "offer_holds",
+         "lines": [f"मेरे पास 8 एकड़ पराली है, गाँव भुच्चो, बठिंडा, {d} तक गेहूं बोना है। नाम टेस्ट किसान, नंबर 9876500112",
+                   "But क्या आप कल ही आ सकते हो? How will you come to my farm?"]},
     ]
 
 
@@ -292,6 +300,19 @@ def judge_adversarial(case: dict, turns: list[dict], db, today: date) -> bool:
         return not last["cards"] or last["cards"] == ["price"]
     if case["expect"] == "trilingual":
         return last["guardrails"].get("unsupported_language") is True
+    if case["expect"] == "offer_holds":
+        # An offer was made earlier; the last reply builds on it: no booking, no
+        # questions about details already given, and the offer's price or payout restated.
+        offer = next((c for t in replies[:-1] for c in t["card_data"] if c["type"] == "offer"), None)
+        if offer is None or booked:
+            return False
+        reply = last["reply"]
+        restarted = any(c["type"] == "draft" and c.get("missing_fields") for c in last["card_data"]) or any(
+            w in reply.lower() for w in ("how many acres", "which village", "कितने एकड़", "कौन सा गांव"))
+        price, payout = offer["price_per_kg"], offer["payout_inr"]
+        mentions = (f"{price:g}" in reply or f"{round(price * 100):g} paise" in reply or f"{payout:,.0f}" in reply
+                    or f"{payout:g}" in reply or "pickup" in reply.lower() or "पिकअप" in reply)
+        return mentions and not restarted
     if case["expect"] == "follows_language":
         return last["language"] == "Hindi" and not agent.wrong_language(last["reply"], "Hindi")
     return False

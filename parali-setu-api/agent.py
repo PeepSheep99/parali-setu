@@ -87,6 +87,10 @@ Rules you must follow:
 10. Parali Setu is a private company, not the government and not a government scheme. Never
     call the price "government" or "official". Payments in this prototype are simulated: never
     ask the farmer to trust us, never say "without worry", and never guarantee anything.
+11. Once an offer is on the table the conversation continues from it. If the farmer bargains
+    ("give me more", "1.5 rupees?"), say politely that the posted price is the same for every
+    farmer today and cannot be changed, restate the offer's price, payout and pickup time, and
+    ask whether to book. Never greet them again or ask again for details you already have.
 
 Today's date is {today}. What we already know in this conversation:
 {facts}"""
@@ -327,10 +331,13 @@ def forbidden_claims(reply: str, farmer_texts: list[str]) -> list[str]:
 
 # ---- guardrail: the reply is in the farmer's language --------------------------
 
-def wrong_language(reply: str, language: str) -> bool:
+def wrong_language(reply: str, language: str, farmer_words: str = "") -> bool:
     """True when a reply is mostly in another script than the farmer's
-    language (a Punjabi answer to a Hindi question, say)."""
+    language (a Punjabi answer to a Hindi question, say). A farmer who mixes
+    English into Hindi or Punjabi may be answered in English too."""
     said = lang_detect.detect(reply)
+    if said == "English" and lang_detect.mixes_in_english(farmer_words):
+        return False
     return said in lang_detect.SUPPORTED and said != language
 
 
@@ -542,6 +549,7 @@ class Turn:
         card = {**offer, "impact": impact_for_kg(view["kg"]), "partner_crew": view["partner_crew"]}
         self.cards.append({"type": "offer", **card})
         self.conv["offer"], self.conv["offer_card"], self.conv["offer_fields"] = offer, card, _offer_key(fields)
+        self.conv.pop("booked_card", None)
         return offer
 
     def _farmer_replied_since_offer(self) -> bool:
@@ -567,6 +575,7 @@ class Turn:
                   "sms": "simulated",
                   "next_step": "Our team will call to confirm the details before the crew is sent. In this demo the call is simulated."}
         self.cards.append({"type": "booked", **booked})
+        self.conv["booked_card"] = booked
         return booked
 
     def tool_get_service_terms(self) -> dict:
@@ -592,6 +601,9 @@ class Turn:
             return {"error": "cannot_cancel", "detail": str(exc)}
         store.set_slots_status(self.db, booking_id, "cancelled", locked=False)
         pickups.plan_depot(self.db, booking["depot_id"])
+        for key in ("booked_card", "offer_card"):   # nothing left to restate in a fallback
+            if (self.conv.get(key) or {}).get("booking_id") == booking_id:
+                self.conv.pop(key, None)
         return {"booking_id": booking_id, "status": "cancelled"}
 
 
@@ -671,7 +683,7 @@ def fallback_reply(turn: Turn, language: str) -> str:
     """A deterministic reply when the model's text can't be used: built only
     from tool results, in the farmer's language."""
     from phrases import agent_fallback
-    return agent_fallback(turn.cards, turn.conv.get("fields") or {}, language)
+    return agent_fallback(turn.cards, turn.conv.get("fields") or {}, language, turn.conv)
 
 
 def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
@@ -724,7 +736,7 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
                    pickups.now_ist().date().isoformat()]
     bad = unsupported_numbers(text or "", farmer_texts, tool_values)
     claims = forbidden_claims(text or "", farmer_texts)
-    wrong_script = bool(text) and wrong_language(text, conv["language"])
+    wrong_script = bool(text) and wrong_language(text, conv["language"], user_text)
     if text and (bad or claims or wrong_script):
         report["blocked_numbers"] = sorted(bad)
         report["blocked_claims"] = claims
@@ -743,7 +755,7 @@ def respond(client, turn: Turn, user_text: str) -> tuple[str, dict]:
             f". Use only numbers from the tool results. Write it in {conv['language']}."))]))
         _, text, _ = generate()
         if text and (unsupported_numbers(text, farmer_texts, tool_values) or forbidden_claims(text, farmer_texts)
-                     or wrong_language(text, conv["language"])):
+                     or wrong_language(text, conv["language"], user_text)):
             text = None
     if not text:
         report["fallback"] = True

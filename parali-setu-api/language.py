@@ -45,6 +45,14 @@ _ENGLISH = {"i", "my", "me", "is", "am", "are", "the", "a", "an", "have", "has",
             "need", "name", "acres", "village", "sow", "sowing", "wheat", "book", "paid", "pay", "straw", "this", "that"}
 
 
+def mixes_in_english(text: str | None) -> bool:
+    """Punjabi or Hindi script with real English words in it ("But 18 तारीख
+    तो आज ही है, how will you come?"): an English answer is fine then."""
+    if not text or not (_GURMUKHI.search(text) or _DEVANAGARI.search(text)):
+        return False
+    return len(set(_WORD.findall(text.lower())) & _ENGLISH) >= 2
+
+
 def detect(text: str | None) -> str | None:
     """'Punjabi', 'Hindi', 'English', UNSUPPORTED, or None when the text has
     no letters to go on (only numbers, say), so the conversation's last

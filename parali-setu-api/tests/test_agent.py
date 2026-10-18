@@ -302,3 +302,30 @@ def test_a_reply_in_the_wrong_language_is_rewritten(chat):
     assert not agent.wrong_language("₹10500", "Punjabi"), "numbers alone carry no language"
     result = chat([lambda r: "भुगतान उसी दिन होगा", lambda r: "ਭੁਗਤਾਨ ਉਸੇ ਦਿਨ ਹੋਵੇਗਾ"], "ਪੈਸੇ ਕਦੋਂ ਮਿਲਣਗੇ?")
     assert result["guardrails"]["wrong_language"] and result["reply"] == "ਭੁਗਤਾਨ ਉਸੇ ਦਿਨ ਹੋਵੇਗਾ"
+
+
+def test_bargaining_after_an_offer_restates_it_instead_of_starting_over(chat):
+    first = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], _offer_text], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    offer = next(c for c in first["cards"] if c["type"] == "offer")
+    # No tool call this turn, and both replies carry a price no tool gave: the template answers.
+    bargain = chat([lambda r: "ਠੀਕ ਹੈ, ₹1.5 ਦੇ ਦਿਆਂਗੇ", lambda r: "₹1.2 ਹੋ ਸਕਦਾ ਹੈ"], "ਭਾਅ ਥੋੜ੍ਹਾ ਵਧਾ ਦਿਓ, ₹1 ਕਰ ਦਿਓ",
+                   first["conversation_id"])
+    assert bargain["guardrails"]["fallback"]
+    assert f"₹{offer['price_per_kg']:g}" in bargain["reply"] and f"₹{offer['payout_inr']:g}" in bargain["reply"]
+    assert "ਸਤ ਸ੍ਰੀ ਅਕਾਲ" not in bargain["reply"] and "ਕਿੰਨੇ ਕਿੱਲੇ" not in bargain["reply"], "no restart"
+
+
+def test_a_failed_model_after_booking_still_answers_from_the_booking(chat, world, monkeypatch):
+    first = chat([[SANGRUR_CALL], [("find_pickup_slot", {})], _offer_text], "ਦਸ ਕਿੱਲੇ ਝੋਨਾ ਸੰਗਰੂਰ, 24 ਤਰੀਕ ਤੱਕ")
+    chat([[("confirm_booking", {"farmer_said_yes": True})], lambda r: "ਬੁੱਕ ਹੋ ਗਿਆ"], "ਹਾਂ ਜੀ, ਕਰ ਦਿਓ",
+         first["conversation_id"])
+    monkeypatch.setattr(agent, "_generate", lambda client, contents, config: ([], None, None))
+    later = agent.take_turn(world, None, "farmer_a", "Punjabi", "ਟੀਮ ਕਦੋਂ ਆਵੇਗੀ?", None, first["conversation_id"])
+    assert later["guardrails"]["fallback"] and "ਬੁੱਕ ਹੋ ਗਿਆ" in later["reply"], "the booking, not a greeting"
+
+
+def test_an_english_answer_to_a_mixed_message_is_not_a_wrong_language():
+    mixed = "But 18 तारीख तो आज ही है, how will you come to my home today?"
+    assert not agent.wrong_language("Your pickup is on Monday 19 October.", "Hindi", mixed)
+    assert agent.wrong_language("Your pickup is on Monday 19 October.", "Hindi", "पिकअप कब होगा?")
+    assert agent.wrong_language("ਪਿਕਅੱਪ ਸੋਮਵਾਰ ਨੂੰ ਹੈ", "Hindi", mixed), "a third language is still wrong"
