@@ -401,7 +401,7 @@ export const S12: React.FC<P> = ({dur}) => {
         </div>
         <div style={{position: 'absolute', left: 0, right: 0, bottom: 200, textAlign: 'center', fontFamily: F.body, fontSize: 24, color: C.silkPale,
           opacity: interpolate(f, [sec(8.3), sec(8.9)], [0, 0.9], clamp)}}>
-          Made with Remotion, Veo and Nano Banana · Narration: Google Chirp 3 HD · Music: Lyria
+          Made with Remotion, Veo and Nano Banana · Narration: Google Chirp 3 HD
         </div>
       </AbsoluteFill>
     </AbsoluteFill>
