@@ -119,6 +119,8 @@ sequenceDiagram
 - **Language stickiness.** A message with only a name and a number keeps the conversation's language instead of switching to English.
 - **Who and where.** No offer without a name and a valid 10-digit mobile. The farm location is a demo pin near the stated village (the prototype never reads the device's location).
 - **Cross-checks.** An acres-versus-weight mismatch, a sowing date already past, or a harvest after sowing blocks booking until it is resolved; a sowing date within 2 days is flagged.
+- **The conversation holds.** Once there is an offer or a booking, a reply that fails the checks falls back to restating it ("your offer stands"), never to the opening greeting. Bargaining gets the posted price restated. A farmer who mixes English into Hindi or Punjabi may be answered in English.
+- **Crop from the farmer's words.** Paddy, rice, dhaan/धान, jhona/ਝੋਨਾ or parali/ਪਰਾਲੀ set the crop; the agent asks only when it is genuinely unclear.
 - **Scope and size.** Off-topic requests declined, bounded input, at most 5 tool calls per turn and 40 turns per conversation.
 - **Records.** Every turn stores the farmer's words, an English rendering and a guardrail report, so ops can audit it (`GET /agent/conversations/{id}`).
 
@@ -165,6 +167,7 @@ season peak within 0.7–0.8 weeks and had the lowest shape error in both years.
 - **Splitting:** visits are capped by daily capacity and by what fits in a shift after the round trip.
 - **Two passes:** our own crews first, then **on-call crews** (a pool of 8 per depot, hired by the day) only for farms ours can't fit. That is how every booking gets a slot; each on-call crew used is a hire with its cost on the Dispatch board.
 - **Locks and capacity:** accepted slots are locked. Work already collected today reduces that crew-day's capacity. The agent's planning call is capped at 1 s.
+- **24 hours' notice:** a new request is never given a slot that starts sooner than 24 hours after the farmer asked (rounded up to the hour; after 5 pm it moves to the next morning). This is time for the confirmation call and for lining up a baler and crew. It is a constraint in the routing model itself (`PickupJob.not_before_min`), so no offer can break it, and the agent explains it when a farmer asks for today.
 - **Unschedulable farms** get a reason code: `booked`, `no_capacity`, `deadline_passed`, `too_far`, `beyond_horizon` or `lock_lost`.
 
 **Deliveries: `deliveries.py`, a GLOP linear program, run monthly.**
@@ -173,7 +176,7 @@ season peak within 0.7–0.8 weeks and had the lowest shape error in both years.
 - **Earliest signed first:** an order's shortfall penalty rises with its place in the queue, so a later order absorbs any shortage and never takes stock from an earlier one.
 - **What we can commit:** a quote re-runs procurement with the candidate order on the book (`operations.committable`); an order we cannot fill is refused unless the customer accepts a smaller one.
 
-**Readiness: `operations.readiness`.**
+**Readiness: `operations.readiness`, shown on the ops Capacity tab.**
 - For each of the next three weeks and each depot: the acres farmers are forecast to book (TimesFM timing x district straw x a 0.5% booking share, spread over working days), against our own crews' acres per day.
 - The gap becomes on-call crews to hire from the depot's pool, and anything beyond the pool becomes crews to sign up before the peak.
 

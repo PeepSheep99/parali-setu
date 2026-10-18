@@ -13,7 +13,7 @@ Google Cloud AI Builder Cup 2026 · Sustainability & Social Impact · Team Ctrl 
 |---|---|
 | Live site | https://parali-setu-aibuildercup-2026.web.app |
 | Pickup page (farmers) | https://parali-setu-aibuildercup-2026.web.app/kisan/ (one page for phone and laptop) |
-| Operations console | https://parali-setu-aibuildercup-2026.web.app/ops/ (Dispatch, Routes, Forecast, Depots, Prices, Orders, Impact) |
+| Operations console | https://parali-setu-aibuildercup-2026.web.app/ops/ (Dispatch, Capacity, Routes, Forecast, Depots, Prices, Orders, Impact) |
 | Customer portal | https://parali-setu-aibuildercup-2026.web.app/company/ |
 | Architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 
@@ -54,9 +54,9 @@ six-week rush.
 2. **The agent asks only what's missing**: acres, village, sowing date, name and mobile. It cross-checks what doesn't fit (10 acres with 3,000 kg, a harvest after sowing), answers questions about payment, weighing and no-shows from fixed service terms, and reads the details back.
 3. **One fair price.** Each district gets one posted farm-gate price per day (₹0.5–1.5/kg) from the procurement optimizer. It never changes during the day, and there is no bargaining.
 4. **A slot before sowing.** The routing model books the farm on one of our crews; when ours are full, an **on-call crew** hired for the day takes it. The offer card shows the payout and what the farmer no longer has to do: rent a baler, find labour, make trolley trips, race the sowing date.
-5. **A person confirms, then the crew goes.** A booking needs the farmer's own yes. It then waits in the ops **Calls to make** queue; only pickups our team has confirmed by phone (simulated) go on a crew's dispatch sheet.
+5. **A person confirms, then the crew goes.** Every request needs at least 24 hours' notice, and a booking needs the farmer's own yes. It then waits in the ops **Calls to make** queue; only pickups our team has confirmed by phone (simulated) go on a crew's dispatch sheet.
 6. **Paid the same day.** When the crew collects (not before the slot day), the payout (simulated UPI) and the depot stock are written together in one transaction. Weeks later, Sentinel-2 checks that the field stayed unburned.
-7. **Ready for the peak.** The ops Dispatch board compares the acres farmers are forecast to book each day with what our own crews clear, and says how many on-call crews to hire, or to sign up before the peak.
+7. **Ready for the peak.** The ops **Capacity** tab, the planner's desk next to the dispatcher's, compares the acres farmers are forecast to book each day with what our own crews clear, and says how many on-call crews to hire, or to sign up before the peak.
 8. **Supplied all year.** Companies price an order in one sentence, see what we can commit month by month, and sign. Orders signed first keep their stock.
 
 ![Booking flow](parali-setu-frontend/img/booking-flow.png)
@@ -115,7 +115,7 @@ Scripts in `parali-setu-api/bench/` run the real system and write [bench/RESULTS
 
   TimesFM gets the **timing** right. No model gets the **volume** right, because enforcement cut fire counts while the burned area held. So we use fires only for timing.
 - **Supply volume** comes from the Ministry of Agriculture's APY crop statistics (via Kaggle): district rice production × a straw-to-grain ratio of 1.5.
-- **Bookings we expect** are 0.5% of each district's straw, a first-season pilot in eight districts (an assumption). That is about 1,000 acres a day at the 2 November peak, against 180 acres a day for our own crews: the Dispatch board asks for up to 36 on-call crews a day and 10 more signed up before the peak. At 3% it would be about 300 crews a day.
+- **Bookings we expect** are 0.5% of each district's straw, a first-season pilot in eight districts (an assumption). That is about 1,000 acres a day at the 2 November peak, against 180 acres a day for our own crews: the Capacity tab asks for up to 36 on-call crews a day and 10 more signed up before the peak. At 3% it would be about 300 crews a day.
 - **Demand** is derived from published consumption by segment (biomass power, CBG, boilers, pellets), not trained: no public time series exists. It is labelled that way everywhere.
 
 ## The money, honestly
