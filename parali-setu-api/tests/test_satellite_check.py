@@ -37,7 +37,9 @@ def test_refresh_checks_paid_pickups_once_and_impact_counts_them(api):
         return [{"id": f["id"], "dnbr": 0.04, "nbr_after": 0.12, "verdict": "no_burn_scar"} for f in fields]
 
     assert sc.refresh(db, date(2026, 10, 20), fake_measure) == {}, "too early: no images after the pickup yet"
-    later = date(2026, 10, 17) + timedelta(days=sc.AFTER_END)
+    collected = store.get_booking(db, booking["id"])
+    collected_on = date.fromisoformat(str(collected.get("collected_at") or collected["status_updated_at"])[:10])
+    later = collected_on + timedelta(days=sc.AFTER_END)   # from the real collection day, not a fixed date
     assert sc.refresh(db, later, fake_measure) == {"no_burn_scar": 1}
     assert store.get_booking(db, booking["id"])["field_check"]["verdict"] == "no_burn_scar"
     assert sc.refresh(db, later, fake_measure) == {}, "checked once"
