@@ -86,7 +86,9 @@ def refresh(db, today: date, measure_fn=measure) -> dict:
     for b in store.get_bookings(db, ("paid",)):
         if (b.get("field_check") or {}).get("verdict") in ("burn_scar", "no_burn_scar"):
             continue
-        collected = date.fromisoformat(str(b.get("collected_at") or b.get("status_updated_at"))[:10])
+        # The local (IST) date of collection; collected_at is a UTC timestamp and
+        # can fall on the previous or next day near midnight.
+        collected = date.fromisoformat(str(b.get("collected_on") or b.get("collected_at") or b.get("status_updated_at"))[:10])
         listing = store.get_listing(db, b["listing_id"]) or {}
         loc = pickups.listing_location(listing)
         if loc is None or not due(collected, today):

@@ -332,7 +332,7 @@ def record_pickup(db, booking_id: str, kg: float, slot_ids: list[str], today: st
                     "method": "UPI", "simulated": True}
         move = {"id": f"move_in_{booking_id}", "created_at": _now(), "depot_id": booking["depot_id"],
                 "kind": "inbound", "tonnes": tonnes, "date": today, "booking_id": booking_id}
-        update = {**collected, **paid, "status": "paid", "collected_at": collected["status_updated_at"],
+        update = {**collected, **paid, "status": "paid", "collected_at": collected["status_updated_at"], "collected_on": today,
                   "purchase_id": purchase["id"], "payout_inr": purchase["amount_inr"]}
         transaction.update(booking_ref, update)
         transaction.set(db.collection("purchases").document(purchase["id"]), purchase)
