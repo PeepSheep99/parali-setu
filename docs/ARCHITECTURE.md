@@ -233,7 +233,7 @@ Every number below comes from a script in `parali-setu-api/bench/`; the full tab
 
 | What | Result |
 |---|---|
-| 40 simulated farmers booking against real Gemini | 40/40 booked; no unverified number reached a farmer; 10/10 trick conversations handled |
+| 40 simulated farmers booking against real Gemini | 40/40 booked; no unverified number reached a farmer; 12/12 trick conversations handled |
 | Vertex AI Gen AI Evaluation, 80 real replies | groundedness 0.96, instruction following 4.62/5, fluency 4.96/5, safety 1.00 |
 | Routing model against two hand-dispatch rules | the fewest km at every size from 50 to 400 farms, all cleared before sowing |
 | Travel model against the Routes API, 100 trips | roads are 1.28× the straight line (model 1.3×) |
