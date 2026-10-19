@@ -6,15 +6,15 @@ import {sec, useIn} from './ui';
 // LinkedIn ad: 1080x1080, 30 fps. Every number is from parali-setu-api/bench/RESULTS.md.
 const clamp = {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'} as const;
 const SCENES = [
-  {at: 0, len: 3.6},   // hook: fire map
-  {at: 3.6, len: 4.4}, // the sum
-  {at: 8.0, len: 3.0}, // reveal
-  {at: 11.0, len: 5.0}, // product
-  {at: 16.0, len: 3.2}, // the rule
-  {at: 19.2, len: 4.2}, // proof
-  {at: 23.4, len: 3.1}, // outro
+  {at: 0, len: 4.5},    // hook: fire map
+  {at: 4.5, len: 5.5},  // the sum
+  {at: 10.0, len: 4.0}, // reveal
+  {at: 14.0, len: 6.5}, // product
+  {at: 20.5, len: 4.5}, // the rule
+  {at: 25.0, len: 5.0}, // proof
+  {at: 30.0, len: 4.5}, // outro
 ];
-export const AD_FRAMES = sec(26.5);
+export const AD_FRAMES = sec(34.5);
 
 // Dip through the ground: each scene fades in over 8 frames and out over 8.
 const Dip: React.FC<{len: number; children: React.ReactNode; bg: string}> = ({len, children, bg}) => {
@@ -37,7 +37,7 @@ const Band: React.FC<{top?: number; bottom?: number}> = ({top, bottom}) => (
 // 1. Hook: the real 2024 fire map, square crop, slow push-in.
 const Hook: React.FC = () => {
   const f = useCurrentFrame();
-  const z = interpolate(f, [0, sec(3.6)], [1.25, 1.38]);
+  const z = interpolate(f, [0, sec(4.5)], [1.25, 1.4]);
   return (
     <AbsoluteFill style={{background: '#14090c'}}>
       <OffthreadVideo src={staticFile('footage/s01_map.mp4')} muted startFrom={sec(5.2)}
@@ -59,8 +59,8 @@ const Sum: React.FC = () => (
       <Line at={10} size={80} color={C.silkPale}>thousands of rupees<br />an acre.</Line>
     </div>
     <div>
-      <Line at={sec(2.0)} size={40} color={C.silk} weight={700}>Strike a matchstick</Line>
-      <Line at={sec(2.0) + 6} size={120} color="#fff6ef">nothing.</Line>
+      <Line at={sec(2.6)} size={40} color={C.silk} weight={700}>Strike a matchstick</Line>
+      <Line at={sec(2.6) + 6} size={120} color="#fff6ef">nothing.</Line>
     </div>
     <Band bottom={0} />
   </AbsoluteFill>
@@ -72,21 +72,21 @@ const Reveal: React.FC = () => (
     <Img src={staticFile('assets/title_bg.png')} style={{position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover'}} />
     <Line at={2} size={150} color={C.silkPale}>Parali Setu</Line>
     <Line at={10} size={52} color={C.silk} weight={600} style={{marginTop: 18}}><span lang="pa">ਪਰਾਲੀ ਨਾ ਸਾੜੋ, ਸਾਨੂੰ ਵੇਚੋ।</span></Line>
-    <Line at={sec(1.0)} size={50} color="#fff6ef" weight={600} font={F.body} style={{marginTop: 46}}>We buy the straw before it burns.</Line>
+    <Line at={sec(1.2)} size={50} color="#fff6ef" weight={600} font={F.body} style={{marginTop: 46}}>We buy the straw before it burns.</Line>
   </AbsoluteFill>
 );
 
 // 4. The product: the live booking, offer card then booked, cropped to the chat column.
 const Product: React.FC = () => {
   const f = useCurrentFrame();
-  const swap = sec(2.5);
+  const swap = sec(3.3);
   const a = interpolate(f, [swap - 6, swap], [1, 0], clamp);
   const b = interpolate(f, [swap, swap + 6], [0, 1], clamp);
   return (
     <AbsoluteFill style={{background: C.khaddar}}>
       <div style={{position: 'absolute', left: 60, top: 230, width: 960, height: 790, borderRadius: 26, overflow: 'hidden',
         boxShadow: '0 40px 80px -40px rgba(42,26,31,.55)', border: `1px solid ${C.line}`, background: '#fff'}}>
-        <OffthreadVideo src={staticFile('footage/s04_kisan_en.mp4')} muted playbackRate={1.6}
+        <OffthreadVideo src={staticFile('footage/s04_kisan_en.mp4')} muted playbackRate={1.25}
           style={{position: 'absolute', width: 1600 * 1.26, height: 900 * 1.26, left: -232 * 1.26, top: -150}} />
       </div>
       <div style={{position: 'absolute', left: 70, right: 70, top: 64, height: 150}}>
@@ -106,8 +106,8 @@ const Rule: React.FC = () => (
   <AbsoluteFill style={{background: C.khaddar, padding: 80, justifyContent: 'center', gap: 56}}>
     <Band top={0} />
     <Line at={4} size={96} color={C.madder}>Gemini only talks.</Line>
-    <Line at={sec(1.2)} size={96} color={C.ink}>Optimizers own every number.</Line>
-    <Line at={sec(1.9)} size={36} color={C.inkSoft} weight={500} font={F.body}>Code checks every reply before a farmer sees it.</Line>
+    <Line at={sec(1.4)} size={96} color={C.ink}>Optimizers own every number.</Line>
+    <Line at={sec(2.6)} size={36} color={C.inkSoft} weight={500} font={F.body}>Code checks every reply before a farmer sees it.</Line>
   </AbsoluteFill>
 );
 
@@ -132,7 +132,7 @@ const Proof: React.FC = () => (
   <AbsoluteFill style={{background: C.khaddar, padding: '70px 60px'}}>
     <Line at={2} size={52} color={C.ink}>Measured against real Gemini</Line>
     <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 26, marginTop: 44}}>
-      {STATS.map(([big, small], i) => <Tile key={big} at={8 + i * 9} big={big} small={small} />)}
+      {STATS.map(([big, small], i) => <Tile key={big} at={8 + i * 14} big={big} small={small} />)}
     </div>
   </AbsoluteFill>
 );
@@ -144,6 +144,7 @@ const Outro: React.FC = () => (
     <Line at={2} size={130} color={C.silkPale}>Parali Setu</Line>
     <Line at={8} size={36} color={C.silk} weight={700} style={{marginTop: 24}}>Google Cloud AI Builder Cup JAPAC 2026</Line>
     <Line at={14} size={34} color="#fff6ef" weight={500} font={F.body} style={{marginTop: 54}}>parali-setu-aibuildercup-2026.web.app</Line>
+    <Line at={sec(1.3)} size={34} color={C.silkPale} weight={600} font={F.body} style={{marginTop: 40}}>Built by Sainath Chakravadhanula & Navneet Kumar</Line>
   </AbsoluteFill>
 );
 
